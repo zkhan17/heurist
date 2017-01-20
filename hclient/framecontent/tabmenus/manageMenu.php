@@ -58,21 +58,21 @@ require_once(dirname(__FILE__)."/../initPage.php");
                         title="Create a new database on the current server - essential structure elements are populated automatically">
                         New</a>
                     </li>
-                    
+
                     <li class="admin-only">
                         <a href="admin/setup/dbproperties/editSysIdentificationAll.php" name="auto-popup" class="portrait h3link"
                             onclick= "{return false;}" data-logaction="dbProperties"
                             title="Edit the internal metadata describing the database and set some global behaviours. Recommended to provide a self-documenting database">
                             Properties</a>
                     </li>
-                    
+
                     <li class="admin-only">
                         <a href="admin/setup/dbproperties/registerDB.php" name="auto-popup" class="portrait h3link"
                             onclick= "{return false;}" data-logaction="dbRegister"
                             title="Register this database with the Heurist Master Index - this makes the structure (but not data) available for import by other databases">
                             Register</a>
                     </li>
-                    
+
                 </ul>
             </div>
         </div>
@@ -90,7 +90,7 @@ require_once(dirname(__FILE__)."/../initPage.php");
                             title="Visualise the internal connections between record types in the database and add connections (record pointers and relationshi markers) between them">
                             Visualise</a>
                     </li>
-                    
+
                     <li>
                         <a href="admin/structure/rectypes/manageRectypes.php" name="auto-popup" class="verylarge h3link refresh_structure "
                             onClick="{return false;}" id="linkEditRectypes" data-logaction="stManage"
@@ -124,7 +124,7 @@ require_once(dirname(__FILE__)."/../initPage.php");
                     -->
 
                     <li>
-                        <a id= "manage_terms" href="admin/structure/terms/editTerms.php?treetype=enum" 
+                        <a id= "manage_terms" href="admin/structure/terms/editTerms.php?treetype=enum"
                             data-logaction="stTerms"
                             name="auto-popup" class="verylarge h3link refresh_structure info_link"
 
@@ -149,13 +149,14 @@ require_once(dirname(__FILE__)."/../initPage.php");
                     </li>
 
                     <li id="menu-database-refresh">
-                        <a href="#" id="menulink-database-refresh"
+                        <a href="admin/verification/refresh.php" id="menulink-database-refresh" name="auto-popup" class="verylarge h3link"
                             data-logaction="stRefresh"
-                            onClick="{return false;}" data-nologin="1"
+                            onClick="{window.hWin.HEURIST4.util.reloadStrcuture(true);}"
                             title="Clear and reload Heurist's internal working memory in your browser. Use this to correct dropdowns etc. if recent additions and changes do not show.">
                             Refresh</a>
                     </li>
-                    
+
+
                     <!--
                     <li><a href="javascript:void(0)"
                     onClick="{/*window.hWin.HEURIST4.util.reloadStrcuture()*/;}"
@@ -215,7 +216,7 @@ require_once(dirname(__FILE__)."/../initPage.php");
                             Export to tDAR repository</a>
                     </li>
                     -->
-                    
+
                 </ul>
             </div>
         </div>

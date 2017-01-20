@@ -306,7 +306,7 @@ function hAPI(_db, _oninit) { //, _currentUser
                 var request = {a:'usr_log', activity:activity, suplementary:suplementary};
                 _callserver('usr_info', request);
             }
-            
+
             /**
             * Save user personal info/register new user
             * @param request - object - user info
@@ -394,8 +394,8 @@ function hAPI(_db, _oninit) { //, _currentUser
                         if(window.hWin.HEURIST && window.hWin.HEURIST.rectypes){
                             window.hWin.HEURIST.util.reloadStrcuture( is_message ); //relaod H3 structure
                         }else if (is_message==true) {
-                            window.hWin.HEURIST4.msg.showMsgDlg('Database structure definitions in browser memory have been refreshed.<br>'+
-                                'You may need to reload pages to see changes.');
+                           // window.hWin.HEURIST4.msg.showMsgDlg('Database structure definitions in browser memory have been refreshed.<br>'+
+                              //  'You may need to reload pages to see changes.');
                         }
 
                         $(document).trigger(window.hWin.HAPI4.Event.ON_STRUCTURE_CHANGE);
@@ -901,7 +901,7 @@ function hAPI(_db, _oninit) { //, _currentUser
                 that.currentUser['ugr_Preferences'] = {layout_language:'en',
                                          layout_theme: 'heurist',
                 search_result_pagesize:100,
-                search_detail_limit: 2000, 'help_on':'0', 
+                search_detail_limit: 2000, 'help_on':'0',
                 userCompetencyLevel: 'beginner'};
             }
             if(window.hWin.HEURIST4.util.isempty(name)){

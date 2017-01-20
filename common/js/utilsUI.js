@@ -22,14 +22,14 @@
 * @author      Tom Murtagh
 * @author      Kim Jackson
 * @author      Ian Johnson   <ian.johnson@sydney.edu.au>
-* @author      Stephen White   
+* @author      Stephen White
 * @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
 * @copyright   (C) 2005-2016 University of Sydney
 * @link        http://HeuristNetwork.org
 * @version     3.1.0
 * @license     http://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
 * @package     Heurist academic knowledge management system
-* @subpackage  Common 
+* @subpackage  Common
 */
 
 window.hWin = detectHeurist(window);
@@ -149,8 +149,8 @@ if (! top.HEURIST.util) top.HEURIST.util = {
 * @type Object
 */
     popups: { list: [] },
-    
-    
+
+
 /**
 * Make a new Heurist-managed popup window.
 * parentWindow is the frame that the window should think opened it,
@@ -456,9 +456,9 @@ if (! top.HEURIST.util) top.HEURIST.util = {
     * @see popupWindow()
     */
     popupURL: function(parentWindow, url, options) {
-        
+
         if(typeof jQuery == "undefined" || !hasH4()){
-            
+
             if (! options) {
                 options = { "url": url };
             } else {
@@ -466,7 +466,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
             }
 
             return top.HEURIST.util.popupWindow(parentWindow, options);
-            
+
         }else{
             return window.hWin.HEURIST4.msg.showDialog(url, options);
         }
@@ -486,7 +486,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
         }else{
             options["element"] = element;
         }
-        
+
         if(typeof jQuery == "undefined" || !hasH4()){
             return top.HEURIST.util.popupWindow(parentWindow, options);
         }else{
@@ -1216,7 +1216,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
         // if we don't have a fully formed or root URL then prepend the base path
         if ( !(url.match(/^http:/) || url.match(/^https:/))  &&  ! url.match(/^\//))
             url = top.HEURIST.baseURL_V3 + url;
-            
+
         var file = url;
         var req = top.HEURIST.util.createXMLHTTPObject();
         if (!req) return;
@@ -1229,7 +1229,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
             if (req.readyState != 4) return;
             var msg = '';
             if (req.status != 200 && req.status != 304) {
-                
+
                 if (req.status == 404) {
                     msg = 'H-Util HTTP error file not found' + req.status + ' ' +file;
                 }else if (req.status){
@@ -1241,15 +1241,15 @@ if (! top.HEURIST.util) top.HEURIST.util = {
                     }
                         msg = msg +'If this error pops up repeatedly, please send a bug report (Help > Bug report) or email the Heurist developers (info at HeuristNetwork dot org) and tell us where it occurs.';
                 }
-                
+
                 if(msg){
                     if(hasH4()){
-                        window.hWin.HEURIST4.msg.showMsgErr(msg);                           
+                        window.hWin.HEURIST4.msg.showMsgErr(msg);
                     }else{
                         top.HEURIST.util.showError(msg);
                     }
                 }
-                
+
                 return;
             }
             callback(req);
@@ -1328,7 +1328,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
 */
     getJsonData: function(url, callback, postData) {
         top.HEURIST.util.sendRequest(url, function(xhr) {
-            
+
                 if(xhr.responseText==""){
                     top.HEURIST.util.showError("No response from server at "+url+", please try again later");
                     obj = null;
@@ -1368,12 +1368,12 @@ if (! top.HEURIST.util) top.HEURIST.util = {
                 top.HEURIST.terms = context.terms;
 
                 if(is_message==true){
-                    var sMsg = 'Database structure definitions in browser memory have been refreshed. <br/>'+
+                  //  var sMsg = 'Database structure definitions in browser memory have been refreshed. <br/>'+
                             'You may need to reload pages to see changes.';
                     if(hasH4()){
                         window.hWin.HEURIST4.msg.showMsgDlg(sMsg);
                     }else{
-                        alert(sMsg);
+                     //   alert(sMsg);
                     }
                 }
             }
@@ -1642,7 +1642,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
             var alts_1 = { "hide": "Show Help", "show": "Hide Help"};
 
             if($(helpDiv).attr('type') == 'checkbox'){
-                
+
                 $(helpDiv).attr('checked', (helpStatus=="show"));
                 $(helpDiv).attr('title', alts_2[helpStatus]);
             }else{
@@ -1653,8 +1653,8 @@ if (! top.HEURIST.util) top.HEURIST.util = {
 
         //init class for body element
         top.HEURIST.util.setDisplayPreference("help", helpStatus);
-        
-        return helpStatus; 
+
+        return helpStatus;
     },
 /**
 * toggle help event Handler
@@ -1758,7 +1758,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
     createTermSelectExt: function(termIDTree, disabledTermIDsList, datatype, defaultTermID, isAddFirstEmpty) { // Creates the preview
 
         var selObj = document.createElement("select");
-        
+
         var hasTermImage = false;
 
         if(datatype === "relmarker" || datatype === "relationtype"){
@@ -1774,15 +1774,15 @@ if (! top.HEURIST.util) top.HEURIST.util = {
                 disabledTermIDsList.split(","):
                 []));
         var isNotFirefox = (navigator.userAgent.indexOf('Firefox')<0);
-        
+
         //this is vocabulary id - show list of all terms for this vocab
         if(!isNaN(Number(termIDTree))){
-            
+
             var vocabId = Number(termIDTree);
             if(vocabId<0){
                 top.HEURIST.util.addoption(selObj, '', 'No terms defined - please use Manage Structure to fix');
             }else{
-            
+
                 var tree = top.HEURIST.terms.treesByDomain[datatype];
                 termIDTree = (vocabId==0)?tree:tree[vocabId];
                 if (top.HEURIST.util.isEmptyVar(termIDTree)) {
@@ -1790,8 +1790,8 @@ if (! top.HEURIST.util) top.HEURIST.util = {
                   label.innerHTML = " no terms available ";
                   return label;
                 }
-                
-                if(vocabId==0){ //specific 
+
+                if(vocabId==0){ //specific
                     temp = [];
                     for(termID in termIDTree){
                         if(termID){
@@ -1800,13 +1800,13 @@ if (! top.HEURIST.util) top.HEURIST.util = {
                     }
                 }
             }
-           
+
         }
-        
+
         var disabledTerms = {};
         for (var id in temp) {
             disabledTerms[temp[id]] = temp[id];
-        }        
+        }
 
         function createSubTreeOptions(optgroup, depth, termSubTree, termLookupInner, defaultTermID) {
             var termID;
@@ -1815,7 +1815,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
             termCode,
             arrterm = [];
 
-            
+
             function getFullTermLabel(term, domain, withVocab){
 
                 var fi = top.HEURIST.terms['fieldNamesToIndex'];// .treesByDomain[datatype];
@@ -1832,15 +1832,15 @@ if (! top.HEURIST.util) top.HEURIST.util = {
                                 return term[ fi['trm_Label']];
                             }
                         }
-                        
-                        parent_label = getFullTermLabel(term_parent, domain, withVocab);    
+
+                        parent_label = getFullTermLabel(term_parent, domain, withVocab);
                         if(parent_label) parent_label = parent_label + '.';
-                    }    
+                    }
                 }
                 return parent_label + term[ fi['trm_Label']];
             }
-            
-            
+
+
             for(termID in termSubTree) { // For every term in 'term'
                 termName = "";
                 termCode = "";
@@ -1853,7 +1853,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
                     }
                     termCode = localLookup[termID][top.HEURIST.terms.fieldNamesToIndex['trm_Code']];
                     hasImage = localLookup[termID][top.HEURIST.terms.fieldNamesToIndex['trm_Image']];
-                    
+
 
                     if(top.HEURIST.util.isempty(termCode)){
                         termCode = '';
@@ -1915,7 +1915,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
                         termName == defaultTermID) {
                         opt.selected = true;
                     }
-                    
+
                     if(!isDisabled){
                         hasTermImage = hasTermImage || hasImage;
                     }
@@ -1944,8 +1944,8 @@ if (! top.HEURIST.util) top.HEURIST.util = {
         if(hasTermImage){
             selObj['data-images'] = 'hasImages';
         }
-        
-        
+
+
         return selObj;
     },
 
@@ -1967,14 +1967,14 @@ if (! top.HEURIST.util) top.HEURIST.util = {
       }
       return (obj.toString()).length == 0;
     },
-    
+
     isNumber: function (n) {
         //return typeof n === 'number' && isFinite(n);
         return !isNaN(parseFloat(n)) && isFinite(n);
     },
 
     validateName: function(name, lbl){
-      
+
             var swarn = "";
             var regex = /[\[\].\$]+/;
             var name = name.toLowerCase();
@@ -1985,7 +1985,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
             }
             return swarn;
     },
-    
+
     //validate numeric
     validate: function(evt) {
         var theEvent = evt || window.event;
@@ -2034,14 +2034,14 @@ if (! top.HEURIST.util) top.HEURIST.util = {
         if(hasH4()){
             window.hWin.HEURIST4.msg.showMsgErr(msg);
         }else{
-            alert(msg);    
+            alert(msg);
         }
     },
     showMessage: function(msg){
         if(hasH4()){
             window.hWin.HEURIST4.msg.showMsgDlg(msg);
         }else{
-            alert(msg);    
+            alert(msg);
         }
     },
 
@@ -2242,7 +2242,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
         }
 
     },
-    
+
     getRectypeName: function(recTypeID)
     {
         if(recTypeID && top.HEURIST.rectypes && top.HEURIST.rectypes.names[recTypeID]){
@@ -2252,7 +2252,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
         }
 
     },
-    
+
 /**
 * TODO: Artem to doc where this comes from
 *
@@ -2352,7 +2352,7 @@ if (! top.HEURIST.util) top.HEURIST.util = {
           }
           return (iCaretPos);
     },
-    
+
     //count UTF-8 bytes of a string
     byteLengthOf: function (s){
         //assuming the String is UCS-2(aka UTF-16) encoded
@@ -2382,13 +2382,13 @@ if (! top.HEURIST.util) top.HEURIST.util = {
         }
         return n;
     },
-    
+
     byteLengthOf2: function(text){
         return encodeURIComponent(text).replace(/%[A-F\d]{2}/g, 'U').length;
         //return (unescape(encodeURIComponent(s).length);
-        
+
     },
-    
+
     cleanFilename: function(filename) {
         filename = filename.replace(/\s+/gi, '-'); // Replace white space with dash
         filename= filename.split(/[^a-zA-Z0-9\-\_\.]/gi).join('_');
@@ -2452,11 +2452,11 @@ if(document.getElementById) {
 * @param args
 */
 function createCustomAlert(txt,args) {
-    
-    
+
+
         if(typeof jQuery == "undefined" || !hasH4()){
-            
-            
+
+
     // shortcut reference to the document object
     d = document;
 
@@ -2488,11 +2488,11 @@ function createCustomAlert(txt,args) {
         //if (args = "map") _tabView.set('activeIndex', 0);
         removeCustomAlert();
         return ; }
-        
+
         }else{
             window.hWin.HEURIST4.msg.showMsgDlg(txt, null, ""); // removed "Info" title - inelegant and not useful
         }
-        
+
 }
 
 // removes the custom alert from the DOM
@@ -2517,9 +2517,9 @@ function detectHeurist(win){
     }catch(e){
         // not accessible - this is cross domain
         return win;
-    }    
-    if (win.top == win.self) { 
-        //we are in frame and this is top most window and Heurist is not defined 
+    }
+    if (win.top == win.self) {
+        //we are in frame and this is top most window and Heurist is not defined
         //lets current window will be heurist window
         return window;
     }else{
