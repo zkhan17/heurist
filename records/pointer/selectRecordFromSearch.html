@@ -28,6 +28,8 @@
     <head>
         <link rel=stylesheet href="../../common/css/global.css">
         <link rel=stylesheet href="../../common/css/edit.css">
+        <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+
         <title>Select record ...</title>
         <style>
             /* sets position of the grey section relative to top of popup - alter in sync with position of top of results*/
@@ -39,7 +41,11 @@
             .result_row .id{width:10ex;display:inline-block;text-align: right;color:#999;}
             .result_row img{margin:0 8px;}
             div.result_row:hover{cursor: pointer;}
+
         </style>
+        <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+        <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
     </head>
     <body class="popup" width="650">
         <script src="../../common/js/utilsLoad.js"></script>
@@ -81,25 +87,25 @@
                         </td>
                         <td style="width: 140px;" title="Restrict search to this record type">
                             in <select id="t" name="t" style="width: 90%;"
-                            onChange="onSelectRecordtype(true)"></select>
+                                onChange="changeOption(true, false);onSelectRecordtype(true);"></select>
                         </td>
                         <td style="width: 80px; padding: 10 5px;">
                             <div class="radio" style="white-space:nowrap;">
                                 <label for=r-all>
                                     <input type=radio name=r id=r-all value=all
-                                    onChange="document.forms[0].submit('r-all')"> all records
+                                        onChange="document.forms[0].submit('r-all')"> all records
                                 </label>
                             </div>
                             <div class="radio" style="white-space:nowrap;">
                                 <label for=r-recent-search>
                                     <input type=radio name=r id=r-recent-search value=recent-search
-                                    onChange="document.forms[0].submit('r-recent-search')"> recently selected
+                                        onChange="document.forms[0].submit('r-recent-search')"> recently selected
                                 </label>
                             </div>
                             <div class="radio" style="white-space:nowrap;">
                                 <label for=r-recent>
                                     <input type=radio name=r id=r-recent value=recent
-                                    onChange="document.forms[0].submit('r-recent')"> recently added
+                                        onChange="document.forms[0].submit('r-recent')"> recently added
                                 </label>
                             </div>
                         </td>
@@ -107,12 +113,20 @@
                     <tr>
                         <td colspan="5" rowspan="1" style="padding-top: 0px; padding-left: 30px;">
                             <b>or</b> &nbsp;&nbsp;&nbsp;
-                            <a href="#" style="border: 3px; border-style: outset; border-color: black;"
+
+                            <img src="../../common/images/add-record-small.png" style="border: 1px;"
+                                title="Create and edit a new record, which will become the target of the pointer field" onclick="return addRecord()"/>
+                            <select id="r" name="r" style="border: 3px; border-style: outset; border-color: black;"
+                                onChange="changeOption(false, true);"></select>
+
+
+                            <!-- <a href="#" style="border: 3px; border-style: outset; border-color: black;"
                             id="btn_CreateNewRecord"
                             title="Create and edit a new record, which will become the target of the pointer field"
                             onClick=" return addRecord();">
-                            <img src="../../common/images/add-record-small.png" style="border: 1px;"/>
-                            <b>Create a new record</b></a>
+
+
+                            <b>Create a new record</b></a> -->
                             &nbsp;&nbsp;<i>Record becomes target of current pointer field</i>
                         </td>
                     </tr>
@@ -128,9 +142,10 @@
         </form>
 
         <script language="JavaScript">
+
             // parse the parameter line for input parameters t = constrained type list and q = title of the record pointed to.
             window.HEURIST.parameters = top.HEURIST.parseParams(window.location.search);
-            
+
             var parentOwnership = window.HEURIST.parameters["ownership"];
             var parentVisibility = window.HEURIST.parameters["visibility"];
 
@@ -168,31 +183,67 @@
             if (recTypeName) {
                 document.title = "Select / create: " + recTypeName;
             }
-            
+
             function onSelectRecordtype(is_submit){
-                if(is_submit) document.forms[0].submit('record-search-type');    
+                if(is_submit) document.forms[0].submit('record-search-type');
                 var rt_name = top.HEURIST.rectypes.names[document.getElementById('t').value];
                 if(!rt_name) rt_name = 'a new record';
-                document.getElementById('btn_CreateNewRecord').innerHTML = 
-                    '&nbsp;<img src="../../common/images/add-record-small.png" style="border: 1px;"/>'
-                    +'&nbsp;<b>Create new '+rt_name+'</b>';
+                var select = document.getElementById('r');
+
+                if (select.options.length==0){
+                    $("#t option" ).each(function(){
+                        //tElt.appendChild(new Option(name, recTypeID));
+                        //alert($(this).val());
+                        $(select).append('<option data-class ="ui-icon.record" value=' +
+                            top.HEURIST.rectypes.names[$(this).val()]+'>'
+                            + 'Create new '
+                            + top.HEURIST.rectypes.names[$(this).val()]+ '</option>');
+                    });
+                }
+
+                // <img src="../../common/images/add-record-small.png" style="border: 1px;"/>
+                //$(select).val(rt_name);
+                //document.getElementById('btn_CreateNewRecord').innerHTML =
+                // '&nbsp;<img src="../../common/images/add-record-small.png" style="border: 1px;"/>'
+                // +'&nbsp;<b>Create new '+rt_name+'</b>';
             }
+            function changeOption(first_filter, second_filter)
+            {
+                if(first_filter)
+                {
+                    var select = document.getElementById('t');
+                    var index =select.selectedIndex;
+                    var _select = document.getElementById('r')
+                    _select.selectedIndex = index;
+                }
+
+                else if(second_filter)
+                {
+                    var select = document.getElementById('r');
+                    var index =select.selectedIndex;
+                    var _select = document.getElementById('t')
+                    _select.selectedIndex = index;
+                    //addRecord();
+                }
+            }
+
+
 
             /*
             *
             */
             function addRecord(){
-                
+
                 var recTypeId = document.getElementById('t').value;
 
                 //was  getRectypeIconAndName
                 var title = "Add new record "+top.HEURIST.util.getRectypeName(recTypeId);
-                
+
                 /*
                 top.HEURIST.util.getRectypeIconAndName(recTypeId);
                 var forrectype = top.HEURIST.util.getRectypeIconAndName(window.HEURIST.parameters["target_recordtype"]);
                 if(forrectype){
-                    title = title + " for " + forrectype;
+                title = title + " for " + forrectype;
                 }
                 */
                 var _db = (window.HEURIST && window.HEURIST.parameters && window.HEURIST.parameters.db ? window.HEURIST.parameters.db :
@@ -202,8 +253,8 @@
                 top.HEURIST.util.popupURL(window, top.HEURIST.baseURL_V3 +'records/add/formAddRecordPopup.html?fromadd=new_bib&rectype='+
                     recTypeId+
                     '&title='+document.getElementById('q').value+	// q is a string to match against rectitle so let's start with this in the title field
-                    '&db='+ _db + 
-                    (parentOwnership? "&ownership="+parentOwnership : "") + 
+                    '&db='+ _db +
+                    (parentOwnership? "&ownership="+parentOwnership : "") +
                     (parentVisibility? "&visibility="+parentVisibility : ""),
                     {	title: title,
                         callback: function(title, bd, bibID) {
@@ -353,8 +404,8 @@
                 var searchScope = top.HEURIST.util.getDisplayPreference("record-search-scope");
                 var lastSelected = top.HEURIST.util.getDisplayPreference("record-search-last");
                 var lastSearchType = window.HEURIST.parameters["deft"]
-                            ?window.HEURIST.parameters["deft"]
-                            :top.HEURIST.util.getDisplayPreference("record-search-type");
+                ?window.HEURIST.parameters["deft"]
+                :top.HEURIST.util.getDisplayPreference("record-search-type");
                 var rectypeIDList = [];
                 //set focus
                 window.setTimeout(function() {
@@ -445,7 +496,7 @@
                     }
                     document.getElementById(searchScope).checked = true;
                 }
-                
+
                 onSelectRecordtype(true);
                 //document.forms[0].submit();
 
