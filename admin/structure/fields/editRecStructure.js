@@ -45,7 +45,7 @@ function EditRecStructure() {
 
     var _className = "EditRecStructure",
     _myDataTable,
-     _actionInProgress = false,
+    _actionInProgress = false,
     rty_ID,
     _isDragEnabled = false,
     _updatedDetails = [], //list of dty_ID that were affected with edition
@@ -59,38 +59,39 @@ function EditRecStructure() {
     db,
     warningPopupID = null,
     _structureWasUpdated = false;
-    
+    _changeClicked = true;
+
     // buttons on top and bottom of design tab
     var hToolBar = '<div style=\"display:none;\">'+
-        //<div style="display:inline-block; text-align:left">
-        //'<input type="button" value="collapse all" onclick="onCollapseAll()"/>'+
-        //'<input type="button" value="Enable Drag" onclick="onToggleDrag(event)"/></div>'+
+    //<div style="display:inline-block; text-align:left">
+    //'<input type="button" value="collapse all" onclick="onCollapseAll()"/>'+
+    //'<input type="button" value="Enable Drag" onclick="onToggleDrag(event)"/></div>'+
 
-        '<input style="visibility:hidden ;width:0; color:red;" type="button" id="btnSaveOrder" value="Save order" onclick="onUpdateStructureOnServer(false)"/>'+
+    '<input style="visibility:hidden ;width:0; color:red;" type="button" id="btnSaveOrder" value="Save order" onclick="onUpdateStructureOnServer(false)"/>'+
 
-        '<input type="button" style="visibility:hidden; width:0;" value="Define New Base Field Type" onClick="onDefineNewType()" '+
-        'title="Add a new base field type which can be used by all record types - use an existing field (Add Field) if a suitable one exists" class="add"/>'+
+    '<input type="button" style="visibility:hidden; width:0;" value="Define New Base Field Type" onClick="onDefineNewType()" '+
+    'title="Add a new base field type which can be used by all record types - use an existing field (Add Field) if a suitable one exists" class="add"/>'+
 
-        '<input type="button" style="visibility:hidden; width:0;" value="Add Section" onClick="onAddSeparator()" '+
-        'title="Add a new section heading, to break the data entry form up into groups of related fields. Heading is inserted at bottom, drag up into required position." class="add"/>'+
-        '</div>'+
+    '<input type="button" style="visibility:hidden; width:0;" value="Add Section" onClick="onAddSeparator()" '+
+    'title="Add a new section heading, to break the data entry form up into groups of related fields. Heading is inserted at bottom, drag up into required position." class="add"/>'+
+    '</div>'+
 
-        '<span style="float:right; text-align:right;">'+ 
-        '<span id="div_rty_ID" style="font-size:11px;font-weight:normal;"></span>&nbsp;'+
-        '<span id="div_rty_ConceptID" style="font-size:11px;font-weight:normal;"></span>&nbsp;&nbsp;'+
-        '<a href="#" onclick="{onEditRecordType();}">edit general description<img src="../../../common/images/edit-pencil.png" width="16" height="16" border="0" title="Edit" /></a>&nbsp;&nbsp;'+
-        '<a href="#" onclick="{editStructure.doEditTitleMask(false);}">edit title mask<img src="../../../common/images/edit-pencil.png" width="16" height="16" border="0" title="Edit" /></a>&nbsp;&nbsp;&nbsp;&nbsp;'+
-        '<input type="button" value="Save/Close" onClick="editStructure.closeWin();"/>'+
-        '</span>'+
-        
-        '<div  id="recStructure_toolbar" style=\"text-align:right;float:right;display:none;\">'+
-        '<input id="btn_addfield" type="button" style="margin:0 5px" value="Add field" onclick="onAddNewDetail()" '+
-        'title="Insert an existing field into the data entry form for this record type" class="add"/>'+
-        // note class=add --> global.css add-button, is set to float:right, but class adds the + to the button      ; margin:0 5px
-        // Removed Ian 8/10/12, moved to within insertion of existing fields to encourge re-use
-        // '<input type="button" value="Save" onclick="onUpdateStructureOnServer(true)"/>'+
-        //'Add existing fields where possible &nbsp;&nbsp; '+
-        '</div>';    
+    '<span style="float:right; text-align:right;">'+
+    '<span id="div_rty_ID" style="font-size:11px;font-weight:normal;"></span>&nbsp;'+
+    '<span id="div_rty_ConceptID" style="font-size:11px;font-weight:normal;"></span>&nbsp;&nbsp;'+
+    '<a href="#" onclick="{onEditRecordType();}">edit general description<img src="../../../common/images/edit-pencil.png" width="16" height="16" border="0" title="Edit" /></a>&nbsp;&nbsp;'+
+    '<a href="#" onclick="{editStructure.doEditTitleMask(false);}">edit title mask<img src="../../../common/images/edit-pencil.png" width="16" height="16" border="0" title="Edit" /></a>&nbsp;&nbsp;&nbsp;&nbsp;'+
+    '<input type="button" value="Save/Close" onClick="editStructure.closeWin();"/>'+
+    '</span>'+
+
+    '<div  id="recStructure_toolbar" style=\"text-align:right;float:right;display:none;\">'+
+    '<input id="btn_addfield" type="button" style="margin:0 5px" value="Add field" onclick="onAddNewDetail()" '+
+    'title="Insert an existing field into the data entry form for this record type" class="add"/>'+
+    // note class=add --> global.css add-button, is set to float:right, but class adds the + to the button      ; margin:0 5px
+    // Removed Ian 8/10/12, moved to within insertion of existing fields to encourge re-use
+    // '<input type="button" value="Save" onclick="onUpdateStructureOnServer(true)"/>'+
+    //'Add existing fields where possible &nbsp;&nbsp; '+
+    '</div>';
 
     /**
     * Initialization of input form
@@ -98,7 +99,7 @@ function EditRecStructure() {
     * Reads GET parameters, creates TabView and triggers init of first tab
     */
     function _init() {
-        
+
         if(!top.HEURIST.rectypes && window.hWin && window.hWin.HEURIST4){
             top.HEURIST.rectypes = window.hWin.HEURIST4.rectypes;
             top.HEURIST.detailTypes = window.hWin.HEURIST4.detailtypes;
@@ -114,7 +115,7 @@ function EditRecStructure() {
             rty_ID = window.HEURIST.parameters.rty_ID;
         }
         _refreshTitleAndIcon();
-        
+
         Dom.get("modelTabs").innerHTML = '<div id="tabDesign"><div id="tableContainer"></div></div>';
         _initTabDesign(null);
     }
@@ -172,17 +173,17 @@ function EditRecStructure() {
 
                     var fieldType = top.HEURIST.detailTypes.typedefs[rst_ID].commonFields[top.HEURIST.detailTypes.typedefs.fieldNamesToIndex.dty_Type];
                     var conceptCode = top.HEURIST.detailTypes.typedefs[rst_ID].commonFields[top.HEURIST.detailTypes.typedefs.fieldNamesToIndex.dty_ConceptID];
-                    
+
                     //get rid of garbage help text
                     if (aval[fi.rst_DisplayHelpText]!='' &&
-                       (aval[fi.rst_DisplayHelpText]=='Please rename to an appropriate heading within each record structure' || 
-                        aval[fi.rst_DisplayHelpText].indexOf('Please document the nature of this detail type')==0 ||
-                        aval[fi.rst_DisplayHelpText]=='Another separator field' ||
-                        aval[fi.rst_DisplayHelpText]=='Headings serve to break the data entry form up into sections')){
-                            
+                        (aval[fi.rst_DisplayHelpText]=='Please rename to an appropriate heading within each record structure' ||
+                            aval[fi.rst_DisplayHelpText].indexOf('Please document the nature of this detail type')==0 ||
+                            aval[fi.rst_DisplayHelpText]=='Another separator field' ||
+                            aval[fi.rst_DisplayHelpText]=='Headings serve to break the data entry form up into sections')){
+
                         aval[fi.rst_DisplayHelpText]='';
                     }
-                    
+
 
                     arr.push([ rst_ID,
                         rst_ID,
@@ -265,15 +266,15 @@ function EditRecStructure() {
                     hidden: false, //width : "16px",
                     sortable:false,
                     formatter: function(elLiner, oRecord, oColumn, oData){
-                        elLiner.innerHTML = '<img src="../../../common/images/edit-recType.png" width="16" height="16" border="0" title="Edit" />'; 
-                        
+                        elLiner.innerHTML = '<img src="../../../common/images/edit-recType.png" width="16" height="16" border="0" title="Edit" />';
+
                         var cell_element = elLiner.parentNode;
 
                         //Set trigger
                         if( oData ){ //Row is closed
                             Dom.addClass( cell_element, "yui-dt-expandablerow-trigger" );
                         }
-                        
+
                     }
                     //expansionFormatter
                 },
@@ -382,8 +383,8 @@ function EditRecStructure() {
                         var status = oRecord.getData('rst_Status');
                         var isRequired = (oRecord.getData('rst_RequirementType')==='required');
                         if ( (_isReserved && isRequired) || status === "reserved"){ // || status === "approved"
-                            statusLock  = '<img src="../../../common/images/lock_bw.png" '+
-                            'title="This field is locked against deletion due to its status value" />';
+                            statusLock  ='<a href="#delete"><img src="../../../common/images/cross.png" width="12" height="12" border="0" '+
+                            'title="Click to remove field from this record type" /><\/a>';
                         }else{
                             statusLock = '<a href="#delete"><img src="../../../common/images/cross.png" width="12" height="12" border="0" '+
                             'title="Click to remove field from this record type" /><\/a>';
@@ -422,15 +423,15 @@ function EditRecStructure() {
                     function ( obj ) {
                         var rst_ID = obj.data.getData('rst_ID');
                         //var rst_values = obj.data.getData('rst_values');
-                        
+
                         var fieldType = top.HEURIST.detailTypes.typedefs[rst_ID].commonFields[top.HEURIST.detailTypes.typedefs.fieldNamesToIndex.dty_Type];
                         var allowEditBaseFieldType = (fieldType=='enum' || fieldType=='resource' || fieldType=='relmarker' || fieldType=='relationtype');
                         var allowIncrement = (fieldType=='freetext') || (fieldType=='integer') || (fieldType=='float');
-                        
+
                         var incrementTip = (fieldType=='freetext')
-                                    ?'The default value supplied for new records will be the last value entered for the field with any integer at the end of that value incremented by 1, or the last value entered with 1 appended if the last character is not a numeral'
-                                    :'The default value supplied for new records will be the largest numeric value for this field + 1';
-                        
+                        ?'The default value supplied for new records will be the last value entered for the field with any integer at the end of that value incremented by 1, or the last value entered with 1 appended if the last character is not a numeral'
+                        :'The default value supplied for new records will be the largest numeric value for this field + 1';
+
                         /*
                         THIS IS FORM to edit detail structure. It is located on expandable row of table
                         */
@@ -464,7 +465,7 @@ function EditRecStructure() {
                         '<option value="optional">optional</option>'+
                         '<option value="forbidden">forbidden</option></select>'+
 
-                        
+
                         // Default value
                         /*
                         '<div class="input-row"><div class="input-header-cell">Default Value:</div><div class="input-cell">'+
@@ -473,19 +474,19 @@ function EditRecStructure() {
                         '</div></div>'+
                         */
                         ((allowIncrement)
-                        ?'<span style="padding-left:50px">'+
-                        '<input type="radio" id="incValue_'+rst_ID+'_1" name="incValue_'+rst_ID+'" value="0" checked onchange="onIncrementModeChange('+rst_ID+')">'+
-                        '<label style="min-width: 60px;width: 60px;" for="incValue_'+rst_ID+'_1">Default&nbsp;Value:</label>'+
-                        '<div id="termsDefault_'+rst_ID+'" style="display:inline-block;padding-right:1em"><input id="ed'+rst_ID+'_rst_DefaultValue" title="Select or enter the default value to be inserted automatically into new records"/></div>'+
-                        '<input type="radio" id="incValue_'+rst_ID+'_2" name="incValue_'+rst_ID+'" value="1"  title="'+incrementTip+'" onchange="onIncrementModeChange('+rst_ID+')">'+
-                        '<label  style="min-width: 120px;width: 120px;" for="incValue_'+rst_ID+'_2" title="'+incrementTip+'">Increament value by 1</label>'+
-                        '</span>'
-                        :'<div style="padding-left:50px;display:inline-block">'+
-                        '<label class="input-header-cell" for="ed'+rst_ID+'_rst_DefaultValue">Default&nbsp;Value:</label>'+
-                        '<div id="termsDefault_'+rst_ID+'" style="display:inline-block;"><input id="ed'+rst_ID+'_rst_DefaultValue" title="Select or enter the default value to be inserted automatically into new records"/>'+
-                        ((fieldType=='date')?'<br><span class="prompt">yesterday, today, tomorrow, now, specific date</span>':'')+
-                        '</div>'+
-                        '</div>')+
+                            ?'<span style="padding-left:50px">'+
+                            '<input type="radio" id="incValue_'+rst_ID+'_1" name="incValue_'+rst_ID+'" value="0" checked onchange="onIncrementModeChange('+rst_ID+')">'+
+                            '<label style="min-width: 60px;width: 60px;" for="incValue_'+rst_ID+'_1">Default&nbsp;Value:</label>'+
+                            '<div id="termsDefault_'+rst_ID+'" style="display:inline-block;padding-right:1em"><input id="ed'+rst_ID+'_rst_DefaultValue" title="Select or enter the default value to be inserted automatically into new records"/></div>'+
+                            '<input type="radio" id="incValue_'+rst_ID+'_2" name="incValue_'+rst_ID+'" value="1"  title="'+incrementTip+'" onchange="onIncrementModeChange('+rst_ID+')">'+
+                            '<label  style="min-width: 120px;width: 120px;" for="incValue_'+rst_ID+'_2" title="'+incrementTip+'">Increament value by 1</label>'+
+                            '</span>'
+                            :'<div style="padding-left:50px;display:inline-block">'+
+                            '<label class="input-header-cell" for="ed'+rst_ID+'_rst_DefaultValue">Default&nbsp;Value:</label>'+
+                            '<div id="termsDefault_'+rst_ID+'" style="display:inline-block;"><input id="ed'+rst_ID+'_rst_DefaultValue" title="Select or enter the default value to be inserted automatically into new records"/>'+
+                            ((fieldType=='date')?'<br><span class="prompt">yesterday, today, tomorrow, now, specific date</span>':'')+
+                            '</div>'+
+                            '</div>')+
 
                         // Minimum values
                         '<span id="ed'+rst_ID+'_spanMinValue" style="display:none;"><label class="input-header-cell">Minimum&nbsp;values:</label>'+
@@ -493,7 +494,7 @@ function EditRecStructure() {
                         '_rst_MinValues" title="Minimum number of values which are required in data entry" style="width:20px" size="2" '+
                         'onblur="onRepeatValueChange(event)" onkeypress="Hul.validate(event)"/></span>'+
                         '</div></div>'+
-                        
+
                         // Repeatability
                         '<div class="input-row" id="divRepeatability'+rst_ID+'">'+
                         '<div class="input-header-cell">Repeatability :</div>'+
@@ -532,11 +533,11 @@ function EditRecStructure() {
                         // Base field definitions  (button)
                         '<div>'+
                         '<div style="margin-left:190px; padding-top:5px; padding-bottom:15px;">'+
-                        
+
                         (allowEditBaseFieldType?
-                        '<input style="margin-right:100px;" id="btnEdit_'+rst_ID+'" type="button" value="Edit Base Field Definition" '+
-                        'title="Allows modification of the underlying field definition (shared by all record types that use this base field)"'+
-                        ' onclick="_onAddEditFieldType('+rst_ID+','+rty_ID+');">':'<span style="margin-right:220px;">&nbsp;</span>')+
+                            '<input style="margin-right:100px;" id="btnEdit_'+rst_ID+'" type="button" value="Edit Base Field Definition" '+
+                            'title="Allows modification of the underlying field definition (shared by all record types that use this base field)"'+
+                            ' onclick="_onAddEditFieldType('+rst_ID+','+rty_ID+');">':'<span style="margin-right:220px;">&nbsp;</span>')+
 
                         // Save and cancel (buttons)
                         '<input style="margin-right:20px;" id="btnSave_'+rst_ID+'" type="button" value="Save"'+
@@ -588,16 +589,18 @@ function EditRecStructure() {
             _actionInProgress = false;
 
             _myDataTable.subscribe( 'cellClickEvent', onCellClickEventHandler );
-            
+
 
             //
             // Subscribe to a click event on delete image
             //
             _myDataTable.subscribe('linkClickEvent', function(oArgs){
 
-                if(!Hul.isnull(popupSelect) || _isServerOperationInProgress) { 
+
+
+                if(!Hul.isnull(popupSelect) || _isServerOperationInProgress) {
                     console.log('popup or action-in-progress');
-                    return; 
+                    return;
                 }
 
                 YAHOO.util.Event.stopEvent(oArgs.event);
@@ -631,7 +634,7 @@ function EditRecStructure() {
                 }
 
                 /*if(elLink.hash === "#edit"){
-                    _onAddEditFieldType(rst_ID, 0); //NOT USED
+                _onAddEditFieldType(rst_ID, 0); //NOT USED
                 }else */
                 if(elLink.hash === "#delete"){
 
@@ -644,22 +647,31 @@ function EditRecStructure() {
                             var dty_name = oRecord.getData('dty_Name');
 
                             var sWarn;
-                            if(context[rty_ID]){
-                                sWarn = "This field #"+rst_ID+" '"+dty_name+"' is utilised in the title mask. If you delete it you will need to edit the title mask in the record type definition form (click on the pencil icon for the record type after exiting this popup).\n\n Do you still wish to delete this field?";
-                                var r=confirm(sWarn);
+                            /** Do not allow Delete of fields markked as reserved
+                            /* if(context[rty_ID]){
+                            sWarn = "This field #"+rst_ID+" '"+dty_name+"' is utilised in the title mask. If you delete it you will need to edit the title mask in the record type definition form (click on the pencil icon for the record type after exiting this popup).\n\n Do you still wish to delete this field?";
+                            var r=confirm(sWarn);
                             }else{
-                                // unnecessary: sWarn =  "Delete field # "+rst_ID+" '"+dty_name+"' from this record structure?";
-                                var r=1; // force deletion
+                            // unnecessary: sWarn =  "Delete field # "+rst_ID+" '"+dty_name+"' from this record structure?";
+                            var r=1; // force deletion
                             }
 
                             if (r) {
 
-                                _doExpliciteCollapse(null ,false); //force collapse this row
+                            _doExpliciteCollapse(null ,false); //force collapse this row
 
-                                var callback = __updateAfterDelete;
-                                var params = "method=deleteRTS&db="+db+"&rtyID="+rty_ID+"&dtyID="+rst_ID;
-                                _isServerOperationInProgress = true;
-                                Hul.getJsonData(baseurl, callback, params);
+                            var callback = __updateAfterDelete;
+                            var params = "method=deleteRTS&db="+db+"&rtyID="+rty_ID+"&dtyID="+rst_ID;
+                            _isServerOperationInProgress = true;
+                            Hul.getJsonData(baseurl, callback, params);
+                            } */
+                            if(context[rty_ID]){
+                                if(oRecord.getData("rst_Status") === 'reserved')
+                                {
+                                    alert("This is a reserved field, which may be required for correct operation of a specific function, such as Zotero import or mapping.\n"+
+                                        "It cannot therefore be deleted.If you do not need to use the field we suggest dragging it to the end of the form under a heading 'Unused' or 'Ignore'.\n"
+                                        + "Empty fields do not affect performance or take up any space in the database.")
+                                }
                             }
 
                         }
@@ -720,101 +732,134 @@ function EditRecStructure() {
         }
     } // end _initTabDesign -------------------------------
 
-    
+
     function onCellClickEventHandler(oArgs){
-                
-                    if(_actionInProgress){
-                        return;
-                    }
 
 
-                    var column = _myDataTable.getColumn(oArgs.target);
-
-                    //prevent any operation in case of opened popup
-                    if(!Hul.isnull(popupSelect) || _isServerOperationInProgress ||
-                        (!Hul.isnull(column) && 
-                            (column.key === 'rst_values' || column.key === 'rst_NonOwnerVisibility' || column.key === 'addColumn') ))
-                        { 
-                            if (!Hul.isnull(popupSelect) || _isServerOperationInProgress) console.log('popup or action-in-progress');
-                            return; 
-                        }
+        if(_actionInProgress){
+            return;
+        }
 
 
+        var column = _myDataTable.getColumn(oArgs.target);
 
-                    var record_id;
-                    var oRecord;
-                    if(Dom.hasClass( oArgs.target, 'yui-dt-expandablerow-trigger' )){
-                        record_id = oArgs.target;
-                        oRecord = _myDataTable.getRecord(record_id);
-                    }else{
-                        oRecord = _myDataTable.getRecord(oArgs.target);
-                        record_id = _myDataTable.getTdEl({record:oRecord, column:_myDataTable.getColumn("expandColumn")});
-                    }
-
-
-                    // after expansion - fill input values from HEURIST db
-                    // after collapse - save data on server
-                    function __toggle(){
-
-                        if(!isExpanded){ //now it is expanded
-                            _expandedRecord = rst_ID;
-
-                            _myDataTable.onEventToggleRowExpansion(record_id);
-
-                            _fromArrayToUI(rst_ID, false); //after expand restore values from HEURIST
+        //prevent any operation in case of opened popup
+        if(!Hul.isnull(popupSelect) || _isServerOperationInProgress ||
+            (!Hul.isnull(column) &&
+                (column.key === 'rst_values' || column.key === 'rst_NonOwnerVisibility' || column.key === 'addColumn') ))
+        {
+            if (!Hul.isnull(popupSelect) || _isServerOperationInProgress) console.log('popup or action-in-progress');
+            return;
+        }
 
 
-                            var rowrec = _myDataTable.getTrEl(oRecord);
-                            var maindiv = Dom.get("page-inner");
-                            var pos = rowrec.offsetTop;
-                            maindiv.scrollTop = pos - 30;
 
-                            var elLiner = _myDataTable.getTdLinerEl({record:oRecord, column:_myDataTable.getColumn('rst_NonOwnerVisibility')});
-                            elLiner.innerHTML = "";
+        var record_id;
+        var oRecord;
+        if(Dom.hasClass( oArgs.target, 'yui-dt-expandablerow-trigger' )){
+            record_id = oArgs.target;
+            oRecord = _myDataTable.getRecord(record_id);
+        }else{
+            oRecord = _myDataTable.getRecord(oArgs.target);
+            record_id = _myDataTable.getTdEl({record:oRecord, column:_myDataTable.getColumn("expandColumn")});
+        }
 
-                        }else{
-                            _saveUpdates(false); //save on server
-                            _expandedRecord = null;
-                        }
 
-                        /*var elLiner = _myDataTable.getTdLinerEl({record:oRecord, column:_myDataTable.getColumn('rst_NonOwnerVisibility')});
-                        if(_expandedRecord != null){
-                        elLiner.innerHTML = "";
-                        }else{
-                        elLiner.innerHTML = "<img src='../../common/images/up-down-arrow.png'>"
-                        }*/
+        if (oRecord.getData('rst_RequirementType')==='required')
+        {
+            var ele = document.getElementById("change_Req");
+            $("#change_Req").css("display","block");
+            $("#reqText").text("This is a reserved field which may be required by a specific function such as Zotero import or mapping."+
+                "Reserved fields can be marked as Recommended or Optional rather than Required, however we recommend thinking " +
+                "carefully about whether the value is required before changing this setting.")
 
-                        _actionInProgress = false;
-                    }
+            $("#change_Btn").click(function(){
+                _changeClicked = false;
+                onStatusChange(Number(rst_ID));
+                $_dialogbox.dialog($_dialogbox).dialog("close");
+            });
+            $("#cancel_Btn").click(function(){
+                $_dialogbox.dialog($_dialogbox).dialog("close");
+            });
+            //show confirmation dialog
+            $_dialogbox = Hul.popupElement(top, ele,
+                {
+                    "close-on-blur": false,
+                    "no-resize": true,
+                    title: '',
+                    height: 140,
+                    width: 600
+            });
+        }
 
-                    if(!Hul.isnull(record_id)){
-                        _actionInProgress = true;
 
-                        oRecord = _myDataTable.getRecord(record_id);
-                        var rst_ID = oRecord.getData("rst_ID");
 
-                        var state = _myDataTable._getRecordState( record_id );
-                        var isExpanded = ( state && state.expanded );
-                        if(isExpanded){
-                            _doExpliciteCollapse(rst_ID, true); //save this record on collapse
-                            _setDragEnabled(true);
-                        }else{
-                            //collapse and save by default
-                            if(!Hul.isnull(_expandedRecord)){
-                                _doExpliciteCollapse(_expandedRecord, true);
-                            }
-                            _setDragEnabled(false);
-                        }
 
-                        // after expand/collapse need delay before filling values
-                        setTimeout(__toggle, 300);
 
-                    }
+
+        // after expansion - fill input values from HEURIST db
+        // after collapse - save data on server
+        function __toggle(){
+
+            if(!isExpanded){ //now it is expanded
+                _expandedRecord = rst_ID;
+
+                _myDataTable.onEventToggleRowExpansion(record_id);
+
+                _fromArrayToUI(rst_ID, false); //after expand restore values from HEURIST
+
+
+                var rowrec = _myDataTable.getTrEl(oRecord);
+                var maindiv = Dom.get("page-inner");
+                var pos = rowrec.offsetTop;
+                maindiv.scrollTop = pos - 30;
+
+                var elLiner = _myDataTable.getTdLinerEl({record:oRecord, column:_myDataTable.getColumn('rst_NonOwnerVisibility')});
+                elLiner.innerHTML = "";
+
+            }else{
+                _saveUpdates(false); //save on server
+                _expandedRecord = null;
+            }
+
+            /*var elLiner = _myDataTable.getTdLinerEl({record:oRecord, column:_myDataTable.getColumn('rst_NonOwnerVisibility')});
+            if(_expandedRecord != null){
+            elLiner.innerHTML = "";
+            }else{
+            elLiner.innerHTML = "<img src='../../common/images/up-down-arrow.png'>"
+            }*/
+
+            _actionInProgress = false;
+        }
+
+        if(!Hul.isnull(record_id)){
+            _actionInProgress = true;
+
+            oRecord = _myDataTable.getRecord(record_id);
+            var rst_ID = oRecord.getData("rst_ID");
+
+            var state = _myDataTable._getRecordState( record_id );
+            var isExpanded = ( state && state.expanded );
+            if(isExpanded){
+                _doExpliciteCollapse(rst_ID, true); //save this record on collapse
+                _setDragEnabled(true);
+            }else{
+                //collapse and save by default
+                if(!Hul.isnull(_expandedRecord)){
+                    _doExpliciteCollapse(_expandedRecord, true);
+                }
+                _setDragEnabled(false);
+            }
+
+            // after expand/collapse need delay before filling values
+            setTimeout(__toggle, 300);
+
+        }
 
     }
 
-    
-    
+
+
     /**
     * Opens popup with preview
     *
@@ -947,11 +992,11 @@ function EditRecStructure() {
                     //DEBUG if(values[k] != edt.value){
                     //	dbg.value = dbg.value + (fieldnames[k]+'='+edt.value);
                     //}
-                    
+
                     if(fieldnames[k]=="rst_DefaultValue" && $('#incValue_'+__rst_ID+'_2').is(':checked')){
-                            edt.value = 'increment_new_values_by_1';
+                        edt.value = 'increment_new_values_by_1';
                     }
-                    
+
                     if(values[k] !== edt.value){
 
                         if(fieldnames[k]=="rst_DisplayName"){
@@ -961,8 +1006,8 @@ function EditRecStructure() {
                         }
 
                         values[k] = edt.value;
-                        
-                        
+
+
 
                         isChanged = true;
                         //track the changes for further save
@@ -1068,7 +1113,7 @@ function EditRecStructure() {
             var ed_name = 'ed'+rst_ID+'_'+fieldnames[k];
             var edt = Dom.get(ed_name);
             if( !Hul.isnull(edt) && (isAll || edt.parentNode.id.indexOf("row")<0)){
-                
+
                 if(values[k]=='increment_new_values_by_1' && fieldnames[k]=="rst_DefaultValue" && $('#incValue_'+rst_ID+'_2').length>0){
                     $('#incValue_'+rst_ID+'_2').attr('checked',true);
                     onIncrementModeChange(rst_ID);
@@ -1144,11 +1189,11 @@ function EditRecStructure() {
                     //show disable target pnr rectype
 
                 }else if(rst_type === "separator"  &&
-                    !(fieldnames[k] === "rst_DisplayName" || fieldnames[k] === "rst_DisplayWidth" 
-                            || fieldnames[k] === "rst_DisplayHelpText")){
+                    !(fieldnames[k] === "rst_DisplayName" || fieldnames[k] === "rst_DisplayWidth"
+                        || fieldnames[k] === "rst_DisplayHelpText")){
                         //hide all but name  and help
                         edt.parentNode.parentNode.style.display = "none";
-                    }else if(rst_type === "fieldsetmarker" && 
+                    }else if(rst_type === "fieldsetmarker" &&
                         !(fieldnames[k] === "rst_DisplayName" || fieldnames[k] === "rst_DisplayWidth" || fieldnames[k] === "rst_Status")){
                             //hide all, required - once
                             edt.parentNode.parentNode.style.display = "none";
@@ -1199,7 +1244,7 @@ function EditRecStructure() {
     * These field types have no width
     */
     function _isNoWidth(typ){
-        return ((typ === "enum") || (typ==="resource") ||  (typ==="fieldsetmarker") ||    
+        return ((typ === "enum") || (typ==="resource") ||  (typ==="fieldsetmarker") ||
             (typ==="relmarker") || (typ === "relationtype") ||
             (typ==="file") || (typ==="geo") || (typ==="separator"));
     }
@@ -1508,19 +1553,19 @@ function EditRecStructure() {
             top.HEURIST.rectypes.dtDisplayOrder[rty_ID] = neworder;
             _saveUpdates(false);
         }
-        
+
         //emulate click on last record
         _isServerOperationInProgress = false;
-        
+
         setTimeout(function(){
-            
+
             var oRecord = _getRecordById(lastID).record;
             var elLiner = _myDataTable.getTdLinerEl({record:oRecord, column:_myDataTable.getColumn('rst_DisplayName')});
             //$.find("tr.yui-dt-last > td.yui-dt-col-rst_DisplayName")[0]
             var oArgs = {event:'MouseEvent', target: elLiner};
             onCellClickEventHandler(oArgs);
-        },500);
-        
+            },500);
+
     }
 
 
@@ -1704,7 +1749,7 @@ function EditRecStructure() {
                 width: 800,
                 callback: function(newvalue) {
                     if(!is_onexit && newvalue){
-                        document.getElementById('rty_TitleMask').value = newvalue;    
+                        document.getElementById('rty_TitleMask').value = newvalue;
                     }
                 },
                 afterclose: function(){
@@ -1946,7 +1991,7 @@ function EditRecStructure() {
             this.srcData = rec.getData();
             this.srcIndex = srcEl.sectionRowIndex;
             // Make the proxy look like the source element
-            
+
             Dom.setStyle(srcEl, "visibility", "hidden");  //hide original
             //proxyEl.innerHTML = "<table><tbody>"+srcEl.innerHTML+"</tbody></table>";
             proxyEl.innerHTML = ''; //'<div class="dragrow">'+this.srcData.rst_DisplayName+"</div>";
@@ -1968,7 +2013,7 @@ function EditRecStructure() {
             proxyEl.innerHTML = "";
             Dom.setStyle(this.proxyEl, "visibility", "hidden"); //hide drag div
             Dom.setStyle(srcEl, "visibility", "");
-            
+
             //restore color and font
             if(this.tmpIndex>=0){
                 var rec = _myDataTable.getRecord(this.tmpIndex);
@@ -1976,7 +2021,7 @@ function EditRecStructure() {
                 Dom.setStyle(rowrec,'font-weight','normal');
                 Dom.setStyle(rowrec,'background','');
             }
-            
+
 
             _updateOrderAfterDrag();
         },
@@ -2022,7 +2067,7 @@ function EditRecStructure() {
                     var rowrec = _myDataTable.getTrEl(rec);
                     Dom.setStyle(rowrec,'font-weight','bold');
                     Dom.setStyle(rowrec,'background','LightSkyBlue');
-            
+
 
 
                     //_updateOrderAfterDrag();
@@ -2032,30 +2077,30 @@ function EditRecStructure() {
             }
         }
     });
-    
-    
+
+
     function _refreshTitleAndIcon(){
         var recTypeIcon  = top.HEURIST.iconBaseURL+rty_ID+'&t='+(new Date()).getTime();
         var formTitle = document.getElementById('recordTitle');
         //formTitle.innerHTML = '';
         formTitle.innerHTML = "<div class=\"rectypeIconHolder\" style=\"background-image:url("+
-                recTypeIcon+")\"></div><span class=\"recTypeName\">"+top.HEURIST.rectypes.names[rty_ID]+"</span>"+
-                hToolBar;
-        
+        recTypeIcon+")\"></div><span class=\"recTypeName\">"+top.HEURIST.rectypes.names[rty_ID]+"</span>"+
+        hToolBar;
+
         var fi  = top.HEURIST.rectypes.typedefs.commonNamesToIndex;
         var rectype = top.HEURIST.rectypes.typedefs[rty_ID].commonFields;
 
         document.getElementById('rty_TitleMask').value = rectype[fi.rty_TitleMask];
 
         document.getElementById("div_rty_ID").innerHTML = 'Local ID: '+rty_ID;
-        
+
         if(Hul.isempty(rectype[fi.rty_ConceptID])){
             document.getElementById("div_rty_ConceptID").innerHTML = '';
         }else{
             document.getElementById("div_rty_ConceptID").innerHTML = 'Concept Code: '+ rectype[fi.rty_ConceptID];
         }
     }
-    
+
 
     //---------------------------------------------
     // public members
@@ -2124,7 +2169,7 @@ function EditRecStructure() {
         doEditTitleMask: function(is_onexit){
             _doEditTitleMask(is_onexit);
         },
-        
+
         refreshTitleAndIcon:function(){
             _refreshTitleAndIcon();
         },
@@ -2291,12 +2336,12 @@ function onStatusChange(evt){
     sel.disabled = isReserved;
 
     sel = Dom.get(name+"_rst_RequirementType");
-    sel.disabled = (isReserved && (sel.value==='required'));
+    sel.disabled = (isReserved && (sel.value==='required')&& _changeClicked);
 }
 
 function onIncrementModeChange(rst_ID){
-    
-        
+
+
     if($('#incValue_'+rst_ID+'_1').is(':checked')){
         $('#ed'+rst_ID+'_rst_DefaultValue').css('background-color','#ECF1FB').attr('disabled',false);
     }else{
@@ -2524,7 +2569,7 @@ function _onDispNameChange(event){
 function _onAddEditFieldType(dty_ID, rty_ID){
 
     //show warning first
-    
+
     //find all records that reference this type
     var aUsage = top.HEURIST.detailTypes.rectypeUsage[dty_ID];
     if(!Hul.isnull(aUsage)){
@@ -2538,25 +2583,25 @@ function _onAddEditFieldType(dty_ID, rty_ID){
             }
         }
         if(textTip!=''){
-        
+
             var detname = top.HEURIST.detailTypes.names[dty_ID];
             if(detname.length>40) { detname = detname.substring(0,40)+"..."; }
 
             textTip = //'<b>Warning: Use with care</b><br>'
-                'Changes made to the base field type "'+detname
-                +'" (changes to vocabulary or list of terms, changes of pointer target type) '
-                +'affect ALL record types which use the base field type:\n\n'
-                +textTip+'\n\nWarning: Use with care. Proceed?';
-                
-           if(!confirm(textTip)) return;
-                
-                
+            'Changes made to the base field type "'+detname
+            +'" (changes to vocabulary or list of terms, changes of pointer target type) '
+            +'affect ALL record types which use the base field type:\n\n'
+            +textTip+'\n\nWarning: Use with care. Proceed?';
+
+            if(!confirm(textTip)) return;
+
+
         }
-    }    
-    
-    
-    
-    
+    }
+
+
+
+
     var db = (top.HEURIST.parameters.db? top.HEURIST.parameters.db :
         (top.HEURIST.database.name?top.HEURIST.database.name:''));
     var url = top.HEURIST.baseURL_V3 + "admin/structure/fields/editDetailType.html?db="+db+ "&detailTypeID="+dty_ID; //existing
@@ -2608,35 +2653,35 @@ function _onAddEditFieldType(dty_ID, rty_ID){
             afterclose: function(){
                 popupSelect = null;
             }
-            
+
     });
 }
 
 function onEditRecordType(){
 
-        var db = (top.HEURIST.parameters.db? top.HEURIST.parameters.db :
-            (top.HEURIST.database.name?top.HEURIST.database.name:''));
-            
-        var url = top.HEURIST.baseURL_V3 
-                    + "admin/structure/rectypes/editRectype.html?supress=1&db="
-                    + db+"&rectypeID="+editStructure.getRty_ID();
+    var db = (top.HEURIST.parameters.db? top.HEURIST.parameters.db :
+        (top.HEURIST.database.name?top.HEURIST.database.name:''));
 
-        var dim = Hul.innerDimensions(top);                    
-        
-        popupSelect = Hul.popupURL(top, url,
-            {   "close-on-blur": false,
-                "no-resize": false,
-                title:'Edit Record Type',
-                height: dim.h*0.9,
-                width: 800,
-                    
+    var url = top.HEURIST.baseURL_V3
+    + "admin/structure/rectypes/editRectype.html?supress=1&db="
+    + db+"&rectypeID="+editStructure.getRty_ID();
+
+    var dim = Hul.innerDimensions(top);
+
+    popupSelect = Hul.popupURL(top, url,
+        {   "close-on-blur": false,
+            "no-resize": false,
+            title:'Edit Record Type',
+            height: dim.h*0.9,
+            width: 800,
+
             callback: function(context) {
 
                 if(!Hul.isnull(context) && context.result){
 
-                     //refresh the local heurist
-                     top.HEURIST.rectypes = context.rectypes;
-                     //var _rtyID = Number(context.result[0]);
+                    //refresh the local heurist
+                    top.HEURIST.rectypes = context.rectypes;
+                    //var _rtyID = Number(context.result[0]);
                 }
                 //refresh icon, title, mask
                 editStructure.refreshTitleAndIcon();
@@ -2644,8 +2689,8 @@ function onEditRecordType(){
             afterclose: function(){
                 popupSelect = null;
             }
-        });
-        
-        return false;
+    });
+
+    return false;
 }
 

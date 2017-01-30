@@ -22,7 +22,7 @@
 *
 * @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
 * @author      Ian Johnson   <ian.johnson@sydney.edu.au>
-* @author      Stephen White   
+* @author      Stephen White
 * @copyright   (C) 2005-2016 University of Sydney
 * @link        http://HeuristNetwork.org
 * @version     3.1.0
@@ -128,7 +128,7 @@
             }
             .yui-dt-expanded .yui-dt-expandablerow-trigger.spinner{
                 background:none;
-            }            
+            }
             .tooltip {
                     position:absolute;
                     z-index:999;
@@ -190,7 +190,7 @@
             .yui-skin-sam .yui-dt-selected, .yui-skin-sam tr.yui-dt-selected td{
                 background-color: #aaaaaa;
             }
-            
+
             .dragrow{
                 padding-left:30px;
                 padding-top:6px;
@@ -217,18 +217,18 @@
 
     <body class="popup yui-skin-sam" style="overflow: auto;">
         <h2 id="recordTitle" style="margin:10px 0"></h2>
-        
+
         <div  id="divTitleMask">
             <div style="display:inline-block;vertical-align:top;font-weight:bold">
                  <label for="rty_TitleMask">Constructed title mask</label><br/>
                  <!-- <span><button onClick="editStructure.doEditTitleMask(false)">Edit mask</button></span> -->
             </div>
-            <textarea readonly cols="400" id="rty_TitleMask" rows="1" 
+            <textarea readonly cols="400" id="rty_TitleMask" rows="1"
                 style="width:600px;height:20px;display:inline-block; background-color: lightgray;"></textarea>
         </div>
-        
+
         <div id="page-inner" style="top:80px; bottom:60px;">
-        
+
             <script type="text/javascript" src="../../../common/js/utilsLoad.js"></script>
             <script src="../../../common/php/displayPreferences.php"></script>
             <script src="../../../common/php/getMagicNumbers.php"></script>
@@ -268,6 +268,12 @@
             <div style="padding-top: 10px;text-align:center;">
                 <input style="margin-right: 10px;" type="button" value="Fix title mask" id="dlgWrongTitleMask_closeBtn"/>
             </div>
+        </div>
+
+        <div id=change_Req style="display:none ">
+            <div id="reqText"></div>
+            <input id="change_Btn" type="button" value="Change" title="" style="margin-left:400px;width:70px"/>
+            <input id="cancel_Btn" type="button" value="Cancel" title="" style="width:70px; margin:2px"/>
         </div>
 
         <script  type="text/javascript">
