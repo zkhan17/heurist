@@ -1368,10 +1368,10 @@ if (! top.HEURIST.util) top.HEURIST.util = {
                 top.HEURIST.terms = context.terms;
 
                 if(is_message==true){
-                  //  var sMsg = 'Database structure definitions in browser memory have been refreshed. <br/>'+
+                  var sMsg = 'Database structure definitions in browser memory have been refreshed. <br/>'+
                             'You may need to reload pages to see changes.';
                     if(hasH4()){
-                        window.hWin.HEURIST4.msg.showMsgDlg(sMsg);
+                       // window.hWin.HEURIST4.msg.showMsgDlg(sMsg);
                     }else{
                      //   alert(sMsg);
                     }
