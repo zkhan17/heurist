@@ -2349,35 +2349,39 @@ function EditTerms() {
 
                 function displayPopUpContents(cbCode1,cbCode2,cbDescr1,cbDescr2){
                     if(cbCode1){
+                        $("#rbMergeCod1").attr('disabled', 'false');
                         $('#rbMergeCode1').attr('checked', 'checked');
                         $('#lblMergeCode1').html(arTerm2[fi.trm_Code]);
                     }
-                    else{
+                    if(!cbCode1){
                         $('#rbMergeCode1').attr('disabled', 'disabled');
                         $('#lblMergeCode1').html('&#60;none&#62;');
                     }
                     if(cbCode2){
+                         $("#rbMergeCode2").attr('disabled', 'false');
                         $("#rbMergeCode2").attr('checked', 'checked');
                         $('#lblMergeCode2').html((arTerm[fi.trm_Code]));
                     }
-                    else{
+                    if(!cbCode2){
                         $("#rbMergeCode2").attr('disabled', 'disabled');
+
                         $('#lblMergeCode2').html('&#60;none&#62;');
                     }
                     if(cbDescr1)
                     {
                         $('#rbMergeDescr1').attr('checked', 'checked');
-                        $('#lblMergeDescr1').html(arTerm2[fi.trm_Description]);
+                        $('#lblMergeDescr1').text(arTerm2[fi.trm_Description]);
                     }
-                    else{
+                    if(!cbDescr1){
                         $('#rbMergeDescr1').attr('disabled', 'disabled');
                         $('#lblMergeDescr1').html('&#60;none&#62;');
                     }
                     if(cbDescr2){
+
                         $("#rbMergeDescr2").attr('checked', 'checked');
-                        $('#lblMergeDescr2').html(arTerm[fi.trm_Description]);
+                        $('#lblMergeDescr2').text(arTerm[fi.trm_Description]);
                     }
-                    else{
+                    if(!cbDescr2){
                         $("#rbMergeDescr2").attr('disabled', 'disabled');
                         $('#lblMergeDescr2').html('&#60;none&#62;');
                     }
@@ -2447,7 +2451,7 @@ function EditTerms() {
                                             else if((Hul.isempty(arTerm[fi.trm_Code])) && (Hul.isempty(arTerm[fi.trm_Description]))
                                                 && (!Hul.isempty(arTerm2[fi.trm_Code])) && (!Hul.isempty(arTerm2[fi.trm_Description])))
                                                 {
-                                                    displayPopUpContents(false,false,true,true);
+                                                    displayPopUpContents(false,true,false,true);
                                                 }
                                                 else if((!Hul.isempty(arTerm[fi.trm_Code])) && (Hul.isempty(arTerm[fi.trm_Description]))
                                                     && (!Hul.isempty(arTerm2[fi.trm_Code])) && (Hul.isempty(arTerm2[fi.trm_Description])))
@@ -2459,7 +2463,8 @@ function EditTerms() {
                                                         {
                                                             displayPopUpContents(false,true,false,false);
                                                         }
-                                                        else
+                                                        else if ((Hul.isempty(arTerm[fi.trm_Code])) && (Hul.isempty(arTerm[fi.trm_Description]))
+                                                        && (Hul.isempty(arTerm2[fi.trm_Code])) && (!Hul.isempty(arTerm2[fi.trm_Description])))
                                                         {
                                                             displayPopUpContents(false,false,false,true);
                                                         }
