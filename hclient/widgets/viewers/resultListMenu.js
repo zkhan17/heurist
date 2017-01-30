@@ -183,14 +183,14 @@ $.widget( "heurist.resultListMenu", {
 
 
         this['menu_'+name] = $('<ul>')                               //add to avoid cache in devtime '?t='+(new Date().getTime())
-        .load(window.hWin.HAPI4.basePathV4+'hclient/widgets/viewers/resultListMenu'+name+'.html', function(){  
+        .load(window.hWin.HAPI4.basePathV4+'hclient/widgets/viewers/resultListMenu'+name+'.html', function(){
             that['menu_'+name].addClass('menu-or-popup')
             .css('position','absolute')
             .appendTo( that.document.find('body') )
             //.addClass('ui-menu-divider-heurist')
-            .menu({select: function(event, ui){ 
-                event.preventDefault(); 
-                that._menuActionHandler(ui.item.attr('id')); 
+            .menu({select: function(event, ui){
+                event.preventDefault();
+                that._menuActionHandler(ui.item.attr('id'));
                 return false; }});
 
             if(window.hWin.HAPI4.is_logged()){
@@ -377,7 +377,7 @@ $.widget( "heurist.resultListMenu", {
                 if(context.problem){
                     window.hWin.HEURIST4.msg.showMsgErr(context.problem);
                 }else if(context.none){
-                    window.hWin.HEURIST4.msg.showMsgFlash(context.none, 1000, null, 
+                    window.hWin.HEURIST4.msg.showMsgFlash(context.none, 1000, null,
                         { my: "center top", at: "center bottom", of: that.element.parent() });
                 }else if(context.execute){
                     var fname = context.execute.shift();
@@ -398,7 +398,7 @@ $.widget( "heurist.resultListMenu", {
                     //top.HEURIST.util.executeFunctionByName("that."+fname, window, context.execute);
                 }else if(context.ok){
 
-                    window.hWin.HEURIST4.msg.showMsgFlash(context.ok, 1000, null, 
+                    window.hWin.HEURIST4.msg.showMsgFlash(context.ok, 1000, null,
                         { my: "center top", at: "center bottom", of: that.element.parent() });
                     that.reloadSearch();
 
@@ -689,6 +689,7 @@ $.widget( "heurist.resultListMenu", {
     },
 
     selectShow: function(){
+
         if(this._selection!=null){
             var recIDs_list = this._selection.getIds();
             if (recIDs_list.length > 0) {
@@ -797,7 +798,7 @@ $.widget( "heurist.resultListMenu", {
         //adjust height
         var dheight = (recIDs_list.length+2)*50+100;
         if(dheight<300) {
-            dheight = 300;   
+            dheight = 300;
         }
         else{
             var body = $(this.document).find('body');
@@ -928,7 +929,7 @@ $.widget( "heurist.resultListMenu", {
 
     //
     //  MAIN  in use
-    //  
+    //
     detailBatchEditPopup: function(action_type) {
 
         var recIDs_all = window.hWin.HAPI4.getSelection("all", true);
