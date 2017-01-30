@@ -215,7 +215,7 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
     }
 
     //
-    // chnage color andn reload dataset 
+    // chnage color andn reload dataset
     //
     function _changeDatasetColor( dataset_id, new_color, updateOnMap ){
 
@@ -225,7 +225,7 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
 
                 for (var i=0; i<mapdata.options.items.length; i++){
                     mapdata.options.items[i].options.icon =
-                        window.hWin.HAPI4.iconBaseURL + mapdata.options.items[i].options.iconId 
+                        window.hWin.HAPI4.iconBaseURL + mapdata.options.items[i].options.iconId
                         + 'm.png&color='+encodeURIComponent(new_color);
 
                     mapdata.options.items[i].options.color = new_color;
@@ -248,7 +248,7 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
     function _reloadDataset(dataset_id){
 
                 //tmap.opts.centerOnItems = false;
-                
+
                 var dataset = tmap.datasets[dataset_id];
 
                 var mapdata = _getDataset(dataset_id);
@@ -260,20 +260,20 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
                 });*/
 
                 if(!dataset){ //already exists with such name
-                
+
                     dataset = tmap.createDataset(dataset_id);
                     //dataset.opts.theme = datasetTheme;
                 }else{
                     dataset.clear();
                     //dataset.changeTheme(datasetTheme)
                 }
-                
+
                 var minLat = 9999, maxLat = -9999, minLng = 9999, maxLng = -9999;
 
                 dataset.loadItems(mapdata.options.items);
                 dataset.each(function(item){
                     item.opts.openInfoWindow = _onItemSelection;  //event listener on marker selection
-                    
+
                     if(item.placemark){
                         if(item.placemark.points){ //polygone or polyline
                             for(i=0; i<item.placemark.points.length; i++){
@@ -294,10 +294,10 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
                                 }
                         }
                     }
-                    
+
                 });
-                
-                
+
+
                 var forceZoom = false;
                 if(minLat<-40 && maxLat>70 && minLng<-120 && maxLng>120){
                     minLat = -40;
@@ -306,14 +306,14 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
                     maxLng = 120;
                     forceZoom = true;
                 }
-                
+
                 var southWest = new google.maps.LatLng(minLat, minLng);
                 var northEast = new google.maps.LatLng(maxLat, maxLng);
                 mapdata.geoextent = new google.maps.LatLngBounds(southWest, northEast);
 
                 dataset.hide();
                 dataset.show();
-                
+
                 if(forceZoom){
                     setTimeout( function(){ _zoomDataset( dataset_id );}, 500 );
                 }
@@ -380,14 +380,14 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
               var nativemap = tmap.getNativeMap();
               nativemap.fitBounds(mapdata.geoextent);
         }
-        
+
         //zoom to time extent
         if(mapdata && mapdata.timeenabled>0){
             //_timelineZoomToRange(map_bookmarks[val]['tmin'],map_bookmarks[val]['tmax']);
         }
     }
-    
-    
+
+
     // get unix timestamp from vis
     function _getUnixTs(item, field, ds){
 
@@ -422,16 +422,16 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
     }
 
     function _timelineZoomToRange(range){
-                                                        
+
             if(!(range && range.min  && range.max && vis_timeline)) return;
-        
+
             var min = vis_timeline.getDate(range.min), // new Date(range.min).getTime(),
                 max = vis_timeline.getDate(range.max); //new Date(range.max).getTime();
             var delta = 0;
 
             if(isNaN(min) || isNaN(max) ) return;
-            
-            
+
+
             if(range['nofit']==undefined){
             var interval = max-min;
             var YEAR = 31536000000;
@@ -618,7 +618,7 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
                     spinner.hide();
                 }
 
-                _applyTimeLineLabelsSettings(mode);                
+                _applyTimeLineLabelsSettings(mode);
 
                 vis_timeline.redraw();
         }})
@@ -641,9 +641,9 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
             .css({width:'5em'})
             .appendTo(toolbar);
 
-        var spinner = $( "<input>", {id:"timeline_spinner", value:10} ).appendTo(toolbar);
+        var spinner = $( "<input>", {id:"timeline_spinner", value:100} ).appendTo(toolbar);
         $("#timeline_spinner").spinner({
-              value: 10,
+              value: 100,
               spin: function( event, ui ) {
                 if ( ui.value > 100 ) {
                   $( this ).spinner( "value", 100 );
@@ -669,18 +669,18 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
         */
 
     }
-    
+
     //
     //
     //
     function _applyTimeLineLabelsSettings(mode){
-        
+
                 var contents = $(".vis-item-content");
                 var spinner = $("#timeline_spinner");
 
                 if(mode==0){  //full length
                     $.each(contents, function(i,item){item.style.width = 'auto';});//.css({'width':''});
-                }else if(mode==2){  //specific length 
+                }else if(mode==2){  //specific length
                     contents.css({'width': spinner.spinner('value')+'em'});
                 }
 
@@ -694,8 +694,8 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
                 }else{
                     contents.find("span").show();
                 }
-        
-    }                
+
+    }
 
     //init visjs timeline
     function _loadVisTimeline(){
@@ -733,7 +733,7 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
                            orientation:'both', //scale on top and bottom
                            selectable:true, multiselect:true,
                            zoomMax:31536000000*500000,
-                           stack:is_stack,  //how to display items: staked or in line 
+                           stack:is_stack,  //how to display items: staked or in line
                            margin:1,
                            minHeight: $(timeline_ele).height(),
                            order: function(a, b){
@@ -776,16 +776,16 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
         }
 
         vis_timeline_range = null;
-        
+
         var timeline_content = $(timeline_ele).find('.vis-itemset');
         timeline_content.hide();
-        
+
         vis_timeline.setGroups(groups);
         vis_timeline.setItems(items);
-        
+
         //apply label settings
         _applyTimeLineLabelsSettings(vis_timeline_label_mode);
-        
+
 //console.log('TIMELINE DATASET. set data: '+ ( new Date().getTime() / 1000 - window.hWin.HEURIST4._time_debug) );
 //        window.hWin.HEURIST4._time_debug = new Date().getTime() / 1000;
         _timelineZoomToAll();
@@ -1182,13 +1182,13 @@ console.log('tileloaded 2');
                 //find selected item in the dataset
                 if(lastSelectedItem)
                     _showPopupInfo.call(lastSelectedItem);
-                    
+
             }else if(!fromtimeline){
-                
+
                 _zoomDataset( 'main' );
             }
-            
-            
+
+
     }
 
     //
@@ -1393,16 +1393,16 @@ console.log('tileloaded 2');
                     if(placemark instanceof mxn.Marker){
                         placemark_type = "marker";
                     }else{
-                        placemark_type = "object";    
+                        placemark_type = "object";
                     }
-                    
+
                 }
             }else{
                 placemark = item.placemark;
                 placemark_type = item.getType();
-            }                
-                                                              
-                                                              
+            }
+
+
             show_bubble_on_map = (placemark_type != "" && placemark.api!=null);
             var bubble_header = '<div style="width:99%;'+(show_bubble_on_map?'':'padding-right:10px;')+'">'
             var ed_html =  '';
@@ -1412,13 +1412,13 @@ console.log('tileloaded 2');
 
                 //if(!item.opts.info){
                 //    return;   //supress popup
-                //}else 
+                //}else
                 if(item.opts.info && item.opts.info.indexOf('http://')==0){
                     popupURL =  item.opts.info; //load content from url
                 }else{
                     popupURL = window.hWin.HAPI4.basePathV4 + 'records/view/renderRecordData.php?mapPopup=1&recID='
                             +item.opts.recid+'&db='+window.hWin.HAPI4.database;
-                    
+
                     //html =  bubble_header + item.opts.info + '</div>'; //predefined content
                 }
 
@@ -1674,7 +1674,7 @@ ed_html +
         showDataset: function(dataset_name, is_show){
             _showDataset(dataset_name, is_show);
         },
-        
+
         zoomDataset: function(dataset_name){
             _zoomDataset(dataset_name);
         },
@@ -1700,7 +1700,7 @@ ed_html +
                   vis_timeline.setOptions( {minHeight: $("#"+timelinediv_id).height()} );
             }
         },
-        
+
         timelineZoomToRange: function(tmin, tmax){
             _timelineZoomToRange({min:tmin, max:tmax, nofit:true});
         },
@@ -1740,10 +1740,10 @@ function link_open(link) {
         }
     }catch(e){
     }
- 
+
     try{
         if (top.HEURIST  &&  top.HEURIST.util  &&  top.HEURIST.util.popupURL) {
-        
+
             recordPopupFrame = top.HEURIST.util.popupURL(top, link.href, { title:'.', width: 600, height: 500, modal:false });
             return false;
         }

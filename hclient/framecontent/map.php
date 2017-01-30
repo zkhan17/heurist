@@ -111,9 +111,10 @@ require_once(dirname(__FILE__)."/initPage.php");
 <script type="text/javascript">
 
     var mapping, menu_datasets, btn_datasets;
-    
+
     // Callback function on page initialization - see initPage.php
     function onPageInit(success){
+
 
         if(!success) return;
 
@@ -125,7 +126,7 @@ require_once(dirname(__FILE__)."/initPage.php");
             onresize_end: function(){
                 //global console.log('resize end');
             }
-            
+
         };
 
         // Setting layout
@@ -140,7 +141,9 @@ require_once(dirname(__FILE__)."/initPage.php");
         layout_opts.south__onresize_end = function() {
             if(mapping) mapping.setTimelineMinheight();
             //console.log('timeline resize end');
+            $("#mapping").height("85%");
             _adjustLegendHeight();
+
         };
 
         <?php if(@$_REQUEST['notimeline']){ ?>
@@ -350,7 +353,7 @@ require_once(dirname(__FILE__)."/initPage.php");
 
 
     }
-    
+
     function _adjustLegendHeight() {
 
         setTimeout(function(){
@@ -359,28 +362,28 @@ require_once(dirname(__FILE__)."/initPage.php");
 
             var nt = parseInt($(legend).css('bottom'), 10);
             var mh = $('#map').height();
-            
+
             var is_collapsed = ($(legend).find('#collapse').text() == "+");
-            
+
             if(is_collapsed===true){
-                $(legend).css('top', mh-nt-60);   
+                $(legend).css('top', mh-nt-60);
             }else{
-            
-            if(mh-nt-ch < 70){
-                $(legend).css('top', 60);
-            }else{
-                $(legend).css('top', mh-nt-ch);        
+
+                if(mh-nt-ch < 70){
+                    $(legend).css('top', 60);
+                }else{
+                    $(legend).css('top', mh-nt-ch);
+                }
+
             }
-        
-            }
-            
-//console.log('lh='+(mh-nt-ch)+'  mh='+mh+'  ch='+ch);            
-            
+
+            //console.log('lh='+(mh-nt-ch)+'  mh='+mh+'  ch='+ch);
+
             $(legend).css('bottom', nt);
-            
-        },500);
+
+            },500);
     }
-    
+
 
     function showEmbedDialog(){
 
@@ -419,7 +422,7 @@ require_once(dirname(__FILE__)."/initPage.php");
             var win = window.open(url_kml, "_new");
         }
     }
-    
+
     function refreshMapDocument(){
         var recID = $("#map-doc-select").val();
         $("#map-doc-select").val(recID);
@@ -458,17 +461,17 @@ require_once(dirname(__FILE__)."/initPage.php");
     //
     function updateCallerAfterSave( record ){
         if(record && record.rectypeID=='<?=checkRt('RT_MAP_DOCUMENT')?>'){
-            
+
             var notfound = true;
             $('#map-doc-select > option').each(function(idx, item){
-                 if($(item).attr('value')==record.bibID){
-                     item.innerHTML = record.title;
-                     notfound = false;
-                     return false;
-                 }
+                if($(item).attr('value')==record.bibID){
+                    item.innerHTML = record.title;
+                    notfound = false;
+                    return false;
+                }
             });
             if(notfound){
-                $('<option value="'+record.bibID+'">'+record.title+'</option>').appendTo($('#map-doc-select'));  
+                $('<option value="'+record.bibID+'">'+record.title+'</option>').appendTo($('#map-doc-select'));
             }
         }
     }
@@ -484,7 +487,7 @@ require_once(dirname(__FILE__)."/initPage.php");
         <!-- Map -->
         <div class="ui-layout-center">
             <div id="map" style="width:100%; height:100%">Mapping</div>
-            <div id="map_empty_message" style="width:100%; height:100%;display: none;">There are no spatial objects to plot on map</div>
+            <div id="map_empty_message" style="width:100%; margin-bottom: 30px;margin-top:20px; margin-left:20px; height:50%;display: none;">There are no spatial objects to plot on map</div>
         </div>
 
         <!-- Toolbar -->
@@ -531,7 +534,7 @@ require_once(dirname(__FILE__)."/initPage.php");
                     <span id="collapse" style="font-size: 1.25em; float:right; padding: 0px 5px; cursor: pointer">-</span>
                 </div>
                 <div id="map_extents"  style="font-size: 0.9em;display:none; padding-bottom:1em;">Zoom to:&nbsp;
-                        <select id="selMapBookmarks" style="font-size:1.0em;"></select>
+                    <select id="selMapBookmarks" style="font-size:1.0em;"></select>
                 </div>
                 <div class="content"></div>
             </div>
