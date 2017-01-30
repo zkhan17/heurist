@@ -21,14 +21,14 @@
 
 if( @$_REQUEST['recID'] || @$_REQUEST['recid'] ){
     if(@$_REQUEST['recID']){
-        $recid = $_REQUEST['recID'];    
+        $recid = $_REQUEST['recID'];
     }elseif(@$_REQUEST['recid']){
-        $recid = $_REQUEST['recid'];        
+        $recid = $_REQUEST['recid'];
     }
     if(@$_REQUEST['fmt']){
-        $format = $_REQUEST['fmt'];    
+        $format = $_REQUEST['fmt'];
     }elseif(@$_REQUEST['format']){
-        $format = $_REQUEST['format'];        
+        $format = $_REQUEST['format'];
     }else{
         $format = 'xml';
     }
@@ -46,7 +46,7 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
         print '<script type="text/javascript" src="ext/fancytree/jquery.fancytree-all.min.js"></script>';
 }else{
         print '<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.fancytree/2.16.1/jquery.fancytree-all.min.js"></script>';
-}   
+}
 ?>
 
         <!-- it is needed in preference dialog -->
@@ -98,7 +98,7 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
         <script type="text/javascript" src="hclient/widgets/viewers/resultList.js"></script>
 
         <script type="text/javascript" src="hclient/widgets/viewers/staticPage.js"></script>
-        
+
         <script type="text/javascript" src="hclient/widgets/digital_harlem/dh_search.js"></script>
         <script type="text/javascript" src="hclient/widgets/digital_harlem/dh_maps.js"></script>
         <script type="text/javascript" src="hclient/widgets/viewers/connections.js"></script>
@@ -116,19 +116,19 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
         <!-- move to profile.js dynamic load -->
         <script type="text/javascript" src="ext/js/themeswitchertool.js"></script>
 
-        <!--  media viewer - however it is not used at the moment 
+        <!--  media viewer - however it is not used at the moment
         <script type="text/javascript" src="ext/yoxview/yoxview-init.js"></script>
         -->
 
         <!-- os, browser detector -->
         <script type="text/javascript" src="ext/js/platform.js"></script>
-        
+
         <script type="text/javascript">
 
            function onPageInit(success){
 
                 if(!success) return;
-                
+
                 // OLD H3 stuff
                 if(window.HEURIST){
                     window.HEURIST.baseURL_V3  = window.HAPI4.basePathV3;
@@ -136,26 +136,26 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
                     window.HEURIST.iconBaseURL = window.HAPI4.iconBaseURL;
                     window.HEURIST.database = {  name: window.HAPI4.database };
                 }
-                
+
                 //
                 // cfg_widgets and cfg_layouts are defined in layout_default.js
                 //
                 window.hWin.HAPI4.LayoutMgr.init(cfg_widgets, cfg_layouts);
 
-                
+
                 $( "#heurist-about" ).dialog("close");
-                
+
                 //
                 // init layout
                 //
                 window.hWin.HAPI4.LayoutMgr.appInitAll( window.hWin.HAPI4.sysinfo['layout'], "#layout_panes");
-                
+
 //console.log('ipage layout '+(new Date().getTime() / 1000 - _time_debug));
 _time_debug = new Date().getTime() / 1000;
-                
+
                 onInitCompleted_PerformSearch();
            }
-           
+
            //
            // init about dialog
            //
@@ -178,25 +178,26 @@ _time_debug = new Date().getTime() / 1000;
                         }*/
                     }
                 );
-                
+
            }
 
            //
            // Performs inital search: parameters from request or from user preferences
            //
            function onInitCompleted_PerformSearch(){
-               
+
 <?php
      $db_total_records = mysql__select_value($system->get_mysqli(), 'select count(*) from Records');
-     echo 'var db_total_records='.($db_total_records>0?$db_total_records:0).';';  
+     echo 'var db_total_records='.($db_total_records>0?$db_total_records:0).';';
 ?>
-               
+
                window.hWin.HAPI4.sysinfo.db_total_records = db_total_records;
-               
+
                 if(window.hWin.HAPI4.sysinfo['layout']=='H4Default'){
                     //switch to FAP tab if q parameter is defined
                     if(db_total_records<1){
-                        showTipOfTheDay(false);   
+                        showTipOfTheDay(false);
+                       window.hWin.HAPI4.LayoutMgr.putAppOnTopById('FAP');
                     }else{
                         window.hWin.HAPI4.LayoutMgr.putAppOnTopById('FAP');
                     }
@@ -214,9 +215,9 @@ _time_debug = new Date().getTime() / 1000;
                     setTimeout(function(){
                             window.hWin.HAPI4.SearchMgr.doSearch(document, request);
                     }, 3000);
-                }else if(!(window.hWin.HAPI4.sysinfo['layout']=='DigitalHarlem' 
+                }else if(!(window.hWin.HAPI4.sysinfo['layout']=='DigitalHarlem'
                         || window.hWin.HAPI4.sysinfo['layout']=='DigitalHarlem1935')){
-                            
+
                     var init_search = window.hWin.HEURIST?window.hWin.HEURIST.displayPreferences['defaultSearch']:'';
                     if(!window.hWin.HEURIST4.util.isempty(init_search)){
                         var request = {q: init_search, w: 'a', f: 'map', source:'init' };
@@ -225,7 +226,7 @@ _time_debug = new Date().getTime() / 1000;
                         }, 3000);
                     }else{
                         //trigger search finish to init some widgets
-                        $(document).trigger(window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH, null );   
+                        $(document).trigger(window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH, null );
                     }
                 }
 
@@ -233,7 +234,7 @@ _time_debug = new Date().getTime() / 1000;
                 //if(!(window.hWin.HAPI4.sysinfo.db_total_records>0)){
                 //    showTipOfTheDay(false);
                 //}
- 
+
 var fin_time = new Date().getTime() / 1000;
 //console.log('ipage finished '+( fin_time - _time_debug)+ '  total: '+(fin_time-_time_start));
 
@@ -287,12 +288,12 @@ var fin_time = new Date().getTime() / 1000;
                 the License.
             </p>
         </div>
-        
+
         <div id="heurist-platform-warning" style="display:none;">
             <p style="padding:10px">Heurist is designed primarily for use with a keyboard and mouse. Tablets are not fully supported at this time, except for data collection on Android (see FAIMS in the Help system).</p>
 
             <p style="padding:10px">Please contact the Heurist developers (info at HeuristNetwork dot org) for further information or to express an interest in a tablet version</p>
-        </div> 
+        </div>
 
         <div id="heurist-dialog">
         </div>
