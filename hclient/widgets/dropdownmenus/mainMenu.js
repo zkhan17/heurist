@@ -57,7 +57,7 @@ $.widget( "heurist.mainMenu", {
         // bind click events
         this._on( this.div_logo, {
             click: function(){
-                
+
                 document.location.reload();
 
                 /*var init_search = top.HEURIST.displayPreferences['defaultSearch'];
@@ -71,21 +71,21 @@ $.widget( "heurist.mainMenu", {
         this.div_dbname = $( "<div>")
             .css({'float':'left', 'padding-left':'2em', 'margin-top':'1.6em', 'text-align':'center' })
             .appendTo(this.element);
-            
+
         if(window.hWin.HEURIST4.util.isArrayNotEmpty(window.hWin.HAPI4.sysinfo.dbrecent)){
-            
+
             this.div_dbname.css({
                 'margin-left':'50px',
                 'background-position': 'left center',
                 'background-repeat': 'no-repeat',
                 'background-image': 'url("'+window.hWin.HAPI4.basePathV4+'hclient/assets/database.png")'});
-            
+
             var wasCtrl = false;
-            var selObj = window.hWin.HEURIST4.ui.createSelector(null, window.hWin.HAPI4.sysinfo.dbrecent);        
+            var selObj = window.hWin.HEURIST4.ui.createSelector(null, window.hWin.HAPI4.sysinfo.dbrecent);
             $(selObj).css({'font-size':'1.3em', 'font-weight':'bold','border':'none', 'min-width':'150px' })
             .click(function(event){
                 wasCtrl = event.shiftKey;
-//console.log('1'+wasCtrl+'  '+event.metaKey);                
+//console.log('1'+wasCtrl+'  '+event.metaKey);
             })
             .change(function(event){
                 if(window.hWin.HAPI4.database!=$(event.target).val()){
@@ -103,13 +103,13 @@ $.widget( "heurist.mainMenu", {
             .addClass('ui-heurist-header2')
             .val( window.hWin.HAPI4.database ).appendTo( this.div_dbname );
         }else{
-            
+
             $("<div>").css({'font-size':'1.3em', 'font-weight':'bold', 'padding-left':'22px', 'margin-left':'50px',
                 'background-position': 'left center',
                 'background-repeat': 'no-repeat',
                 'background-image': 'url("'+window.hWin.HAPI4.basePathV4+'hclient/assets/database.png")' })
             .text(window.hWin.HAPI4.database).appendTo( this.div_dbname );
-            
+
         }
 
         /*$("<span>")
@@ -156,7 +156,7 @@ $.widget( "heurist.mainMenu", {
 
 
         this._initMenu('Profile', this.divProfileItems);
-        
+
         if(window.hWin.HAPI4.sysinfo['layout']=='original'){
             this._initMenu('Database');
             this._initMenu('Import');
@@ -285,11 +285,11 @@ $.widget( "heurist.mainMenu", {
         if(window.hWin.HAPI4.is_admin()){
             this.menu_Profile.find('.admin-only').show();
         }else{
-            this.menu_Profile.find('.admin-only').hide();    
+            this.menu_Profile.find('.admin-only').hide();
         }
-        
+
         this['btn_Profile'].find('a').text(window.hWin.HAPI4.currentUser.ugr_FullName);
-        
+
     },
 
 
@@ -361,22 +361,22 @@ $.widget( "heurist.mainMenu", {
                 //that._onPopupLink
             });
         }else if(name=='Profile'){
-            
+
             link = $('<div><span class="ui-icon ui-icon-user" style="color:white;">'
             +'</span><a href="#" style="padding:2px 24px 0 2px">'
             +window.hWin.HAPI4.currentUser.ugr_FullName
             +'</a><span class="ui-icon ui-icon-carat-1-s"  style="color:white;" id="carat1"></span></div>');
-                             
+
         }else{
             link = $('<a>',{
                 text: window.hWin.HR((name=='Help_lo'?'Help':name)), href:'#'
             });
         }
-        
+
         this['btn_'+name] = $('<li>').append(link)
         .appendTo( parentdiv?parentdiv:this.divMainMenuItems );
 
-        
+
         // Load content for all menus except Database when user is logged out
         if(name!='Database_lo'){
 
@@ -384,20 +384,20 @@ $.widget( "heurist.mainMenu", {
             .load(
                 window.hWin.HAPI4.basePathV4+'hclient/widgets/dropdownmenus/mainMenu'+(name=='Help_lo'?'Help':name)+'.html',
               function(){    //add ?t=+(new Date().getTime()) to avoid cache in devtime
-             
+
                 that['menu_'+name].find('.list-menu-only').hide();
-             
+
                 that['menu_'+name].addClass('menu-or-popup')
                 .css({'position':'absolute', 'padding':'5px'})
                 .appendTo( that.document.find('body') )
                 //.addClass('ui-menu-divider-heurist')
-                .menu({select: function(event, ui){ 
+                .menu({select: function(event, ui){
                         that._menuActionHandler(event, ui.item.attr('id'), ui.item.attr('data-logaction'));
-                        return false; 
+                        return false;
                 }});
 
                 that._refresh();
-                
+
                 /*if(window.hWin.HAPI4.is_logged()){
                     that['menu_'+name].find('.logged-in-only').show();
                 }else{
@@ -421,10 +421,9 @@ $.widget( "heurist.mainMenu", {
         });
 
         var ele = $('#carat1');
-        if(ele.length>0){
-            ele.css({'left': (ele.parent().width())+'px'});// (link.width()-16+'px !important')});
-        }
-        
+            ele.css({'left': '120px'});// (link.width()-16+'px !important')});
+
+
 
     },
 
@@ -466,22 +465,22 @@ $.widget( "heurist.mainMenu", {
         if (link.hasClass('currentquery')) {
             url = url + that._current_query_string
         }
-        
+
         if (link.hasClass('refresh_structure')) {
                options['afterclose'] = this._refreshLists;
         }
 
-        
+
         if(link && link.attr('data-logaction')){
             window.hWin.HAPI4.SystemMgr.user_log(link.attr('data-logaction'));
         }
-        
+
         if(link && link.attr('data-nologin')!='1'){
             //check if login
             window.hWin.HAPI4.SystemMgr.is_logged(function(){window.hWin.HEURIST4.msg.showDialog(url, options);});
         }else{
             window.hWin.HEURIST4.msg.showDialog(url, options);
-        }        
+        }
 
         event.preventDefault();
         return false;
@@ -503,7 +502,7 @@ $.widget( "heurist.mainMenu", {
                     href = window.HAPI4.basePathV3 + href;
                     //h3link class on menus implies location of older (vsn 3) code
                 }
-                
+
                 ele.attr('href', href);
                 that._on(ele, {
                     click:
@@ -537,13 +536,13 @@ $.widget( "heurist.mainMenu", {
     },
 
     _menuActionHandler: function(event, action, action_log){
-        
+
         var that = this;
-        
+
         if(action_log){
             window.hWin.HAPI4.SystemMgr.user_log(action_log);
         }
-        
+
         var p = false;
         if(action == "menu-profile-preferences"){
             window.hWin.HAPI4.SystemMgr.is_logged(function(){that._editPreferences()}); p=true;
@@ -579,18 +578,18 @@ $.widget( "heurist.mainMenu", {
         if( p ){
             event.preventDefault();
         }
-        
+
     },
 
 
     importCSV: function(){
-        
+
            var url = window.hWin.HAPI4.basePathV4 + "hclient/framecontent/import/importRecordsCSV.php?db="+ window.hWin.HAPI4.database;
-           
+
            var body = $(this.document).find('body');
            var dim = {h:body.innerHeight(), w:body.innerWidth()};
-           
-           window.hWin.HEURIST4.msg.showDialog(url, {    
+
+           window.hWin.HEURIST4.msg.showDialog(url, {
                 title: 'Import Records from CSV/TSV',
                 height: dim.h-5,
                 width: dim.w-5,
@@ -619,7 +618,7 @@ $.widget( "heurist.mainMenu", {
                 "db="+_db+"&action=usageCount");
                 */
             }
-        });                   
+        });
 
     },
 
@@ -856,7 +855,7 @@ $.widget( "heurist.mainMenu", {
                 if(top.HEURIST && top.HEURIST.util){
                     top.HEURIST.util.setDisplayPreference(h3pref, h3pref_val);
                 }
-                
+
                 //save preferences in session
                 window.hWin.HAPI4.SystemMgr.save_prefs(request,
                     function(response){
