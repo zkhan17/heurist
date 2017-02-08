@@ -59,7 +59,7 @@ function EditRecStructure() {
     db,
     warningPopupID = null,
     _structureWasUpdated = false;
-    _changeClicked = true;
+
 
     // buttons on top and bottom of design tab
     var hToolBar = '<div style=\"display:none;\">'+
@@ -422,6 +422,7 @@ function EditRecStructure() {
                     rowExpansionTemplate :
                     function ( obj ) {
                         var rst_ID = obj.data.getData('rst_ID');
+
                         //var rst_values = obj.data.getData('rst_values');
 
                         var fieldType = top.HEURIST.detailTypes.typedefs[rst_ID].commonFields[top.HEURIST.detailTypes.typedefs.fieldNamesToIndex.dty_Type];
@@ -651,27 +652,48 @@ function EditRecStructure() {
                             /* if(context[rty_ID]){
                             sWarn = "This field #"+rst_ID+" '"+dty_name+"' is utilised in the title mask. If you delete it you will need to edit the title mask in the record type definition form (click on the pencil icon for the record type after exiting this popup).\n\n Do you still wish to delete this field?";
                             var r=confirm(sWarn);
-                            }else{
-                            // unnecessary: sWarn =  "Delete field # "+rst_ID+" '"+dty_name+"' from this record structure?";
-                            var r=1; // force deletion
+                            } */
+                            if(context[rty_ID]){
+                                if(oRecord.getData("rst_Status") != 'reserved')
+                                {
+                                    var r=1;
+                                }
+                                else
+                                {
+                                    var ele = document.getElementById("del_Req");
+                                    $("#del_Req").css("display","block");
+                                    $("#delText").html("This is a reserved field, which may be required for correct operation of a specific function, such as Zotero import or mapping.<br><br>It cannot therefore be deleted.If you do not need to use the field we suggest dragging it to the end of the form under a heading 'Unused' or 'Ignore'. Empty fields do not affect performance or take up any space in the database.");
+
+
+                                    $("#okBtn").click(function(){
+                                        $_dialogbox.dialog($_dialogbox).dialog("close");
+                                    });
+
+                                    //show confirmation dialog
+                                    $_dialogbox = Hul.popupElement(top, ele,
+                                        {
+                                            "close-on-blur": false,
+                                            "no-resize": true,
+                                            title: '',
+                                            height: 160,
+                                            width: 600
+                                    });
+
+                                }
+                            }
+                            else{
+                                // unnecessary: sWarn =  "Delete field # "+rst_ID+" '"+dty_name+"' from this record structure?";
+                                var r=1; // force deletion
                             }
 
                             if (r) {
 
-                            _doExpliciteCollapse(null ,false); //force collapse this row
+                                _doExpliciteCollapse(null ,false); //force collapse this row
 
-                            var callback = __updateAfterDelete;
-                            var params = "method=deleteRTS&db="+db+"&rtyID="+rty_ID+"&dtyID="+rst_ID;
-                            _isServerOperationInProgress = true;
-                            Hul.getJsonData(baseurl, callback, params);
-                            } */
-                            if(context[rty_ID]){
-                                if(oRecord.getData("rst_Status") === 'reserved')
-                                {
-                                    alert("This is a reserved field, which may be required for correct operation of a specific function, such as Zotero import or mapping.\n"+
-                                        "It cannot therefore be deleted.If you do not need to use the field we suggest dragging it to the end of the form under a heading 'Unused' or 'Ignore'.\n"
-                                        + "Empty fields do not affect performance or take up any space in the database.")
-                                }
+                                var callback = __updateAfterDelete;
+                                var params = "method=deleteRTS&db="+db+"&rtyID="+rty_ID+"&dtyID="+rst_ID;
+                                _isServerOperationInProgress = true;
+                                Hul.getJsonData(baseurl, callback, params);
                             }
 
                         }
@@ -764,33 +786,6 @@ function EditRecStructure() {
             record_id = _myDataTable.getTdEl({record:oRecord, column:_myDataTable.getColumn("expandColumn")});
         }
 
-
-        if (oRecord.getData('rst_RequirementType')==='required')
-        {
-            var ele = document.getElementById("change_Req");
-            $("#change_Req").css("display","block");
-            $("#reqText").text("This is a reserved field which may be required by a specific function such as Zotero import or mapping."+
-                "Reserved fields can be marked as Recommended or Optional rather than Required, however we recommend thinking " +
-                "carefully about whether the value is required before changing this setting.")
-
-            $("#change_Btn").click(function(){
-                _changeClicked = false;
-                onStatusChange(Number(rst_ID));
-                $_dialogbox.dialog($_dialogbox).dialog("close");
-            });
-            $("#cancel_Btn").click(function(){
-                $_dialogbox.dialog($_dialogbox).dialog("close");
-            });
-            //show confirmation dialog
-            $_dialogbox = Hul.popupElement(top, ele,
-                {
-                    "close-on-blur": false,
-                    "no-resize": true,
-                    title: '',
-                    height: 140,
-                    width: 600
-            });
-        }
 
 
 
@@ -933,6 +928,20 @@ function EditRecStructure() {
                 _saveUpdates(false); //global function
             }
         }
+    }
+    function _helpSelectChange(rst_ID)
+    {
+        if(Hul.isnull(rst_ID)){ //when user open select and new field type popup we have to save all changes
+            rst_ID = _expandedRecord;
+            if(Hul.isnull(rst_ID)) {
+                if(!Hul.isnull(_updatedFields) && _updatedFields.indexOf(9)>=0 && needSave){ //order was changed
+                    _saveUpdates(false); //global function
+                }
+                return;
+            }
+        }
+        return rst_ID;
+
     }
 
     /**
@@ -2148,6 +2157,9 @@ function EditRecStructure() {
         doExpliciteCollapse:function(rst_ID, needSave){
             _doExpliciteCollapse(rst_ID, needSave);
         },
+        helpSelectChange:function(rst_ID){
+            return _helpSelectChange(rst_ID);
+        },
         saveUpdates:function(needClose){
             return _saveUpdates(needClose);
         },
@@ -2178,6 +2190,14 @@ function EditRecStructure() {
             top.HEURIST.util.closePopupLast();
             //top.HEURIST.util.closePopup(warningPopupID);
             warningPopupID = null;
+        },
+        closeWarningPopup: function(){
+            top.HEURIST.util.closePopupLast();
+            //top.HEURIST.util.closePopup(warningPopupID);
+            warningPopupID = null;
+        },
+        getRecordById:function(rst_ID){
+            return _getRecordById(rst_ID);
         },
 
         closeWin:function(){
@@ -2317,7 +2337,7 @@ function onUpdateStructureOnServer(needClose)
 /**
 *
 */
-function onStatusChange(evt){
+function onStatusChange(evt ){
     var name;
 
     if(typeof evt === 'number'){
@@ -2333,10 +2353,13 @@ function onStatusChange(evt){
     Dom.get(name+"_rst_MinValues").disabled = isReserved;
     Dom.get(name+"_rst_MaxValues").disabled = isReserved;
     var sel = Dom.get(name+"_Repeatability");
-    sel.disabled = isReserved;
+    sel.disabled = (isReserved &&false);
+
 
     sel = Dom.get(name+"_rst_RequirementType");
-    sel.disabled = (isReserved && (sel.value==='required')&& _changeClicked);
+    sel.disabled = (isReserved && (sel.value==='required')&& false);
+
+
 }
 
 function onIncrementModeChange(rst_ID){
@@ -2353,23 +2376,36 @@ function onIncrementModeChange(rst_ID){
 * Listener of requirement type selector (combobox)
 */
 function onReqtypeChange(evt){
-    var el, name;
+
+    var el, name,rst_ID,oRecord;
 
     if(typeof evt === 'number'){
         el = Dom.get("ed"+evt+"_rst_RequirementType")
         name = 'ed'+evt;
+
+
     }else{
+
         el = evt.target;
-        name = el.id.substring(0,el.id.indexOf("_")); //. _rst_RequirementType
+        name = el.id.substring(0,el.id.indexOf("_"));//. _rst_RequirementType
+        rst_ID =  el.id.substring(2,el.id.indexOf("_"));
+        oRecord = editStructure.getRecordById(editStructure.helpSelectChange(rst_ID)).record;
+
+
     }
 
-    var rep_el =  Dom.get(name+'_Repeatability');
 
+
+    var rep_el =  Dom.get(name+'_Repeatability');
+    var status = Dom.get(name+"_rst_Status").value;
+    var isReserved = (status === "reserved");
     var el_min = Dom.get(name+"_rst_MinValues");
     var el_max = Dom.get(name+"_rst_MaxValues");
     //var status = Dom.get(name+"_rst_Status").value;
 
     if(el.value === "required"){
+
+
         if(Number(el_min.value)===0)
         {
             el_min.value = 1;
@@ -2377,6 +2413,7 @@ function onReqtypeChange(evt){
 
         //Dom.setStyle(span_min, "visibility", "visible");
     } else if(el.value === "recommended"){
+
         el_min.value = 0;
 
         //Dom.setStyle(span_min, "visibility", "hidden");
@@ -2394,7 +2431,42 @@ function onReqtypeChange(evt){
 
     if(el.value !== "forbidden"){
         //rep_el.disabled = false;
-        onRepeatChange(evt);
+       // onRepeatChange(evt);
+    }
+
+    if(oRecord){
+        if (oRecord.getData("rst_RequirementType")==='required' &&isReserved){
+            var ele = document.getElementById("change_Req");
+            $("#change_Req").css("display","block");
+            $("#reqText").html("This is a reserved field which may be required by a specific function such as Zotero import or mapping.<br><br>"+
+                "Reserved fields can be marked as Recommended or Optional rather than Required, however we recommend thinking " +
+                "carefully about whether the value is required before changing this setting.")
+
+            $("#change_Btn").click(function(){
+                var sel = Dom.get(name+"_rst_RequirementType");
+                sel.disabled = false;
+                $_dialogbox.dialog($_dialogbox).dialog("close");
+            });
+            $("#cancel_Btn").click(function(){
+
+
+                var sel = Dom.get(name+"_rst_RequirementType");
+                sel.selectedIndex=0;
+                sel.disabled = true;
+                $_dialogbox.dialog($_dialogbox).dialog("close");
+
+            });
+            //show confirmation dialog
+            $_dialogbox = Hul.popupElement(top, ele,
+                {
+                    "close-on-blur": false,
+                    "no-resize": true,
+                    title: '',
+                    height: 160,
+                    width: 600
+            });
+
+        }
     }
 }
 
@@ -2403,7 +2475,7 @@ function onReqtypeChange(evt){
 */
 function onRepeatChange(evt){
 
-    var el, name;
+    var el, name,rst_ID,oRecord;
 
     if(typeof evt === 'number'){
         el = Dom.get("ed"+evt+"_Repeatability")
@@ -2411,9 +2483,14 @@ function onRepeatChange(evt){
     }else{
         el = evt.target;
         name = el.id.substring(0,el.id.indexOf("_")); //. _rst_RequirementType
+        rst_ID =  el.id.substring(2,el.id.indexOf("_"));
+        oRecord = editStructure.getRecordById(editStructure.helpSelectChange(rst_ID)).record;
     }
 
     var el =  Dom.get(name+'_rst_RequirementType');
+    var status = Dom.get(name+"_rst_Status").value;
+    var isReserved = (status === "reserved");
+
     if(el.value !== "forbidden"){
 
         el =  Dom.get(name+'_Repeatability');
@@ -2438,6 +2515,40 @@ function onRepeatChange(evt){
             //TEMP Dom.setStyle(span_max, "visibility", "visible");
         }
 
+    }
+    if(oRecord){
+        if (isReserved){
+            var ele = document.getElementById("change_Req");
+            $("#change_Req").css("display","block");
+            $("#reqText").html("This is a reserved field which may be required by a specific function such as Zotero import or mapping.<br><br>"+
+                "Please think carefully before changing between a single value and repeating value field for a reserved field,"+
+                " as this could affect the way that the field operates.");
+
+            $("#change_Btn").click(function(){
+
+                var sel = Dom.get(name+"_Repeatability");
+                sel.disabled  =false;
+                $_dialogbox.dialog($_dialogbox).dialog("close");
+            });
+            $("#cancel_Btn").click(function(){
+                el_max.value = 1;
+                var sel = Dom.get(name+"_Repeatability");
+                sel.selectedIndex=0;
+                sel.value = sel.options[sel.selectedIndex].value
+                sel.disabled = true;
+                $_dialogbox.dialog($_dialogbox).dialog("close");
+            });
+            //show confirmation dialog
+            $_dialogbox = Hul.popupElement(top, ele,
+                {
+                    "close-on-blur": false,
+                    "no-resize": true,
+                    title: '',
+                    height: 160,
+                    width: 600
+            });
+
+        }
     }
 }
 

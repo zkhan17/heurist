@@ -83,7 +83,7 @@
         <!-- PAGINATOR
         <link rel="stylesheet" type="text/css" href="../../external/yui/2.8.2r1/build/paginator/assets/skins/sam/paginator.css">
         <script type="text/javascript" src="../../external/yui/2.8.2r1/build/paginator/paginator-min.js"></script>
-         END PAGINATOR -->
+        END PAGINATOR -->
 
         <link rel="stylesheet" type="text/css" href="../../../external/yui/2.8.2r1/samples/yui-dt-expandable.css"/>
         <script type="text/javascript" src="../../../external/yui/2.8.2r1/samples/yui-dt-expandable.js"></script>
@@ -98,27 +98,27 @@
         <style type="text/css">
             .input-row div.input-header-cell {vertical-align:baseline; width:100px}
             .dtyField {
-                    padding-bottom: 3px;
-                    padding-top: 3px;
-                    display: block;
+                padding-bottom: 3px;
+                padding-top: 3px;
+                display: block;
             }
             .dtyLabel {
-                    display: inline-block;
-                    width: 150px;
-                    text-align: right;
-                    padding-right: 3px;
+                display: inline-block;
+                width: 150px;
+                text-align: right;
+                padding-right: 3px;
             }
             .dtyValue {
-                    display: inline-block;
+                display: inline-block;
             }
             /*.yui-dt table
             {
-                    width: 590;
-                    max-width: 590;
+            width: 590;
+            max-width: 590;
             }*/
             .yui-dt-highlighted {
-            background-color: #000;
-            color: #FFF;
+                background-color: #000;
+                color: #FFF;
             }
             .yui-dt-expanded .yui-dt-expandablerow-trigger{
                 background:none;
@@ -130,15 +130,15 @@
                 background:none;
             }
             .tooltip {
-                    position:absolute;
-                    z-index:999;
-                    left:-9999px;
-                    top:0px;
-                    background-color:#dedede;
-                    padding:5px;
-                    border:1px solid #fff;
-                    min-width:300;
-                    min-height:300;
+                position:absolute;
+                z-index:999;
+                left:-9999px;
+                top:0px;
+                background-color:#dedede;
+                padding:5px;
+                border:1px solid #fff;
+                min-width:300;
+                min-height:300;
             }
 
             .depth0 {
@@ -220,8 +220,8 @@
 
         <div  id="divTitleMask">
             <div style="display:inline-block;vertical-align:top;font-weight:bold">
-                 <label for="rty_TitleMask">Constructed title mask</label><br/>
-                 <!-- <span><button onClick="editStructure.doEditTitleMask(false)">Edit mask</button></span> -->
+                <label for="rty_TitleMask">Constructed title mask</label><br/>
+                <!-- <span><button onClick="editStructure.doEditTitleMask(false)">Edit mask</button></span> -->
             </div>
             <textarea readonly cols="400" id="rty_TitleMask" rows="1"
                 style="width:600px;height:20px;display:inline-block; background-color: lightgray;"></textarea>
@@ -248,10 +248,10 @@
 
         <div style="bottom:10px;left:10px; right:10px;text-align:left; position:absolute;" id="recStrcuture_bottom">
             <span style="float:left">
-                  <i>Click row to edit field specifications. Drag arrows at left to change the order in the form. Click + icon to insert headings/fields.</i>
-                  <br/>
-                  To see the effects of record structure changes on the data entry form, keep a record open in the record edit form<br/>
-                  and simply hit Reload to view the revised form - changes here take effect immediately, there is no need to hit [Save]
+                <i>Click row to edit field specifications. Drag arrows at left to change the order in the form. Click + icon to insert headings/fields.</i>
+                <br/>
+                To see the effects of record structure changes on the data entry form, keep a record open in the record edit form<br/>
+                and simply hit Reload to view the revised form - changes here take effect immediately, there is no need to hit [Save]
             </span>
 
             <span style="float:right; text-align:right">
@@ -274,6 +274,10 @@
             <div id="reqText"></div>
             <input id="change_Btn" type="button" value="Change" title="" style="margin-left:400px;width:70px"/>
             <input id="cancel_Btn" type="button" value="Cancel" title="" style="width:70px; margin:2px"/>
+        </div>
+        <div id=del_Req style="display:none ">
+            <div id="delText"></div>
+            <input id="okBtn" type="button" value="OK" title="" style="margin-left:500px;width:70px"/>
         </div>
 
         <script  type="text/javascript">
