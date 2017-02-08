@@ -151,7 +151,7 @@ require_once(dirname(__FILE__)."/../initPage.php");
                     <li id="menu-database-refresh">
                         <a href="admin/verification/refresh.php" id="menulink-database-refresh" name="auto-popup" class="verylarge h3link"
                             data-logaction="stRefresh"
-                            onClick="{window.hWin.HEURIST4.util.reloadStrcuture(true);}"
+                            onClick="{return false;}"
                             title="Clear and reload Heurist's internal working memory in your browser. Use this to correct dropdowns etc. if recent additions and changes do not show.">
                             Refresh</a>
                     </li>
