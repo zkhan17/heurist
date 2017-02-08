@@ -421,7 +421,7 @@ $.widget( "heurist.mainMenu", {
         });
 
         var ele = $('#carat1');
-            ele.css({'left': '120px'});// (link.width()-16+'px !important')});
+            ele.css({'left': '125px'});// (link.width()-16+'px !important')});
 
 
 
