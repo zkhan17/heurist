@@ -13,19 +13,19 @@
 */
 
 /**
- * A form to edit field type, or create a new field type. It is utilized as pop-up from manageDetailTypes and manageRectypes
- * it may call another pop-ups: selectTerms and selectRecType
- *
- * @author      Stephen White
- * @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
- * @author      Juan Adriaanse
- * @copyright   (C) 2005-2016 University of Sydney
- * @link        http://HeuristNetwork.org
- * @version     3.1.0
- * @license     http://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
- * @package     Heurist academic knowledge management system
- * @subpackage  AdminStructure
- */
+* A form to edit field type, or create a new field type. It is utilized as pop-up from manageDetailTypes and manageRectypes
+* it may call another pop-ups: selectTerms and selectRecType
+*
+* @author      Stephen White
+* @author      Artem Osmakov   <artem.osmakov@sydney.edu.au>
+* @author      Juan Adriaanse
+* @copyright   (C) 2005-2016 University of Sydney
+* @link        http://HeuristNetwork.org
+* @version     3.1.0
+* @license     http://www.gnu.org/licenses/gpl-3.0.txt GNU License 3.0
+* @package     Heurist academic knowledge management system
+* @subpackage  AdminStructure
+*/
 
 var rectypeManager;
 
@@ -34,6 +34,9 @@ var Dom = YAHOO.util.Dom,
 Hul = top.HEURIST.util;
 
 function RectypeManager() {
+
+
+
 
     //private members
     var _className = "RectypeManager";
@@ -58,10 +61,10 @@ function RectypeManager() {
 
     //object to send changes (visibility and group belong) for update on server
     var _oRecordType = {rectype:{
-            colNames:{common:['rty_ShowInLists','rty_RecTypeGroupID'], dtFields:[]},
-            defs: {}
+        colNames:{common:['rty_ShowInLists','rty_RecTypeGroupID'], dtFields:[]},
+        defs: {}
     }};
-
+    var  ind = 0;
 
     var _updatesCnt = 0, //number of affected rec types (visibility, group belong)
     _filterForAll = true,
@@ -78,7 +81,6 @@ function RectypeManager() {
     function _init()
     {
         var grpID,
-        ind = 0,
         index;
         //
         // init tabview with names of group
@@ -101,24 +103,24 @@ function RectypeManager() {
         _rolloverInfo = new HintDiv('inforollover', 260, 170, '<div id="inforollover2"></div>');
 
         tabView.addTab(new YAHOO.widget.Tab({
-                    id: "newGroup",
-                    label: "<label title='Create new group, edit or delete an existing group' style='font-style:bold'> +/- </label>",
-                    content:
-                    ('<div id="formGroupEditor">'+
-                        '<style>#formGroupEditor .input-row .input-header-cell {vertical-align: baseline;}</style>'+
-                        '<h3>Create / edit / delete record type groups (tabs)</h3><br/>'+
-                        '<div class="input-row"><div class="input-header-cell">Group:</div><div class="input-cell"><select id="edGroupId" onchange="onGroupChange()"></select>'+
-                        '<input id="btnGrpDelete" onclick="{rectypeManager.doGroupDelete()}" value="Delete selected group" type="submit" style="margin-left:20px"/></div></div>'+
-                        '<div class="input-row required"><div class="input-header-cell">Name:</div><div class="input-cell"><input id="edName" style="width:150px"/></div></div>'+
-                        '<div class="input-row required"><div class="input-header-cell">Description:</div><div class="input-cell"><input id="edDescription" style="width:300px"/></div></div>'+
-                        '<div class="input-row"><div class="input-header-cell"></div>'+
-                        '<div class="input-cell">'+
-                        '<input id="btnGrpSave" style="display:inline-block" type="submit" value="Save" onclick="{rectypeManager.doGroupSave()}" />'+
-                        '<input id="btnGrpCancel" type="submit" value="Cancel" onclick="{rectypeManager.doGroupCancel()}" style="margin:0 5px" />'+
+            id: "newGroup",
+            label: "<label title='Create new group, edit or delete an existing group' style='font-style:bold'> +/- </label>",
+            content:
+            ('<div id="formGroupEditor" style="display:none">'+
+                '<style>#formGroupEditor .input-row .input-header-cell {vertical-align: baseline;}</style>'+
+                '<h3>Create / edit / delete record type groups (tabs)</h3><br/>'+
+                '<div class="input-row"><div class="input-header-cell">Group:</div><div class="input-cell"><select id="edGroupId" onchange="onGroupChange()"></select>'+
+                '<input id="btnGrpDelete" onclick="{rectypeManager.doGroupDelete()}" value="Delete selected group" type="submit" style="margin-left:20px"/></div></div>'+
+                '<div class="input-row required"><div class="input-header-cell">Name:</div><div class="input-cell"><input id="edNamenewGroup" style="width:150px"/></div></div>'+
+                '<div class="input-row required"><div class="input-header-cell">Description:</div><div class="input-cell"><input id="edDescriptionnewGroup" style="width:300px"/></div></div>'+
+                '<div class="input-row"><div class="input-header-cell"></div>'+
+                '<div class="input-cell">'+
+                '<input id="btnGrpSave" style="display:inline-block" type="submit" value="Save" onclick="{rectypeManager.doGroupSave()}" />'+
+                '<input id="btnGrpCancel" type="submit" value="Cancel" onclick="{rectypeManager.doGroupCancel()}" style="margin:0 5px" />'+
 
-                        '</div></div>'+
-                        '</div>')
-            }));
+                '</div></div>'+
+                '</div>')
+        }));
         tabView.appendTo("modelTabs");
 
 
@@ -147,6 +149,7 @@ function RectypeManager() {
         */			initTabView();
 
         dragDropEnable();
+
     }//end _init
 
     /*
@@ -169,7 +172,11 @@ function RectypeManager() {
     // adds new tab and into 3 spec arrays
     //
     function _addNewTab(ind, grpID, grpName, grpDescription)
+
     {
+
+
+
         if(Hul.isempty(grpDescription)){
             grpDescription = "Describe this group!";
         }
@@ -177,44 +184,68 @@ function RectypeManager() {
         _groups.push({value:grpID, text:grpName});
 
         tabView.addTab(new YAHOO.widget.Tab({
-                    id: grpID,
-                    label: "<label title='"+grpDescription+"'>"+grpName+"</label>",
-                    content:
-                    ('<div><br>&nbsp;&nbsp;<b>'+ grpDescription + '</b><br>&nbsp;<hr style="width: 100%; height: 1px;"><p>' + //for="filter"
-                        '<div style="float:right; display:inline-block; margin-bottom:10px;width:360px;padding-left:50px;">'+
+            id: grpID,
+            label: "<label title='Drag tab to reposition. Use [+/-] tab to add, rename or delete tabs'>"+
+            grpName+"<img src =../../../common/images/cross.png style='margin-left:5px; border:1px' alt='close' class='closeBtn'/></label>",
+            content:
+            ('<div>'+
+                '<br>&nbsp;&nbsp;<b>'+ grpDescription + '</b><br>&nbsp;<hr style="width: 100%; height: 1px;"><p>'+
+                '<div id="formGroupEditor">'+
+                '<style>#formGroupEditor .input-row .input-header-cell {vertical-align: baseline;}</style>'+
+                '<h3>edit record type groups (tabs)</h3><br/>'+
+                '<div class="input-row required"><div class="input-header-cell">Name:</div><div class="input-cell"><input id="edName'+grpID+'"style="width:150px"/></div></div>'+
+                '<div class="input-row required"><div class="input-header-cell">Description:</div><div class="input-cell"><input id="edDescription'+grpID+'" style="width:300px"/></div></div>'+
+                '<div class="input-row"><div class="input-header-cell"></div>'+
+                '<div class="input-cell">'+
+                '<input id="btnGrpSave" style="display:inline-block" type="submit" value="Save" onclick="{rectypeManager.doGroupSave()}" />'+
+                '<input id="btnGrpCancel" type="submit" value="Cancel" onclick="{rectypeManager.doGroupCancel()}" style="margin:0 5px" />'+
 
-                        // These are useless clutter. Filter by name was text, active only was checkbox
-                        //'<label>Filter by name:&nbsp;&nbsp;</label>'+
-                        '<input type="hidden" id="filter'+grpID+'" value="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'+
-                        // declutter: Probably unecessary to provuide an active/inactive filter
-                        '<input type="hidden" id="filter'+grpID+'vis" value="1" style="padding-top:5px;">'+
-                        //'&nbsp;Show active only&nbsp;&nbsp;'+
+                '</div></div>'+
+                '</div>'+
+                '<hr style="width: 100%; height: 1px;"></br>'+
+                //for="filter"
+                '<div style="float:right; display:inline-block; margin-bottom:10px;width:360px;padding-left:50px;">'+
 
-                        '</div>'+
-                        '<div>'+
-                        // TODO: remove old code - orginally had to manually save changes
-                        // '<label id="lblNoticeAboutChanges'+grpID+'" '+
-                        // 'style="padding-left:3px; padding-right:3px; background-color:white; color:red; display: inline-block;"></label>'+
-                        // '&nbsp;&nbsp;&nbsp;'+
-                        // '<input id="btnSave'+grpID+'" type="button" value="Save order" '+
-                        // 'style="color:red; display: none !important;margin-right:5px;"/>'+ //inline-block
-                        
-                        //Remarked temporarely 2016-05-11 '<input type="button" id="btnImportFromTemplate'+grpID+'" value="From templates" class="add"/>'+
-                        '<input type="button" id="btnImportFromDb'+grpID+'" value="From databases" class="add" style="margin-right:1em"/>'+
-                        '<input type="button" id="btnAddRecordType'+grpID+'" value="New record type / fields" class="add" style="margin-right:1em"/>'+
+                // These are useless clutter. Filter by name was text, active only was checkbox
+                //'<label>Filter by name:&nbsp;&nbsp;</label>'+
+                '<input type="hidden" id="filter'+grpID+'" value="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'+
+                // declutter: Probably unecessary to provuide an active/inactive filter
+                '<input type="hidden" id="filter'+grpID+'vis" value="1" style="padding-top:5px;">'+
+                //'&nbsp;Show active only&nbsp;&nbsp;'+
 
-                        //'<input type="button" id="btnAddFieldType'+grpID+'" value="Add Field Type" style="float:right;"/>'+
-                        '</div></div>'+
-                        '<div id="tabContainer'+grpID+'"></div>'+
-                        '<div style="position:absolute;bottom:8px;right:425px;">'+
+                '</div>'+
+                '<div>'+
+                // TODO: remove old code - orginally had to manually save changes
+                // '<label id="lblNoticeAboutChanges'+grpID+'" '+
+                // 'style="padding-left:3px; padding-right:3px; background-color:white; color:red; display: inline-block;"></label>'+
+                // '&nbsp;&nbsp;&nbsp;'+
+                // '<input id="btnSave'+grpID+'" type="button" value="Save order" '+
+                // 'style="color:red; display: none !important;margin-right:5px;"/>'+ //inline-block
 
-                        //Remarked temporarely 2016-05-11 '<input type="button" id="btnImportFromTemplate'+grpID+'_2" value="From templates" class="add"/>'+
-                        '<input type="button" id="btnImportFromDb'+grpID+'_2" value="From databases" class="add" style="margin-right:1em"/>'+
-                        '<input type="button" id="btnAddRecordType'+grpID+'_2" value="New record type / fields" class="add" style="margin-right:1em"/>'+
-                        '</div>'+
-                        '</div>')
+                //Remarked temporarely 2016-05-11 '<input type="button" id="btnImportFromTemplate'+grpID+'" value="From templates" class="add"/>'+
+                '<input type="button" id="btnImportFromDb'+grpID+'" value="From databases" class="add" style="margin-right:1em"/>'+
+                '<input type="button" id="btnAddRecordType'+grpID+'" value="New record type / fields" class="add" style="margin-right:1em"/>'+
+
+                //'<input type="button" id="btnAddFieldType'+grpID+'" value="Add Field Type" style="float:right;"/>'+
+                '</div></div>'+
+                '<div id="tabContainer'+grpID+'"></div>'+
+                '<div style="position:absolute;bottom:8px;right:425px;">'+
+
+                //Remarked temporarely 2016-05-11 '<input type="button" id="btnImportFromTemplate'+grpID+'_2" value="From templates" class="add"/>'+
+                '<input type="button" id="btnImportFromDb'+grpID+'_2" value="From databases" class="add" style="margin-right:1em"/>'+
+                '<input type="button" id="btnAddRecordType'+grpID+'_2" value="New record type / fields" class="add" style="margin-right:1em"/>'+
+
+
+
+                '</div>'+
+                '</div>')
 
             }), ind);
+
+
+
+
+
 
         arrTables.push(null);
         arrDataSources.push(null);
@@ -230,31 +261,47 @@ function RectypeManager() {
         var option;
 
         var id = e.newValue.get("id");
+
         if(id==="newGroup"){
+
+            //alert("hey");
+            _doGroupSave();
+
+            /*tabView.addTab(new YAHOO.widget.Tab({
+            id: 1,
+            label: "<label title='"+grpDescription+"'>"+grpName+"<img src =../../../common/images/cross.png style='margin-left:5px; border:1px' alt='close' class='closeBtn'/></label>",
+            content:
+            ('<div>Mitema</div>')}), ++ind);
+            initTabView();
             //fill combobox on edit group form
             var sel = Dom.get('edGroupId');
 
             //celear selection list
             while (sel.length>0){
-                sel.remove(0);
+            sel.remove(0);
             }
 
             Hul.addoption(sel, "-1", "Add new group");
 
             var i;
             for (i in _groups){
-                if(!Hul.isnull(i)){
-                    Hul.addoption(sel, _groups[i].value, _groups[i].text);
-                }
+            if(!Hul.isnull(i)){
+            Hul.addoption(sel, _groups[i].value, _groups[i].text);
+            }
             } // for
 
-            Dom.get('edName').value = "";
-            Dom.get('edDescription').value = "";
+
+            var tabIndex = tabView.get('activeIndex');
+            var grpID = tabView.getTab(tabIndex).get('id');
+            Dom.get('edName'+grpID).value = "";
+            Dom.get('edDescription'+grpID).value = ""; */
 
         }else if (e.newValue!==e.prevValue)
-            {
+        {
             initTabContent(e.newValue);
+
         }
+
     }// end _handleTabChange
 
     //
@@ -263,8 +310,18 @@ function RectypeManager() {
     function initTabView () {
         tabView.addListener("activeTabChange", _handleTabChange);
 
+
         //init the content for the first tab (table and buttons)
         tabView.set("activeIndex", 0);
+        $(".closeBtn").click(function(){
+            setTimeout(function(){
+
+                var tabIndex = tabView.get('activeIndex');
+                var grpID = tabView.getTab(tabIndex).get('id');
+                _doGroupDelete(grpID);
+
+                }, 300);
+        });
     }
 
     // =============================================== START DATATABLE INIT
@@ -272,6 +329,7 @@ function RectypeManager() {
     // create the content of tab: buttons and datatable
     //
     function initTabContent(tab) {
+
 
         var grpID = tab.get('id');
 
@@ -309,15 +367,15 @@ function RectypeManager() {
                     var rectype = td.commonFields;
                     if (rectype && Number(rectype[fi.rty_RecTypeGroupID]) === Number(grpID)) {  //(rectype[9].indexOf(grpID)>-1) {
                         arr.push([Number(rectypeID),
-                                '', //icon
-                                '', //edit
-                                rectype[fi.rty_Name],
-                                rectype[fi.rty_Description],
-                                (Number(rectype[fi.rty_ShowInLists])===1),
-                                rectype[fi.rty_Status],
-                                grpID, //rectype[fi.rty_RecTypeGroupID],
-                                null,
-                                rectype[fi.rty_ConceptID]]);
+                            '', //icon
+                            '', //edit
+                            rectype[fi.rty_Name],
+                            rectype[fi.rty_Description],
+                            (Number(rectype[fi.rty_ShowInLists])===1),
+                            rectype[fi.rty_Status],
+                            grpID, //rectype[fi.rty_RecTypeGroupID],
+                            null,
+                            rectype[fi.rty_ConceptID]]);
 
                         /*TODO: top.HEURIST.rectype.rectypeUsage[rectypeID].length*/
                     }
@@ -325,67 +383,67 @@ function RectypeManager() {
             }
 
             var myDataSource = new YAHOO.util.LocalDataSource(arr,{
-                    responseType : YAHOO.util.DataSource.TYPE_JSARRAY,
-                    responseSchema : {
-                        fields: [ "id", "icon", "edit", "name", "description", "active", "status", "grp_id", "info", "conceptid"]
-                    },
-                    doBeforeCallback : function (req,raw,res,cb) {
-                        // This is the filter function
-                        var data  = res.results || [],
-                        filtered = [],
-                        i,l;
+                responseType : YAHOO.util.DataSource.TYPE_JSARRAY,
+                responseSchema : {
+                    fields: [ "id", "icon", "edit", "name", "description", "active", "status", "grp_id", "info", "conceptid"]
+                },
+                doBeforeCallback : function (req,raw,res,cb) {
+                    // This is the filter function
+                    var data  = res.results || [],
+                    filtered = [],
+                    i,l;
 
-                        if (!Hul.isempty(_filterText) || _filterVisible===1) {
+                    if (!Hul.isempty(_filterText) || _filterVisible===1) {
 
-                            //var fvals = req.split("|");
+                        //var fvals = req.split("|");
 
-                            var sByName   = _filterText.toLowerCase(); //fvals[0].toLowerCase();
-                            var iByVisibility = _filterVisible; //fvals[1];
+                        var sByName   = _filterText.toLowerCase(); //fvals[0].toLowerCase();
+                        var iByVisibility = _filterVisible; //fvals[1];
+
+                        // when we change the table, the datasource is not changed
+                        // thus we need an additional filter to filter out the deleted rows
+                        // and rows that were moved to another groups
+                        var tabIndex = tabView.get('activeIndex');
+                        var grpID = tabView.getTab(tabIndex).get('id');
+
+                        for (i = 0, l = data.length; i < l; ++i) {
 
                             // when we change the table, the datasource is not changed
-                            // thus we need an additional filter to filter out the deleted rows
-                            // and rows that were moved to another groups
-                            var tabIndex = tabView.get('activeIndex');
-                            var grpID = tabView.getTab(tabIndex).get('id');
+                            //thus we need to update visibility manually
+                            var rec_ID = data[i].id;
+                            var df = _oRecordType.rectype.defs[rec_ID];
+                            if(!Hul.isnull(df)){
+                                data[i].active  = df.common[0];
+                                data[i].grp_id = df.common[1];
+                            }
 
-                            for (i = 0, l = data.length; i < l; ++i) {
+                            if ((data[i].name.toLowerCase().indexOf(sByName)>-1)
+                                && (data[i].grp_id === grpID) //(data[i].grp_id.indexOf(grpID)>-1)
+                                && (_deleted.indexOf(rec_ID)<0)
+                                && (iByVisibility===0 || Number(data[i].active)===iByVisibility))
+                            {
+                                filtered.push(data[i]);
+                            }
+                        }//for
 
-                                // when we change the table, the datasource is not changed
-                                //thus we need to update visibility manually
-                                var rec_ID = data[i].id;
-                                var df = _oRecordType.rectype.defs[rec_ID];
-                                if(!Hul.isnull(df)){
-                                    data[i].active  = df.common[0];
-                                    data[i].grp_id = df.common[1];
-                                }
-
-                                if ((data[i].name.toLowerCase().indexOf(sByName)>-1)
-                                    && (data[i].grp_id === grpID) //(data[i].grp_id.indexOf(grpID)>-1)
-                                    && (_deleted.indexOf(rec_ID)<0)
-                                    && (iByVisibility===0 || Number(data[i].active)===iByVisibility))
-                                    {
-                                    filtered.push(data[i]);
-                                }
-                            }//for
-
-                            res.results = filtered;
-                        }
-
-                        return res;
+                        res.results = filtered;
                     }
+
+                    return res;
+                }
             });
 
             var myColumnDefs = [
                 { key: "id", label: "Code", sortable:true, minWidth:30, maxAutoWidth:30, width:30, className:'right',
                     formatter: function(elLiner, oRecord, oColumn, oData) {
                         var rectypeID = oRecord.getData('id');
-                        
+
                         var fi = top.HEURIST.rectypes.typedefs.commonNamesToIndex;
                         var rectype = top.HEURIST.rectypes.typedefs[rectypeID].commonFields;
-                        
+
                         var sCcode = (Hul.isempty(rectype[fi.rty_ConceptID]))
-                                ?'':('Concept Code = '+rectype[fi.rty_ConceptID]+': ');
-                        
+                        ?'':('Concept Code = '+rectype[fi.rty_ConceptID]+': ');
+
                         elLiner.innerHTML = '<a href="#search" title="'
                         + sCcode
                         + 'Click to launch search for '
@@ -413,7 +471,7 @@ function RectypeManager() {
                 }},
 
                 { key: "edit", label: "Edit", sortable:false, className:'center', minWidth:40, maxAutoWidth:40, width:40, formatter: function(elLiner, oRecord, oColumn, oData) {
-                        elLiner.innerHTML = '<a href="#edit_rectype"><img src="../../../common/images/edit-recType.png" width="16" height="16" border="0" title="Edit record type" /><\/a>'; }
+                    elLiner.innerHTML = '<a href="#edit_rectype"><img src="../../../common/images/edit-recType.png" width="16" height="16" border="0" title="Edit record type" /><\/a>'; }
                 },
 
                 { key: "name", label: "Name", sortable:true, minWidth:160, maxAutoWidth:160, width:160, gutter:0,
@@ -425,11 +483,11 @@ function RectypeManager() {
                             str = str.substr(0,30)+"&#8230";
                         }
                         elLiner.innerHTML = '<a href="#edit_sctructure" class="bare"><label style="cursor:pointer !important;" id="lblRecTitle'
-                                    + oRecord.getData("id") +'" title="'
-                                    +tit+'">'+str+'</label></a>';
+                        + oRecord.getData("id") +'" title="'
+                        +tit+'">'+str+'</label></a>';
                 }},
 
-                 { key: "description", label: "Description", sortable:false, minWidth:400, maxAutoWidth:800, maxWidth:800,
+                { key: "description", label: "Description", sortable:false, minWidth:400, maxAutoWidth:800, maxWidth:800,
                     formatter: function(elLiner, oRecord, oColumn, oData) {
                         var str = oRecord.getData("description");
                         var tit = oRecord.getData("description");
@@ -443,19 +501,19 @@ function RectypeManager() {
                 }},
 
                 { key: "struc", hidden:true, label: "Struc", sortable:false, className:'center', minWidth:40, maxAutoWidth:40, width:40, formatter: function(elLiner, oRecord, oColumn, oData) {
-                        elLiner.innerHTML = '<a href="#edit_sctructure"><img src="../../../common/images/edit-structure.png" width="16" height="16" border="0" title="Edit record strcuture" /><\/a>'; }
+                    elLiner.innerHTML = '<a href="#edit_sctructure"><img src="../../../common/images/edit-structure.png" width="16" height="16" border="0" title="Edit record strcuture" /><\/a>'; }
                 },
-                                                                            //minWidth:20, maxWidth:20, maxAutoWidth:20,
+                //minWidth:20, maxWidth:20, maxAutoWidth:20,
                 { key: "active", label: "Show", sortable:false, width:"30px", formatter:YAHOO.widget.DataTable.formatCheckbox, className:'center' },
                 { key: "info", label: "Dup", sortable:false, className:'center', formatter: function(elLiner, oRecord, oColumn, oData) {
-                        var rectypeID = oRecord.getData('id');
-                        elLiner.innerHTML = '<img src="../../../common/images/drag_up_down_16x16.png"'+
-                        'style="cursor:pointer;" onclick="rectypeManager.duplicateType('+rectypeID+')"/>'; }
+                    var rectypeID = oRecord.getData('id');
+                    elLiner.innerHTML = '<img src="../../../common/images/drag_up_down_16x16.png"'+
+                    'style="cursor:pointer;" onclick="rectypeManager.duplicateType('+rectypeID+')"/>'; }
                 },
                 { key: "info", label: "Fields", sortable:false, className:'center', formatter: function(elLiner, oRecord, oColumn, oData) {
-                        var rectypeID = oRecord.getData('id');
-                        elLiner.innerHTML = '<img src="../../../common/images/info.png"'+
-                        'style="cursor:pointer;" onclick="rectypeManager.showInfo('+rectypeID+', event)" onmouseout="rectypeManager.hideInfo()"/>'; }
+                    var rectypeID = oRecord.getData('id');
+                    elLiner.innerHTML = '<img src="../../../common/images/info.png"'+
+                    'style="cursor:pointer;" onclick="rectypeManager.showInfo('+rectypeID+', event)" onmouseout="rectypeManager.hideInfo()"/>'; }
                 },
                 { key: "usage", label: "Usage", hidden:true },
                 { key: "grp_id", label: "Group", sortable:false, minWidth:120, maxAutoWidth:120, width:120, className:'center',
@@ -489,17 +547,17 @@ function RectypeManager() {
                 formatRow: myRowFormatter,
                 //selectionMode: "singlecell",
                 paginator : new YAHOO.widget.Paginator({
-                        rowsPerPage: 250, // should never be anything like this many
-                        totalRecords: arr.length,
+                    rowsPerPage: 250, // should never be anything like this many
+                    totalRecords: arr.length,
 
-                        // use a custom layout for pagination controls
-                        template: "&nbsp;Page: {PageLinks} &nbsp {RowsPerPageDropdown} per page",
+                    // use a custom layout for pagination controls
+                    template: "&nbsp;Page: {PageLinks} &nbsp {RowsPerPageDropdown} per page",
 
-                        // show all links
-                        pageLinks: YAHOO.widget.Paginator.VALUE_UNLIMITED,
+                    // show all links
+                    pageLinks: YAHOO.widget.Paginator.VALUE_UNLIMITED,
 
-                        // use these in the rows-per-page dropdown
-                        rowsPerPageOptions: [25, 50, 100, 250]
+                    // use these in the rows-per-page dropdown
+                    rowsPerPageOptions: [25, 50, 100, 250]
 
                 })
             };
@@ -508,65 +566,65 @@ function RectypeManager() {
 
             //click on action images
             dt.subscribe('linkClickEvent', function(oArgs){
-                    YAHOO.util.Event.stopEvent(oArgs.event);
+                YAHOO.util.Event.stopEvent(oArgs.event);
 
-                    var dt = this;
-                    var elLink = oArgs.target;
-                    var oRecord = dt.getRecord(elLink);
-                    var rectypeID = oRecord.getData("id");
-                    var db = (top.HEURIST.parameters.db? top.HEURIST.parameters.db :
-                        (top.HEURIST.database.name?top.HEURIST.database.name:''));
+                var dt = this;
+                var elLink = oArgs.target;
+                var oRecord = dt.getRecord(elLink);
+                var rectypeID = oRecord.getData("id");
+                var db = (top.HEURIST.parameters.db? top.HEURIST.parameters.db :
+                    (top.HEURIST.database.name?top.HEURIST.database.name:''));
 
-                    if(elLink.hash === "#search") {
-                        window.open(top.HEURIST.baseURL_V4+'?w=all&q=t:'+rectypeID+'&db='+db,'_blank');
-                    }else if(elLink.hash === "#edit_rectype") {
-                        _editRecStructure(rectypeID);
-                        //2016-06-14 Ian req _onAddEditRecordType(rectypeID, 0);
-                    } else if(elLink.hash === "#edit_sctructure") {
-                        _editRecStructure(rectypeID);
-                    }else if(elLink.hash === "#edit_icon") {
-                        _upload_icon(rectypeID,0);
-                    }else if(elLink.hash === "#edit_thumb") {
-                        _upload_icon(rectypeID,1);
-                        /*var db = (top.HEURIST.parameters.db? top.HEURIST.parameters.db :
-                        (top.HEURIST.database.name?top.HEURIST.database.name:''));
-                        var sURL = top.HEURIST.baseURL_V3 + "admin/structure/rectypes/uploadRectypeIcon.php?db="+ db + "&rty_ID="+rectypeID;
-                        top.HEURIST.util.popupURL(top, sURL, {
-                        "close-on-blur": false,
-                        "no-resize": false,
-                        height: 150,
-                        width: 340,
-                        //callback: icon_refresh
-                        });*/
+                if(elLink.hash === "#search") {
+                    window.open(top.HEURIST.baseURL_V4+'?w=all&q=t:'+rectypeID+'&db='+db,'_blank');
+                }else if(elLink.hash === "#edit_rectype") {
+                    _editRecStructure(rectypeID);
+                    //2016-06-14 Ian req _onAddEditRecordType(rectypeID, 0);
+                } else if(elLink.hash === "#edit_sctructure") {
+                    _editRecStructure(rectypeID);
+                }else if(elLink.hash === "#edit_icon") {
+                    _upload_icon(rectypeID,0);
+                }else if(elLink.hash === "#edit_thumb") {
+                    _upload_icon(rectypeID,1);
+                    /*var db = (top.HEURIST.parameters.db? top.HEURIST.parameters.db :
+                    (top.HEURIST.database.name?top.HEURIST.database.name:''));
+                    var sURL = top.HEURIST.baseURL_V3 + "admin/structure/rectypes/uploadRectypeIcon.php?db="+ db + "&rty_ID="+rectypeID;
+                    top.HEURIST.util.popupURL(top, sURL, {
+                    "close-on-blur": false,
+                    "no-resize": false,
+                    height: 150,
+                    width: 340,
+                    //callback: icon_refresh
+                    });*/
 
-                    }else if(elLink.hash === "#delete"){
-                        var iUsage = 0; //@todo oRecord.getData('usage');
-                        if(iUsage<1){
-                            if(_needToSaveFirst()) { return; }
+                }else if(elLink.hash === "#delete"){
+                    var iUsage = 0; //@todo oRecord.getData('usage');
+                    if(iUsage<1){
+                        if(_needToSaveFirst()) { return; }
 
-                            var value = confirm("Do you really want to delete record type # "+rectypeID+" '"+oRecord.getData('name')+"' ?");
-                            if(value) {
+                        var value = confirm("Do you really want to delete record type # "+rectypeID+" '"+oRecord.getData('name')+"' ?");
+                        if(value) {
 
-                                function _updateAfterDelete(context) {
+                            function _updateAfterDelete(context) {
 
-                                    if(!Hul.isnull(context)){
-                                        dt.deleteRow(oRecord.getId(), -1);
-                                        //  this alert is a pain alert("Record type #"+rectypeID+" was deleted");
-                                        _refreshClientStructure(context);
-                                        
-                                        _cloneHEU = null;
-                                    }
+                                if(!Hul.isnull(context)){
+                                    dt.deleteRow(oRecord.getId(), -1);
+                                    //  this alert is a pain alert("Record type #"+rectypeID+" was deleted");
+                                    _refreshClientStructure(context);
+
+                                    _cloneHEU = null;
                                 }
-
-
-                                var baseurl = top.HEURIST.baseURL_V3 + "admin/structure/saveStructure.php";
-                                var callback = _updateAfterDelete;
-                                var params = "method=deleteRT&db=" + db + "&rtyID=" + rectypeID;
-                                Hul.getJsonData(baseurl, callback, params);
-
                             }
-                        }//iUsege<1
-                    }
+
+
+                            var baseurl = top.HEURIST.baseURL_V3 + "admin/structure/saveStructure.php";
+                            var callback = _updateAfterDelete;
+                            var params = "method=deleteRT&db=" + db + "&rtyID=" + rectypeID;
+                            Hul.getJsonData(baseurl, callback, params);
+
+                        }
+                    }//iUsege<1
+                }
 
             });
 
@@ -575,44 +633,44 @@ function RectypeManager() {
             dt.subscribe("rowMouseoutEvent", dt.onEventUnhighlightRow);
 
             dt.subscribe('dropdownChangeEvent', function(oArgs){
-                    var elDropdown = oArgs.target;
-                    var record = this.getRecord(elDropdown);
-                    var column = this.getColumn(elDropdown);
-                    var newValue = elDropdown.options[elDropdown.selectedIndex].value;
-                    var oldValue = record.getData(column.key);
-                    var recordIndex = this.getRecordIndex(record);
-                    var recordKey = record.getData('recordKey');
-                    if(newValue!==oldValue){
-                        //this.deleteRow(recordIndex);
-                        var data = record.getData();
-                        data.grp_id = newValue;
+                var elDropdown = oArgs.target;
+                var record = this.getRecord(elDropdown);
+                var column = this.getColumn(elDropdown);
+                var newValue = elDropdown.options[elDropdown.selectedIndex].value;
+                var oldValue = record.getData(column.key);
+                var recordIndex = this.getRecordIndex(record);
+                var recordKey = record.getData('recordKey');
+                if(newValue!==oldValue){
+                    //this.deleteRow(recordIndex);
+                    var data = record.getData();
+                    data.grp_id = newValue;
 
-                        //remove destination table
-                        _removeTable(newValue, false);
+                    //remove destination table
+                    _removeTable(newValue, false);
 
-                        //remove from this table and refresh another one
-                        window.setTimeout(function() {
-                                dt.deleteRow(record.getId(), -1);
-                            }, 100);
+                    //remove from this table and refresh another one
+                    window.setTimeout(function() {
+                        dt.deleteRow(record.getId(), -1);
+                        }, 100);
 
-                        //keep the track of changes in special object
-                        _updateRecordType(record);
-                        _updateSaveNotice(oldValue);
-                    }
+                    //keep the track of changes in special object
+                    _updateRecordType(record);
+                    _updateSaveNotice(oldValue);
+                }
             });
 
             //subscribe on checkbox event (visibility)
             dt.subscribe("checkboxClickEvent", function(oArgs) {
-                    var elCheckbox = oArgs.target;
-                    var oRecord = dt.getRecord(elCheckbox);
-                    var data = oRecord.getData();
-                    data.active = elCheckbox.checked;//?1:0;
+                var elCheckbox = oArgs.target;
+                var oRecord = dt.getRecord(elCheckbox);
+                var data = oRecord.getData();
+                data.active = elCheckbox.checked;//?1:0;
 
-                    var recindex = dt.getRecordIndex(oRecord);
-                    dt.updateRow(recindex, data);
+                var recindex = dt.getRecordIndex(oRecord);
+                dt.updateRow(recindex, data);
 
-                    //keep the track of changes in special array
-                    _updateRecordType(oRecord);
+                //keep the track of changes in special array
+                _updateRecordType(oRecord);
             });
 
             //
@@ -724,26 +782,26 @@ function RectypeManager() {
             btnAddRecordType2.onclick = btnAddRecordType.onclick
 
             //-------
-/*Remarked temporarely 2016-05-11
+            /*Remarked temporarely 2016-05-11
             btnAddRecordType = Dom.get('btnImportFromTemplate'+grpID);
             btnAddRecordType.onclick = function(){
-                var sURL = top.HEURIST.baseURL_V3 + "admin/structure/import/annotatedTemplate.php?popup=1&db="+ db +
-                "&grpId="+grpID;
+            var sURL = top.HEURIST.baseURL_V3 + "admin/structure/import/annotatedTemplate.php?popup=1&db="+ db +
+            "&grpId="+grpID;
 
-                Hul.popupURL(top, sURL, {
-                    "close-on-blur": false,
-                    "no-resize": false,
-                    title: 'Acquire from templates',
-                    height: dim.h*0.95,
-                    width: dim.w*0.95,
-                    //callback: _import_complete
-                });
+            Hul.popupURL(top, sURL, {
+            "close-on-blur": false,
+            "no-resize": false,
+            title: 'Acquire from templates',
+            height: dim.h*0.95,
+            width: dim.w*0.95,
+            //callback: _import_complete
+            });
 
 
             };
             btnAddRecordType2 = Dom.get('btnImportFromTemplate'+grpID+'_2');
             btnAddRecordType2.onclick = btnAddRecordType.onclick
-*/
+            */
 
             /*var btnAddFieldType = Dom.get('btnAddFieldType'+grpID);
             btnAddFieldType.onclick = function (e) {
@@ -770,12 +828,13 @@ function RectypeManager() {
             _initRecID = null
         }
 
+
     }//initTabContent =============================================== END DATATABLE INIT
 
 
     /**
-     * Show popup div with information about field types in use for given record type
-     */
+    * Show popup div with information about field types in use for given record type
+    */
     function _showInfoToolTip(rectypeID, event) {
 
         var forceHideTip = true;
@@ -838,7 +897,7 @@ function RectypeManager() {
 
             var currIndex = tabView.get('activeIndex');
             if( (Number(tabIndex) === Number(currIndex)) && needRefresh)
-                {
+            {
                 setTimeout(function(){initTabContent(tabView.getTab(tabIndex));},500);
             }
 
@@ -896,14 +955,14 @@ function RectypeManager() {
                 _clearGroupAndVisibilityChanges(false);
             }
             _refreshClientStructure(context);
-            
+
             _cloneHEU = null;
         }
     }
 
     /**
-     * Show/hide information about number of fieldtypes with changed activity
-     */
+    * Show/hide information about number of fieldtypes with changed activity
+    */
     function _updateSaveNotice(grp_id){
 
         //var _lblNotice = Dom.get("lblNoticeAboutChanges"+grp_id);
@@ -986,10 +1045,10 @@ function RectypeManager() {
 
         // Get filtered data
         dsource.sendRequest(_filterText+'|'+_filterVisible, {
-                success : dtable.onDataReturnInitializeTable,
-                failure : dtable.onDataReturnInitializeTable,
-                scope	  : dtable,
-                argument : { pagination: { recordOffset: 0 } } // to jump to page 1
+            success : dtable.onDataReturnInitializeTable,
+            failure : dtable.onDataReturnInitializeTable,
+            scope	  : dtable,
+            argument : { pagination: { recordOffset: 0 } } // to jump to page 1
         });
     }
 
@@ -1008,18 +1067,18 @@ function RectypeManager() {
         var dim = Hul.innerDimensions(top);
 
         Hul.popupURL(top, URL, {
-                "close-on-blur": false,
-                "no-resize": false,
-                height: 700,
-                width: 700,
-                title: 'Edit field type',
-                callback: function(changedValues) {
-                    if(Hul.isnull(changedValues)) {
-                        // Canceled
-                    } else {
-                        // TODO: reload datatable
-                    }
+            "close-on-blur": false,
+            "no-resize": false,
+            height: 700,
+            width: 700,
+            title: 'Edit field type',
+            callback: function(changedValues) {
+                if(Hul.isnull(changedValues)) {
+                    // Canceled
+                } else {
+                    // TODO: reload datatable
                 }
+            }
         });
     }
 
@@ -1028,41 +1087,41 @@ function RectypeManager() {
     //
     function _duplicateType(rectypeID) {
 
-            var value = confirm("Do you really want to duplicate record type # "+rectypeID+"?"); //" '"+rt_name+"' ?");
-            if(value) {
+        var value = confirm("Do you really want to duplicate record type # "+rectypeID+"?"); //" '"+rt_name+"' ?");
+        if(value) {
 
-                function _editAfterDuplicate(context) {
+            function _editAfterDuplicate(context) {
 
-                    if(!Hul.isnull(context) && Number(context.id)>0){
+                if(!Hul.isnull(context) && Number(context.id)>0){
 
 
-                            var rty_ID = Number(context.id);
+                    var rty_ID = Number(context.id);
 
-                            //refresh the local heurist
-                            _refreshClientStructure(context);
-                            
-                            _cloneHEU = null;
+                    //refresh the local heurist
+                    _refreshClientStructure(context);
 
-                            //detect what group
-                            ind_grpfld = top.HEURIST.rectypes.typedefs.commonNamesToIndex.rty_RecTypeGroupID;
-                            var grpID = top.HEURIST.rectypes.typedefs[rty_ID].commonFields[ind_grpfld];
+                    _cloneHEU = null;
 
-                            var d = new Date();
-                            curtimestamp = d.getMilliseconds();
+                    //detect what group
+                    ind_grpfld = top.HEURIST.rectypes.typedefs.commonNamesToIndex.rty_RecTypeGroupID;
+                    var grpID = top.HEURIST.rectypes.typedefs[rty_ID].commonFields[ind_grpfld];
 
-                            _removeTable(grpID, true);
+                    var d = new Date();
+                    curtimestamp = d.getMilliseconds();
 
-                            _onAddEditRecordType(context.id, null);
-                    }
+                    _removeTable(grpID, true);
+
+                    _onAddEditRecordType(context.id, null);
                 }
-
-
-                var baseurl = top.HEURIST.baseURL_V3 + "admin/structure/rectypes/duplicateRectype.php";
-                var callback = _editAfterDuplicate;
-                var params = "db=" + db + "&rtyID=" + rectypeID;
-                Hul.getJsonData(baseurl, callback, params);
-
             }
+
+
+            var baseurl = top.HEURIST.baseURL_V3 + "admin/structure/rectypes/duplicateRectype.php";
+            var callback = _editAfterDuplicate;
+            var params = "db=" + db + "&rtyID=" + rectypeID;
+            Hul.getJsonData(baseurl, callback, params);
+
+        }
     }
 
 
@@ -1077,21 +1136,21 @@ function RectypeManager() {
         var dim = Hul.innerDimensions(top);
 
         Hul.popupURL(top, URL, {
-                "close-on-blur": false,
-                "no-resize": false,
-                title: 'RECORD STRUCTURE',
-                height: dim.h*0.9,
-                width: 860,
-                "no-close": true,
-                closeCallback: function(){ alert('kiki'); },
-                callback: function(context) {
-                    if(Hul.isnull(context)) {
-                        // Canceled
-                    } else {
-                        // alert("Structure is saved");
-                    }
-                    icon_refresh(rty_ID);
+            "close-on-blur": false,
+            "no-resize": false,
+            title: 'RECORD STRUCTURE',
+            height: dim.h*0.9,
+            width: 860,
+            "no-close": true,
+            closeCallback: function(){ alert('kiki'); },
+            callback: function(context) {
+                if(Hul.isnull(context)) {
+                    // Canceled
+                } else {
+                    // alert("Structure is saved");
                 }
+                icon_refresh(rty_ID);
+            }
         });
     }
 
@@ -1100,13 +1159,13 @@ function RectypeManager() {
         var URL = top.HEURIST.baseURL_V3 + "admin/verification/recalcTitlesSpecifiedRectypes.php?db="+db+"&recTypeIDs="+rty_ID;
 
         Hul.popupURL(top, URL, {
-                "close-on-blur": false,
-                "no-resize": true,
-                title:'Recalculation of composite record titles',
-                height: 400,
-                width: 400,
-                callback: function(context) {
-                }
+            "close-on-blur": false,
+            "no-resize": true,
+            title:'Recalculation of composite record titles',
+            height: 400,
+            width: 400,
+            callback: function(context) {
+            }
         });
     }
 
@@ -1166,7 +1225,7 @@ function RectypeManager() {
 
                             //refresh the local heurist
                             _refreshClientStructure(context);
-                            
+
                             _cloneHEU = null;
 
                             //detect what group
@@ -1233,34 +1292,45 @@ function RectypeManager() {
     //
     function _doGroupSave()
     {
-        if(_needToSaveFirst()) { return; }
+        //if(_needToSaveFirst()) { return; }
 
-        var sel = Dom.get('edGroupId'),
-        name = Dom.get('edName').value.replace(/^\s+|\s+$/g, ''), //trim
-        description = Dom.get('edDescription').value.replace(/^\s+|\s+$/g, ''), //trim
-        grpID = sel.options[sel.selectedIndex].value,
+
+        var tabIndex = tabView.get('activeIndex');
+        grpID = tabView.getTab(tabIndex).get('id')
+
+
+        //var sel = Dom.get('edGroupId'),
+
+        var name = Dom.get('edName'+grpID).value.replace(/^\s+|\s+$/g, ''), //trim
+        description = Dom.get('edDescription'+grpID).value.replace(/^\s+|\s+$/g, ''), //trim
+        //grpID = sel.options[sel.selectedIndex].value,
         grp; //object in HEURIST
 
-        if(Hul.isempty(name)){
-            alert('Group name is required. Please specify it');
-            Dom.get('edName').focus();
-            return;
-        }
-        if(Hul.isempty(description)){
-            alert('Group description is required. Please specify it');
-            Dom.get('edDescription').focus();
-            return;
+
+        if(grpID!='newGroup'){
+
+
+            if(Hul.isempty(name)){
+                alert('Group name is required. Please specify it');
+                Dom.get('edName'+grpID).focus();
+                return;
+            }
+            if(Hul.isempty(description)){
+                alert('Group description is required. Please specify it');
+                Dom.get('edDescription'+grpID).focus();
+                return;
+            }
         }
 
 
         var orec = {rectypegroups:{
-                colNames:['rtg_Name','rtg_Description'],
-                defs: {}
+            colNames:['rtg_Name','rtg_Description'],
+            defs: {}
         }};
 
 
         //define new or exisiting
-        if(grpID<0) {
+        if(grpID=='newGroup') {
             grp = {name: name, description:description};
             orec.rectypegroups.defs[-1] = [];
             orec.rectypegroups.defs[-1].push({values:[name, description]});
@@ -1279,17 +1349,17 @@ function RectypeManager() {
         function _updateOnSaveGroup(context){
             //for new - add new tab
             if(!Hul.isnull(context))
-                {
+            {
                 //for new - add new tab
                 if(!Hul.isnull(context['0'].error)){
                     Hul.showError(context['0']);
                 }else{
                     var ind;
                     _refreshClientStructure(context);
-                    
+
                     _cloneHEU = null;
 
-                    if(grpID<0){
+                    if(grpID=='newGroup'){
 
                         _refreshAllTables();
 
@@ -1342,13 +1412,13 @@ function RectypeManager() {
     }
 
     /**
-     * Updates group order after drag and drop
-     */
+    * Updates group order after drag and drop
+    */
     function _updateOrderAfterDrag() {
 
         var orec = {rectypegroups:{
-                colNames:['rtg_Order'],
-                defs: {}
+            colNames:['rtg_Order'],
+            defs: {}
         }};
 
         var i,
@@ -1380,19 +1450,19 @@ function RectypeManager() {
     //
     //
     //
-    function _doGroupDelete(){
+    function _doGroupDelete(grpID){
 
         if(_needToSaveFirst()) { return; }
 
-        var sel = Dom.get('edGroupId');
+        /*var sel = Dom.get('edGroupId');
         var grpID = sel.options[sel.selectedIndex].value;
 
-        if(grpID<0) { return; }
+        if(grpID<0) { return; } */
 
         var grp = top.HEURIST.rectypes.groups[top.HEURIST.rectypes.groups.groupIDToIndex[grpID]];
 
         if(!Hul.isnull(grp.types) && grp.types.length>0)
-            {
+        {
             alert("This group cannot be deleted as it contains record types - please move them first");
         }else{
             var r=confirm("Confirm the deletion of group '"+grp.name+"'");
@@ -1415,7 +1485,7 @@ function RectypeManager() {
                         tabView.removeTab(tabView.getTab(ind));
                         tabView.set("activeIndex", 0);
                         _refreshClientStructure(context);
-                        
+
                         _cloneHEU = null;
 
                         _refreshAllTables();
@@ -1501,9 +1571,12 @@ function RectypeManager() {
 //
 //
 function onGroupChange() {
+
+    var tabIndex = tabView.get('activeIndex');
+    grpID = tabView.getTab(tabIndex).get('id');
     var sel = Dom.get('edGroupId'),
-    edName = Dom.get('edName'),
-    edDescription = Dom.get('edDescription'),
+    edName = Dom.get('edName'+grpID),
+    edDescription = Dom.get('edDescription'+grpID),
     grpID = sel.options[sel.selectedIndex].value;
 
     if(grpID<0){
@@ -1517,7 +1590,7 @@ function onGroupChange() {
 }
 
 function _refreshClientStructure(context){
-console.log('refresh rectypes');
+    console.log('refresh rectypes');
     top.HEURIST.rectypes = context.rectypes;
     if(window.hWin && window.hWin.HEURIST4){
         window.hWin.HEURIST4.rectypes = context.rectypes;
@@ -1534,14 +1607,14 @@ function _upload_icon(rectypeID,mode) {
     var db = (top.HEURIST.parameters.db? top.HEURIST.parameters.db : (top.HEURIST.database.name?top.HEURIST.database.name:''));
     var sURL = top.HEURIST.baseURL_V3 + "admin/structure/rectypes/uploadRectypeIcon.php?db="+ db + "&mode="+mode+"&rty_ID=" + rectypeID+"&rty_Name=" + rt_name;
     top.HEURIST.util.popupURL(top, sURL, {
-            "close-on-blur": false,
-            "no-resize": false,
-            title:'Upload Record Type Icon',
-            height: 500, //(mode==0?200:250),
-            width: 700,
-            callback: function(context){
-                icon_refresh(rectypeID)
-            }
+        "close-on-blur": false,
+        "no-resize": false,
+        title:'Upload Record Type Icon',
+        height: 500, //(mode==0?200:250),
+        width: 700,
+        callback: function(context){
+            icon_refresh(rectypeID)
+        }
     });
 
 }
@@ -1565,7 +1638,7 @@ function icon_refresh(rectypeID) {
             img.css('background-image', 'url("' + top.HEURIST.iconBaseURL + "thumb/th_" + rectypeID+".png&t="+curtimestamp+'")');
             ///img.style.backgroundImage = 'url("' + top.HEURIST.iconBaseURL + "thumb/th_" + rectypeID + ".png?" + curtimestamp+'") !important';
         }
-        
+
         $('#lblRecTitle'+rectypeID).text(top.HEURIST.rectypes.names[rectypeID]);
 
     }
