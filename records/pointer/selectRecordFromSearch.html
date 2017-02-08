@@ -114,9 +114,9 @@
                         <td colspan="5" rowspan="1" style="padding-top: 0px; padding-left: 30px;">
                             <b>or</b> &nbsp;&nbsp;&nbsp;
 
-                            <img src="../../common/images/add-record-small.png" style="border: 1px;"
-                                title="Create and edit a new record, which will become the target of the pointer field" onclick="return addRecord()"/>
-                            <select id="r" name="r" style="border: 3px; border-style: outset; border-color: black;"
+                            <button type="button" id=addBtn onclick="return addRecord()" style="border: 3px; border-style: outset; border-color: black;"><img src="../../common/images/add-record-small.png" style="border: 1px;"
+                                title="Create and edit a new record, which will become the target of the pointer field" onclick="return addRecord()"/><span>Create new</span></button>
+                            <select id="r" name="r" style="border: 1px; border-style: outset; border-color: black;"
                                 onChange="changeOption(false, true);"></select>
 
 
@@ -142,6 +142,10 @@
         </form>
 
         <script language="JavaScript">
+
+            var addBtn = document.getElementById("addBtn");
+            addBtn.style.color ='blue';
+            // $("#addBtn").html("Create new").css("color","blue");
 
             // parse the parameter line for input parameters t = constrained type list and q = title of the record pointed to.
             window.HEURIST.parameters = top.HEURIST.parseParams(window.location.search);
@@ -184,22 +188,36 @@
                 document.title = "Select / create: " + recTypeName;
             }
 
-            function onSelectRecordtype(is_submit){
+            function onSelectRecordtype(is_submit, tselectedIndex){
                 if(is_submit) document.forms[0].submit('record-search-type');
                 var rt_name = top.HEURIST.rectypes.names[document.getElementById('t').value];
                 if(!rt_name) rt_name = 'a new record';
                 var select = document.getElementById('r');
+                var _select = document.getElementById('t');
+                firstOpt = top.HEURIST.rectypes.names[$("#t option:first").val()];
+
 
                 if (select.options.length==0){
-                    $("#t option" ).each(function(){
-                        //tElt.appendChild(new Option(name, recTypeID));
-                        //alert($(this).val());
-                        $(select).append('<option data-class ="ui-icon.record" value=' +
-                            top.HEURIST.rectypes.names[$(this).val()]+'>'
-                            + 'Create new '
-                            + top.HEURIST.rectypes.names[$(this).val()]+ '</option>');
-                    });
+                    if(_select.options.length==1){
+                        $("#addBtn").html("<img src='../../common/images/add-record-small.png'  title='Create and edit a new record, which will become the target of the pointer field' onclick='return addRecord()'/> Create new "+firstOpt);
+                        $("#r").hide();
+
+                    }
+                    else{
+                        $("#addBtn").html("<img src='../../common/images/add-record-small.png'  title='Create and edit a new record, which will become the target of the pointer field' onclick='return addRecord()'/> Create new");
+                        $("#t option" ).each(function(){
+                            //tElt.appendChild(new Option(name, recTypeID));
+                            //alert($(this).val());
+
+                            $(select).append('<option data-class ="ui-icon.record" value=' +
+                                top.HEURIST.rectypes.names[$(this).val()]+'>'
+                                + top.HEURIST.rectypes.names[$(this).val()]+ '</option>');
+                        });
+                    }
+                    select.selectedIndex =tselectedIndex;
                 }
+
+
 
                 // <img src="../../common/images/add-record-small.png" style="border: 1px;"/>
                 //$(select).val(rt_name);
@@ -423,6 +441,7 @@
 
                 //create rectype selector and set intial selection
                 var tElt = document.getElementById("t");
+                var rElt = document.getElementById("r");
                 tElt.selectedIndex = 0;
 
                 if (!rectypes) {// unconstrained pointer
@@ -497,7 +516,7 @@
                     document.getElementById(searchScope).checked = true;
                 }
 
-                onSelectRecordtype(true);
+                onSelectRecordtype(true, tElt.selectedIndex);
                 //document.forms[0].submit();
 
                 /*				var intervalID = setInterval(function() {
