@@ -138,7 +138,7 @@ if (! top.HEURIST.edit) {
                 } catch (e) { }
             });
 
-            
+
             // create the url for the frame src
             var urlBits = [];
             var parameters = top.HEURIST.edit.record;
@@ -326,18 +326,18 @@ if (! top.HEURIST.edit) {
                 }
             }
         },
-        
+
         _getridGarbageHelp: function(str){
                     if (str!='' &&
-                       (str=='Please rename to an appropriate heading within each record structure' || 
+                       (str=='Please rename to an appropriate heading within each record structure' ||
                         str.indexOf('Please document the nature of this detail type')==0 ||
                         str=='Another separator field' ||
                         str=='Headings serve to break the data entry form up into sections')){
-                            
+
                         str='';
                     }
                     return str;
-            
+
         },
 
         /**
@@ -463,14 +463,14 @@ if (! top.HEURIST.edit) {
 
         /**
         * duplicate current record and open in editor in new window
-        * 
+        *
         */
         duplicate_record: function(){
 
-                window.open(top.HEURIST.baseURL_V3 +"records/edit/duplicateRecordInfo.php?mode=edit&recID=" 
+                window.open(top.HEURIST.baseURL_V3 +"records/edit/duplicateRecordInfo.php?mode=edit&recID="
                     + top.HEURIST.edit.record.bibID
                     + "&db="+top.HEURIST.database.name,'_blank');
-          
+
         },
 
         /**
@@ -492,7 +492,7 @@ if (! top.HEURIST.edit) {
                 &&  top.HEURIST.edit.modules['public'].frame.contentWindow;
 
                 if(publicWindow && top.HEURIST.edit.requiredInputsOK(publicWindow.HEURIST.inputs, publicWindow)){
-                    
+
                     $("#save-record-buttons").hide();
                     $("#save-record-buttons2").hide();
 
@@ -598,14 +598,14 @@ if (! top.HEURIST.edit) {
             // TODO: ? remove :  setTimeout(function() { top.HEURIST.util.closePopup(top.HEURIST.edit.savePopup.id); }, 5000);
 
             top.HEURIST.edit.showRecordProperties();
-            
+
             if(top.HEURIST && top.HEURIST.parameters && top.HEURIST.parameters['fromadd']=="new_bib"){
                 top.HEURIST.parameters['fromadd']=null;
                 document.getElementById('div-duplication').style.display = 'block';
             }
-        
-            
-            
+
+
+
             setTimeout(function() {
                 document.getElementById("popup-saved").style.display = "block";
                 setTimeout(function() {
@@ -657,7 +657,7 @@ if (! top.HEURIST.edit) {
                 top.close();
                 if (topOpener) topOpener.focus();
             } catch (e) { }
-            
+
         },
 
 
@@ -687,6 +687,7 @@ if (! top.HEURIST.edit) {
             $("#save-record-buttons").show();
             $("#close-button2").hide();
             $("#save-record-buttons2").show();
+
 
         },
 
@@ -947,23 +948,23 @@ if (! top.HEURIST.edit) {
         createInput: function(recID, detailTypeID, rectypeID, fieldValues, container, stylename_prefix) {
 
             if(!top || !window) {
-console.log('top not defined');    
-				return;            
-                window.top = window.self;    
+console.log('top not defined');
+				return;
+                window.top = window.self;
             }
             if(!top.HEURIST){
-console.log('heurist not defined'); 
-            }               
-            
+console.log('heurist not defined');
+            }
+
             var dtyFieldNamesIndexMap = top.HEURIST.detailTypes.typedefs.fieldNamesToIndex;
             var rfr = null, dtType, dt;
-            
+
             if($.isArray(detailTypeID)){
 				rfr = detailTypeID;
                 dt = top.HEURIST.detailTypes.typedefs[rfr[rfr.length-1]]['commonFields'];
                 dtType = dt[dtyFieldNamesIndexMap['dty_Type']];
             }else{
-            
+
                 // Get Detail Type info
                 // 0,"dty_Name" 1,"dty_ExtendedDescription" 2,"dty_Type" 3,"dty_OrderInGroup" 4,"dty_HelpText" 5,"dty_ShowInLists"
                 // 6,"dty_Status" 7,"dty_DetailTypeGroupID" 8,"dty_FieldSetRectypeID" 9,"dty_JsonTermIDTree"
@@ -977,7 +978,7 @@ console.log('heurist not defined');
                     rfr = top.HEURIST.edit.createFakeFieldRequirement(dt,null,null,null,null,
                                         (fieldValues.length?fieldValues.length:null));
                 }
-            
+
                 dtType = dt[dtyFieldNamesIndexMap['dty_Type']];
 			}
 
@@ -1105,8 +1106,8 @@ console.log('heurist not defined');
             }
             return rdtConstrainedLookups;
         },
-        
-                                       
+
+
         //
         //
         //
@@ -1114,7 +1115,7 @@ console.log('heurist not defined');
             var element = event.target;
             var val_size = element.value?top.HEURIST.util.byteLengthOf(element.value):0;
             if(val_size>20480){
-                top.HEURIST.util.stopEvent(event);                             //was 65535 
+                top.HEURIST.util.stopEvent(event);                             //was 65535
                 top.HEURIST.util.showMessage('Text fields are limited to 20480 bytes (20Kb typically ~15 pages).<p>"'
      +element.getAttribute('data-dispname')+ '" has '+val_size+' bytes ('+element.value.length+' characters)</p>'
      +'Please shorten text or divide into repeat values for this field)');
@@ -1201,9 +1202,9 @@ console.log('heurist not defined');
             var windowRef = this.document.parentWindow  ||  this.document.defaultView  ||  this.document._parentWindow;
 
             if (fileInput.value == "") return;
-            
+
             var filesize = fileInput.files[0].size;
-            
+
             if(window.hWin && window.hWin.HAPI4 && window.hWin.HAPI4.sysinfo){
                 max_file_size = window.hWin.HAPI4.sysinfo.max_file_size;
                 max_post_size = window.hWin.HAPI4.sysinfo.max_post_size;
@@ -1217,21 +1218,21 @@ console.log('heurist not defined');
 'Sorry, this file exceeds the upload '
 + ((max_file_size<max_post_size)?'file':'(post data)')
 + ' size limit set for this server ('
-+ Math.round(max_size/1024/1024) 
++ Math.round(max_size/1024/1024)
 + ' MBytes). Please reduce the file size eg. by reducing resolution of images, or ask your system administrator to increase the upload limit. '
 + '<br><br>'
 + 'For sound and video files we STRONGLY recommend uploading to a streaming service such as Soundcloud, Youtube or Vimeo and entering the URL in the URL field. They will play in situ in Heurist and the streaming service will deliver the appropriate resolution for the device. Choose private but playable by anyone with the URL if they are to be embedded in a public website.'
                     );
                     fileInput.value = '';
                     return;
-            }            
+            }
 
-            
+
             if (! windowRef.HEURIST.uploadsDiv  ||  ! this.document.getElementById("uploads")) {
                 var uploadsDiv = windowRef.HEURIST.uploadsDiv = this.document.body.appendChild(this.document.createElement("div"));
                 uploadsDiv.id = "uploads";
             }
-            
+
             var statusDiv = this.document.createElement("div");
             statusDiv.className = "upload-status";
             statusDiv.appendChild(this.document.createTextNode("Uploading file ..."));
@@ -1444,7 +1445,7 @@ console.log('heurist not defined');
             var details = {};
             var duplicatedInputs = [];
             var oversizeInputs = [];
-            
+
             var fi_id = top.HEURIST.detailTypes.typedefs.fieldNamesToIndex.dty_ID;
             for (var i=0; i < inputs.length; ++i) {
 
@@ -1477,7 +1478,7 @@ console.log('heurist not defined');
                                 }else{
                                     details[det_id] = {vals:[val]};
                                 }
-                                
+
                                 if(top.HEURIST.util.byteLengthOf(val)>20480 && oversizeInputs.indexOf(inputs[i].shortName)<0){
                                     oversizeInputs.push(inputs[i].shortName);
                                 }
@@ -1517,20 +1518,20 @@ console.log('heurist not defined');
             }//for inputs
 
             if(duplicatedInputs.length>0){
-                top.HEURIST.util.showMessage("There are duplicated values in your fields:<br />" 
+                top.HEURIST.util.showMessage("There are duplicated values in your fields:<br />"
                     + duplicatedInputs.join("<br />"));
                 return false;
             }
-            
+
             if(oversizeInputs.length>0){
-                
+
                 top.HEURIST.util.showMessage('Text fields are limited to 20480 bytes (20Kb typically ~15 pages).<p>'
      + oversizeInputs.join(",<br />")+'<br/> ha'
      + (oversizeInputs.length>1?'s':'ve') +' bigger size</p>'
      +'Please shorten text or divide into repeat values for '+(oversizeInputs.length>1?'these fields':'this field'));
                 return false;
             }
-            
+
 
             if (missingFields.length == 0) {
 
@@ -1543,7 +1544,7 @@ console.log('heurist not defined');
                 //"There were problems with your inputs:<br /> - " +
                 alert('<div style="text-align:left;font-size:1em;">'+missingFields.join("<br />")+'</div>');
                 $('#alertBox').width('380px');
-                
+
             }
 
             firstInput.focus();
@@ -1714,7 +1715,7 @@ console.log('heurist not defined');
         calendarViewer: null,
 
         makeDateButton: function(dateBox, doc) {
-/* OLD WAY            
+/* OLD WAY
             var buttonElt = doc.createElement("input");
             buttonElt.type = "button";
             buttonElt.title = "Pop up calendar widget to enter year-month-day dates";
@@ -1753,11 +1754,11 @@ console.log('heurist not defined');
                 top.HEURIST.edit.calendarViewer.showAt(top.HEURIST.util.getOffset(buttonElt), date, callback); //offsetLeft-120
             }
             return buttonElt;
-*/                
-            var isInit = false;    
+*/
+            var isInit = false;
 
             var callback2 = function() {
-                
+
                 if(isInit){
                     isInit = false;
                 }else{
@@ -1771,16 +1772,16 @@ console.log('heurist not defined');
                     if(top.HEURIST.util.setDisplayPreference){
                         top.HEURIST.util.setDisplayPreference("record-edit-date", dateBox.value);
                     }
-                    
-                    $(dateBox).parents('body').find('input.hasCalendarsPicker')     
+
+                    $(dateBox).parents('body').find('input.hasCalendarsPicker')
                             .calendarsPicker('option', {defaultDateOnShow: dateBox.value});
-                    
+
                 }
 
             }
-            
+
             var defDate = top.HEURIST.util.getDisplayPreference("record-edit-date");
-            
+
             $(dateBox).calendarsPicker({
                 calendar: $.calendars.instance('gregorian'),
                 showOnFocus: false,
@@ -1799,8 +1800,8 @@ console.log('heurist not defined');
                             replace(/\{link:next\}/, '{link:nextJump}{link:next}')}),
                 showTrigger: '<img src="'+top.HEURIST.baseURL_V3+'common/images/cal.gif" '+
                  'style="margin-left:10px;cursor:pointer !important" alt="Popup" class="trigger">'}
-            );            
-                
+            );
+
             return null;
         }, // makeDateButton
 
@@ -1826,7 +1827,7 @@ console.log('heurist not defined');
                 dateBox.disabled = value;
                 dateBox.disabledStrictly = value;
                 if(value){
-                    $(dateBox).parent().find('.calendars-trigger').hide()    
+                    $(dateBox).parent().find('.calendars-trigger').hide()
                 }else{
                     $(dateBox).parent().find('.calendars-trigger').show();
                 }
@@ -1836,7 +1837,7 @@ console.log('heurist not defined');
                     dateBox.dateButton.style.visibility = value ?"hidden":"visible";
                 }
             }
-            
+
             /* Artem Osmakov 2013? : moved function decodeValue to temporalObjectLibrary.js */
 
             dateBox.initVal = dateBox.value;
@@ -1958,10 +1959,10 @@ console.log('heurist not defined');
         this.required = required;
         var maxValue = recFieldRequirements[rstFieldNamesToRdrIndexMap['rst_MaxValues']];
         this.repeatable = ( Number(maxValue) != 1 );//saw TODO this really needs to check many exist
-        
+
         if(recFieldRequirements[rstFieldNamesToRdrIndexMap['dty_Type']] === "separator"){
             this.required = '';
-            this.repeatable = false;    
+            this.repeatable = false;
         }
 
         this.row = this.document.createElement("div");
@@ -1984,7 +1985,7 @@ console.log('heurist not defined');
 
         this.inputCell = this.row.appendChild(this.document.createElement("div"));
         this.inputCell.className = stylename_prefix+"-cell";
-        
+
         this.linkSpan = null;
 
         // make sure that the promptDiv is the last item in the input cell
@@ -1998,7 +1999,7 @@ console.log('heurist not defined');
         var defaultValue = ( top.HEURIST.edit.isAdditionOfNewRecord(windowRef.parent)
                                 ?recFieldRequirements[rstFieldNamesToRdrIndexMap['rst_DefaultValue']]
                                 :'');   // do not assign default values for existing records
-                                
+
 
         if (true || this.repeatable=== true) {    //  saw TODO adjust this code for Cardinality , pass in max number and flag red after max
             for (var i=0; i < fieldValues.length; ++i) {
@@ -2010,7 +2011,7 @@ console.log('heurist not defined');
                 //nonsense typeof fieldValues[i] == "string" ? this.addInput( fieldValues[i]) : this.addInput( fieldValues[i]);
             }
             if (fieldValues.length == 0) {   //add default value for first element of repeatable field
-            
+
                 if(defaultValue=='increment_new_values_by_1'){
 
                     var inputEl = this.addInput({"value" :''});
@@ -2020,19 +2021,19 @@ console.log('heurist not defined');
                                 + detailType[0]
                                 + '&rtyID='+windowRef.parent.HEURIST.edit.record.rectypeID,
                     that = this;
-                    
-                    top.HEURIST.util.getJsonData(baseurl, 
+
+                    top.HEURIST.util.getJsonData(baseurl,
                         function(context){
                             if(!top.HEURIST.util.isnull(context)) {
                                  if(!top.HEURIST.util.isnull(context.result)){
-                                        inputEl.value = context.result;                 
+                                        inputEl.value = context.result;
                                  }else if(!top.HEURIST.util.isnull(context.error)){
                                         alert(context.error);
                                  }
                             }
                         }
                     , params);
-                    
+
                 }else{
                     this.addInput({"value" :  defaultValue} );    // add default value input make it look like bdvalue without id field
                 }
@@ -2325,14 +2326,14 @@ console.log('heurist not defined');
         newDiv.style.width = "";
         //top.HEURIST.registerEvent(textElt, "change", function() { if (windowRef.changed) windowRef.changed(); });
         this.addInputHelper.call(this, textElt.value, textElt);
-        
+
         top.HEURIST.edit.makeDateButton(textElt, this.document);
         return newDiv;
     }; // top.HEURIST.edit.inputs.BibDetailDateInput.prototype.addInput
 
 
-    top.HEURIST.edit.inputs.BibDetailDateInput.prototype.getPrimaryValue = function(input) { 
-        return input? input.textElt.value : ""; 
+    top.HEURIST.edit.inputs.BibDetailDateInput.prototype.getPrimaryValue = function(input) {
+        return input? input.textElt.value : "";
     };
 
     top.HEURIST.edit.inputs.BibDetailDateInput.prototype.typeDescription = "a date value";
@@ -2366,22 +2367,22 @@ console.log('heurist not defined');
         textElt.style.width = newDiv.style.width;
         newDiv.style.width = "";
 
-        //add calendar widget         
-        textElt.dateButton = top.HEURIST.edit.makeDateButton(textElt, this.document);    
+        //add calendar widget
+        textElt.dateButton = top.HEURIST.edit.makeDateButton(textElt, this.document);
         /*if(!isTemporal(textElt.value)){
                 textElt.disabled = true;
                 textElt.disabledStrictly = true;
-                textElt.find('.calendars-trigger').hide()    
+                textElt.find('.calendars-trigger').hide()
         }*/
-        
+
         top.HEURIST.edit.makeTemporalButton(textElt, this.document); //sw
-        
+
         var removeImg = newDiv.appendChild(this.document.createElement("img"));
         removeImg.src = top.HEURIST.baseURL_V3+"common/images/12x12.gif";
         removeImg.className = "delete-resource";
         removeImg.title = "Clear this date";
-        
-        
+
+
         top.HEURIST.registerEvent(textElt, "change", function() {
             textElt.strTemporal = null;
             if (windowRef.changed) windowRef.changed();
@@ -2400,19 +2401,19 @@ console.log('heurist not defined');
                 if (windowRef.changed) windowRef.changed();
             }
         });
-        
+
         return newDiv;
     }; // top.HEURIST.edit.inputs.BibDetailTemporalInput.prototype.addInput
 
 
     top.HEURIST.edit.inputs.BibDetailTemporalInput.prototype.getValue = function(input) {
-        return input && input.textElt 
-                    ?(input.textElt.strTemporal ? input.textElt.strTemporal 
+        return input && input.textElt
+                    ?(input.textElt.strTemporal ? input.textElt.strTemporal
                             :(input.textElt.value ? input.textElt.value : "" )) : "";
     };
 
-    top.HEURIST.edit.inputs.BibDetailTemporalInput.prototype.getPrimaryValue = function(input) { 
-            return input? input.textElt.value : ""; 
+    top.HEURIST.edit.inputs.BibDetailTemporalInput.prototype.getPrimaryValue = function(input) {
+            return input? input.textElt.value : "";
     };
     top.HEURIST.edit.inputs.BibDetailTemporalInput.prototype.typeDescription = "a compound date value";
     top.HEURIST.edit.inputs.BibDetailTemporalInput.prototype.regex = new RegExp("\\S");
@@ -2617,13 +2618,13 @@ console.log('heurist not defined');
             url += "&target_recordtype="+windowRef.parent.HEURIST.edit.record.rectypeID; //0317 top
         if (element.input.constrainrectype)
             url += "&t="+element.input.constrainrectype;
-        //keep parent ownership and visibility    
+        //keep parent ownership and visibility
 
         if(top.HEURIST.edit.record.workgroupID>=0 && top.HEURIST.edit.record.visibility){
-            url = url + "&ownership="+top.HEURIST.edit.record.workgroupID + 
+            url = url + "&ownership="+top.HEURIST.edit.record.workgroupID +
                         "&visibility="+top.HEURIST.edit.record.visibility;
         }
-            
+
         top.HEURIST.util.popupURL(window, url, {
             title: 'Select Record',
             callback: function(bibID, bibTitle) {
@@ -2769,7 +2770,7 @@ console.log('heurist not defined');
     top.HEURIST.edit.inputs.BibDetailDropdownInput.prototype.recreateSelector = function(bdValue, needClear){
 
         var bd_Values = [];
-        
+
         if(needClear){
             //find and remove previous selector
             var parent = this.inputCell,
@@ -2789,9 +2790,9 @@ console.log('heurist not defined');
                 bd_Values.push(this.inputs[i].value);
                 parent.removeChild(this.inputs[i]); //this.inputs.shift()
             }
-            
+
             $(parent).find('a[id^="term_by_image"]').remove();
-            
+
             this.inputs = [];
         }
 
@@ -2806,7 +2807,7 @@ console.log('heurist not defined');
 
         var    allTerms = typeof sAllTerms == "string" ? top.HEURIST.util.expandJsonStructure(sAllTerms) : null;
         if(allTerms==null){
-            
+
             if(this.detailType[dtyFieldNamesToDtIndexMap['dty_Type']] == "enum"){
                 //2016-03-25 vocabulary must be defined! top.HEURIST.terms.treesByDomain['enum']
                 allTerms = -1;
@@ -2822,19 +2823,19 @@ console.log('heurist not defined');
             allTerms = 0;
             disabledTerms = "";
         }
-        
+
         var newInput;
 
         if(bd_Values.length>0){
-        
+
             for (var k = 0; k < bd_Values.length; k++) {
                     newInput = top.HEURIST.util.createTermSelectExt(allTerms, disabledTerms,
                             this.detailType[dtyFieldNamesToDtIndexMap['dty_Type']],
                             bd_Values[k], true);
 
                     this.addInputHelper.call(this, {value:bd_Values[k]}, newInput);
-                    newInput.style.width = "auto";         
-                    
+                    newInput.style.width = "auto";
+
                     if(this.inputs.length>1){
                             var br = this.document.createElement("div");
                             br.style.height = "3px";
@@ -2842,9 +2843,9 @@ console.log('heurist not defined');
                             this.inputCell.insertBefore(br, newInput);
                     }
             }
-            
+
         }else{
-        
+
             newInput = top.HEURIST.util.createTermSelectExt(allTerms, disabledTerms,
                     this.detailType[dtyFieldNamesToDtIndexMap['dty_Type']],
                     (bdValue && bdValue.value ? bdValue.value : null), true);
@@ -2859,9 +2860,9 @@ console.log('heurist not defined');
             this.inputCell.removeChild(this.linkSpan);
             this.inputCell.insertBefore(this.linkSpan, this.promptDiv);
         }
-        
+
         this.createSelectTermsByImage(newInput);
-/*        
+/*
         if(this.selectSpan){
             this.inputCell.removeChild(this.selectSpan);
             this.inputCell.insertBefore(this.selectSpan, this.linkSpan?this.linkSpan:this.promptDiv);
@@ -2898,7 +2899,7 @@ console.log('heurist not defined');
 
         urlSpan.thisElement = this;
         urlSpan.bdValue = bdValue;
-        
+
         var thisRef = this;
 
         //open selectTerms to update detailtype
@@ -2919,7 +2920,7 @@ console.log('heurist not defined');
                     _element.recFieldRequirements[rstFieldNamesToRdrIndexMap['rst_TermIDTreeNonSelectableIDs']] = editedDisabledTerms;
 
                     newInput = _element.recreateSelector(_bdValue, true);
-                    
+
                     /* update hidden fields  TODO: deprecated? do we need this any more?
                     Dom.get("dty_JsonTermIDTree").value = editedTermTree;
                     Dom.get("dty_TermIDTreeNonSelectableIDs").value = editedDisabledTerms;
@@ -2988,8 +2989,8 @@ console.log('heurist not defined');
         }else{
             this.selectSpan.style.display = 'none';
         }*/
-        
-        
+
+
         var urlSpan = this.document.createElement("a");
         //urlSpan.style.paddingLeft = "1em";
         urlSpan.id = 'term_by_image'+this.inputs.length;
@@ -3008,9 +3009,9 @@ console.log('heurist not defined');
         urlSpan.onclick = function() {
             var _element = this.thisElement;
             var _bdValue = this.bdValue;
-            
+
             var db = (top.HEURIST.parameters.db? top.HEURIST.parameters.db : (top.HEURIST.database.name?top.HEURIST.database.name:''));
-            
+
             var allTerms = $.map($(selector).find('option'), function(e) { return e.value; });
 
             top.HEURIST.util.popupURL(top, top.HEURIST.baseURL_V3 +
@@ -3035,8 +3036,8 @@ console.log('heurist not defined');
         this.selectSpan = urlSpan;
 
     } // top.HEURIST.edit.inputs.BibDetailDropdownInput.prototype.createSpanSelectTerms
-    
-    
+
+
     top.HEURIST.edit.inputs.BibDetailDropdownInput.prototype.addInput = function(bdValue) {
 
         var newInput = this.recreateSelector(bdValue, false);
@@ -3049,7 +3050,7 @@ console.log('heurist not defined');
             //br = this.document.createElement("br");
             //this.inputCell.insertBefore(br, newInput);
         }
-        
+
         if(this.inputs.length>1 || !top.HEURIST.is_admin()) {return newInput}  //only one edit link and if admin
 
         this.createSpanLinkTerms();
@@ -3119,7 +3120,7 @@ console.log('heurist not defined');
     /*
     upload workflow:
     input type=file -> onchange -> uploadFileInput -> HAPI.saveFile( HSaver ) -> callback on complete: fileInputUploaded
-    
+
     */
     top.HEURIST.edit.inputs.BibDetailFileInput.prototype.constructInput = function(inputDiv, bdValue) {
         var thisRef = this;    // for great closure
@@ -3484,7 +3485,7 @@ console.log('heurist not defined');
         if (! value) return; // "cancel"
 
         var windowRef = this.document.parentWindow  ||  this.document.defaultView  ||  this.document._parentWindow;
-        
+
         var description = this.wktValueToDescription(value); //get human readable string
 
         element.input.name = element.input.name.replace(/^_/, "");
@@ -3556,7 +3557,7 @@ console.log('heurist not defined');
 
     top.HEURIST.edit.inputs.BibDetailSeparator.prototype.addInput = function(bdValue) {
         var rstFieldNamesToRdrIndexMap = top.HEURIST.rectypes.typedefs.dtFieldNamesToIndex;
-        
+
 
         $(this.inputCell).css('vertical-align', 'bottom');
 
@@ -3590,14 +3591,14 @@ console.log('heurist not defined');
     * @param {Object} parentElement
     */
     top.HEURIST.edit.inputs.BibDetailRelationMarker.prototype.changeNotification = function(cmd, relID) {
-        
+
         var windowRef = parent;
         if(this.document){
             windowRef = this.document.parentWindow  ||  this.document.defaultView  ||  this.document._parentWindow;
         }else{
             windowRef = document.parentWindow  ||  document.defaultView  ||  document._parentWindow;
         }
-        
+
         if (cmd == "delete") {
             var fakeForm = { action: top.HEURIST.baseURL_V3+"records/relationships/saveRelationships.php?db="+top.HEURIST.database.name,
                 elements: [ { name: "delete[]", value: relID },
@@ -4037,7 +4038,7 @@ console.log('heurist not defined');
             this.required = "optional";
         }
         row.style['padding-top'] = '10px';
-        
+
         var headerCell = row.appendChild(this.document.createElement("div"));
         headerCell.className = "input-header-cell";
         headerCell.appendChild(this.document.createTextNode("URL"));
@@ -4348,11 +4349,11 @@ console.log('heurist not defined');
             //change to resizer
             if(filedata.URL){
                 var thumbURL = filedata.URL.replace('/records/files/downloadFile.php','/common/php/resizeImage.php');
-                element.thumbDiv.style.backgroundImage = "url("+thumbURL+")";       
+                element.thumbDiv.style.backgroundImage = "url("+thumbURL+")";
             }
         }
-        
-        
+
+
         var windowRef = this.document.parentWindow  ||  this.document.defaultView  ||  this.document._parentWindow;
         if (windowRef.changed) windowRef.changed();
     };
