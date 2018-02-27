@@ -58,7 +58,7 @@ require_once(dirname(__FILE__).'/../../common/connect/applyCredentials.php');
               .detail-row.shade .insert { background-color: #88ee88 }
          </style>
 
-         <script type="text/javascript" src="../../external/jquery/jquery.js"></script>
+         <script type="text/javascript" src="../../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
          <script type="text/javascript">
 	        $(function () {
 		        $(".record .detail-row:even").addClass("shade");
@@ -69,6 +69,14 @@ require_once(dirname(__FILE__).'/../../common/connect/applyCredentials.php');
     <body class="popup">
         <div class="banner"><h2>Record rollback</h2></div>
         <div id="page-inner" style="overflow:auto">
+        
+            <div>Although rollback data has been recorded, there is currently no end-user interface way of rolling
+     back the database. Please contact the Heurist team to request restoration of previous data.</div>
+
+<?php         
+if (FALSE) {       
+?>
+        
             <div id=errorMsg><span>This function has not yet been converted from Vsn 2</span></div>
             <div>Please advise Heurist developers if rollback is critical to your use of Heurist</div>
 
@@ -132,7 +140,7 @@ require_once(dirname(__FILE__).'/../../common/connect/applyCredentials.php');
                 </form>
             <?php
             }
-
+}
             function showRollbacks ($rollbacks) {
 	            $s = count($rollbacks) != 1 ? "s" : "";
 	            print "<p>" . count($rollbacks) . " record$s can be rolled back.</p>";

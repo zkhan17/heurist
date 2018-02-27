@@ -502,6 +502,15 @@ DELIMITER $$
 	BEFORE UPDATE ON `recDetails`
 	FOR EACH ROW
 	begin
+
+        if @suppress_update_trigger is null then
+        -- archive previous version into sysArchive
+SELECT CONCAT_WS(',',COALESCE(CONCAT('"',dtl_ID,'"'),'NULL'),COALESCE(CONCAT('"',dtl_RecID,'"'),'NULL'),COALESCE(CONCAT('"',dtl_DetailTypeID,'"'),'NULL'),COALESCE(CONCAT('"',dtl_Value,'"'),'NULL'),COALESCE(CONCAT('"',dtl_AddedByImport,'"'),'NULL'),COALESCE(CONCAT('"',dtl_UploadedFileID,'"'),'NULL'),COALESCE(CONCAT('"',asText(dtl_Geo),'"'),'NULL'),COALESCE(CONCAT('"',dtl_ValShortened,'"'),'NULL'),COALESCE(CONCAT('"',dtl_Modified,'"'),'NULL'),COALESCE(CONCAT('"',dtl_Certainty,'"'),'NULL'),COALESCE(CONCAT('"',dtl_Annotation,'"'),'NULL')) 
+FROM recDetails where dtl_ID=OLD.dtl_ID INTO @raw_record;       
+        insert into sysArchive (arc_Table, arc_PriKey, arc_ChangedByUGrpID, arc_OwnerUGrpID, arc_RecID, arc_DataBeforeChange, arc_ContentType)
+            values ('dtl', OLD.dtl_ID, COALESCE(@logged_in_user_id,0), NULL, OLD.dtl_RecID, @raw_record, 'raw');
+        end if;
+    
 		if asbinary(NEW.dtl_Geo)=asbinary(OLD.dtl_Geo) then
 			set NEW.dtl_Geo = OLD.dtl_Geo;
 		end if;
@@ -579,6 +588,15 @@ DELIMITER $$
     AFTER DELETE ON `recDetails`
     FOR EACH ROW
     begin
+    
+        if @suppress_update_trigger is null then
+        -- archive previous version into sysArchive
+SELECT CONCAT_WS(',',COALESCE(CONCAT('"',dtl_ID,'"'),'NULL'),COALESCE(CONCAT('"',dtl_RecID,'"'),'NULL'),COALESCE(CONCAT('"',dtl_DetailTypeID,'"'),'NULL'),COALESCE(CONCAT('"',dtl_Value,'"'),'NULL'),COALESCE(CONCAT('"',dtl_AddedByImport,'"'),'NULL'),COALESCE(CONCAT('"',dtl_UploadedFileID,'"'),'NULL'),COALESCE(CONCAT('"',asText(dtl_Geo),'"'),'NULL'),COALESCE(CONCAT('"',dtl_ValShortened,'"'),'NULL'),COALESCE(CONCAT('"',dtl_Modified,'"'),'NULL'),COALESCE(CONCAT('"',dtl_Certainty,'"'),'NULL'),COALESCE(CONCAT('"',dtl_Annotation,'"'),'NULL')) 
+FROM recDetails where dtl_ID=OLD.dtl_ID INTO @raw_record;       
+        insert into sysArchive (arc_Table, arc_PriKey, arc_ChangedByUGrpID, arc_OwnerUGrpID, arc_RecID, arc_DataBeforeChange, arc_ContentType)
+            values ('dtl', OLD.dtl_ID, COALESCE(@logged_in_user_id,0), NULL, OLD.dtl_RecID, @raw_record, 'raw');
+        end if;
+    
         delete ignore from recLinks where rl_DetailID=OLD.dtl_ID;
     end$$
     
@@ -622,32 +640,62 @@ DELIMITER $$
 DELIMITER ;
 DELIMITER $$
 
-	DROP TRIGGER IF EXISTS update_record_trigger$$
+-- dynamic expression is not allowed in triggers
+--    DROP PROCEDURE IF EXISTS logRecord$$
+--    CREATE PROCEDURE logRecord(rec_ID INT)
+--    BEGIN
+--        SET @colnames = (SELECT GROUP_CONCAT('COALESCE(CONCAT(\'"\',',COLUMN_NAME,',\'"\'),\'NULL\')') FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Records' AND TABLE_SCHEMA = (SELECT DATABASE()));
+--        SET @exp = CONCAT('SELECT CONCAT_WS(\',\',', @colnames, ') FROM Records where rec_ID=', @rec_ID, ' INTO @raw_record');
+--
+--        PREPARE stmt FROM @exp;
+--        EXECUTE stmt;
+--        DEALLOCATE PREPARE stmt;  
+            
+--        insert into sysArchive (arc_Table, arc_PriKey, arc_ChangedByUGrpID, arc_OwnerUGrpID, arc_RecID, arc_DataBeforeChange, arc_ContentType)
+--            values ('rec', rec_ID, COALESCE(@logged_in_user_id,0), OLD.rec_OwnerUGrpID, rec_ID, @raw_record, 'raw');
 
-	CREATE
-	DEFINER=`root`@`localhost`
-	TRIGGER `update_record_trigger`
-	BEFORE UPDATE ON `Records`
-	FOR EACH ROW
-	begin
-		if @suppress_update_trigger is null then
---			insert into archiveRecords (arec_ID, arec_UGrpID, arec_Date, arec_URL, arec_Title, arec_ScratchPad, arec_RecTypeID)
---				values (NEW.rec_ID, @logged_in_user_id, now(),
---						if (NEW.rec_URL=OLD.rec_URL, NULL, NEW.rec_URL),
---						if (NEW.rec_Title=OLD.rec_Title, NULL, NEW.rec_Title),
---						if (NEW.rec_ScratchPad=OLD.rec_ScratchPad, NULL, NEW.rec_ScratchPad),
---						if (NEW.rec_RecTypeID=OLD.rec_RecTypeID, NULL, NEW.rec_RecTypeID));
+--    END$$
 
--- 14/2/11 Ian: Do we need this value set by the previous insert?
-			set @rec_version := last_insert_id();
+--    DROP PROCEDURE IF EXISTS logRecordDetail$$
+--    CREATE PROCEDURE logRecordDetail(dtl_RecID INT, dtl_RecID INT)
+--    
+--        SET @colnames = (SELECT GROUP_CONCAT('COALESCE(CONCAT(\'"\',',COLUMN_NAME,',\'"\'),\'NULL\')') FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'recDetails' AND TABLE_SCHEMA = (SELECT DATABASE()));
+--        SET @exp = CONCAT('SELECT CONCAT_WS(\',\',', @colnames, ') FROM Records where rec_ID=', @rec_ID, ' INTO @raw_record');
+--
+--        PREPARE stmt FROM @exp;
+--        EXECUTE stmt;
+--        DEALLOCATE PREPARE stmt;  
+            
+--        insert into sysArchive (arc_Table, arc_PriKey, arc_ChangedByUGrpID, arc_OwnerUGrpID, arc_RecID, arc_DataBeforeChange, arc_ContentType)
+--            values ('dtl', dtl_ID, COALESCE(@logged_in_user_id,0), NULL, dtl_RecID, @raw_record, 'raw');
 
-		end if;
-		if NEW.rec_URL != OLD.rec_URL OR NEW.rec_URL is null then
-			set NEW.rec_URLLastVerified := NULL;
-		end if;
-	end$$
+--    END$$
+
+
+    DROP TRIGGER IF EXISTS update_record_trigger$$
+
+    CREATE
+    DEFINER=`root`@`localhost`
+    TRIGGER `update_record_trigger`
+    BEFORE UPDATE ON `Records`
+    FOR EACH ROW
+    begin
+        if @suppress_update_trigger is null then
+        -- archive previous version of record into sysArchive
+        SELECT CONCAT_WS(',',COALESCE(CONCAT('"',rec_ID,'"'),'NULL'),COALESCE(CONCAT('"',rec_URL,'"'),'NULL'),COALESCE(CONCAT('"',rec_Added,'"'),'NULL'),COALESCE(CONCAT('"',rec_Modified,'"'),'NULL'),COALESCE(CONCAT('"',rec_Title,'"'),'NULL'),COALESCE(CONCAT('"',rec_ScratchPad,'"'),'NULL'),COALESCE(CONCAT('"',rec_RecTypeID,'"'),'NULL'),COALESCE(CONCAT('"',rec_AddedByUGrpID,'"'),'NULL'),COALESCE(CONCAT('"',rec_AddedByImport,'"'),'NULL'),COALESCE(CONCAT('"',rec_Popularity,'"'),'NULL'),COALESCE(CONCAT('"',rec_FlagTemporary,'"'),'NULL'),COALESCE(CONCAT('"',rec_OwnerUGrpID,'"'),'NULL'),COALESCE(CONCAT('"',rec_NonOwnerVisibility,'"'),'NULL'),COALESCE(CONCAT('"',rec_URLLastVerified,'"'),'NULL'),COALESCE(CONCAT('"',rec_URLErrorMessage,'"'),'NULL'),COALESCE(CONCAT('"',rec_URLExtensionForMimeType,'"'),'NULL'),COALESCE(CONCAT('"',rec_Hash,'"'),'NULL')) 
+        FROM Records where rec_ID=OLD.rec_ID INTO @raw_record;
+        insert into sysArchive (arc_Table, arc_PriKey, arc_ChangedByUGrpID, arc_OwnerUGrpID, arc_RecID, arc_DataBeforeChange, arc_ContentType)
+            values ('rec', OLD.rec_ID, COALESCE(@logged_in_user_id,0), OLD.rec_OwnerUGrpID, OLD.rec_ID, @raw_record, 'raw');
+
+        end if;
+        
+        if NEW.rec_URL != OLD.rec_URL OR NEW.rec_URL is null then
+            set NEW.rec_URLLastVerified := NULL;
+        end if;
+    end$$
 
 DELIMITER ;
+
 DELIMITER $$
 
 	DROP TRIGGER IF EXISTS usrRecentRecords_updater$$
@@ -726,12 +774,16 @@ DELIMITER $$
 	TRIGGER `delete_record_trigger`
 	AFTER DELETE ON `Records`
 	FOR EACH ROW
-	begin
---		insert into archiveRecords (arec_ID, arec_UGrpID, arec_Date)
---			values (OLD.rec_ID, @logged_in_user_id, now());
-
--- 14/2/11 Ian: Do we need this value set by the previous insert?
-		set @rec_version := last_insert_id();
+	begin 
+    
+      if @suppress_update_trigger is null then
+        -- archive previous version of record into sysArchive
+        SELECT CONCAT_WS(',',COALESCE(CONCAT('"',rec_ID,'"'),'NULL'),COALESCE(CONCAT('"',rec_URL,'"'),'NULL'),COALESCE(CONCAT('"',rec_Added,'"'),'NULL'),COALESCE(CONCAT('"',rec_Modified,'"'),'NULL'),COALESCE(CONCAT('"',rec_Title,'"'),'NULL'),COALESCE(CONCAT('"',rec_ScratchPad,'"'),'NULL'),COALESCE(CONCAT('"',rec_RecTypeID,'"'),'NULL'),COALESCE(CONCAT('"',rec_AddedByUGrpID,'"'),'NULL'),COALESCE(CONCAT('"',rec_AddedByImport,'"'),'NULL'),COALESCE(CONCAT('"',rec_Popularity,'"'),'NULL'),COALESCE(CONCAT('"',rec_FlagTemporary,'"'),'NULL'),COALESCE(CONCAT('"',rec_OwnerUGrpID,'"'),'NULL'),COALESCE(CONCAT('"',rec_NonOwnerVisibility,'"'),'NULL'),COALESCE(CONCAT('"',rec_URLLastVerified,'"'),'NULL'),COALESCE(CONCAT('"',rec_URLErrorMessage,'"'),'NULL'),COALESCE(CONCAT('"',rec_URLExtensionForMimeType,'"'),'NULL'),COALESCE(CONCAT('"',rec_Hash,'"'),'NULL')) 
+        FROM Records where rec_ID=OLD.rec_ID INTO @raw_record;
+        insert into sysArchive (arc_Table, arc_PriKey, arc_ChangedByUGrpID, arc_OwnerUGrpID, arc_RecID, arc_DataBeforeChange, arc_ContentType)
+            values ('rec', OLD.rec_ID, COALESCE(@logged_in_user_id,0), OLD.rec_OwnerUGrpID, OLD.rec_ID, @raw_record, 'del');
+      end if;  
+        
 --		declare relRT integer;
 --		select rty_ID into relRT
 --			from defRecTypes
@@ -771,9 +823,12 @@ DELIMITER ;
 
 DELIMITER $$
 
---  			insert
-	DROP TRIGGER IF EXISTS sysUGrps_last_insert$$
+DROP TRIGGER IF EXISTS sysUGrps_last_insert$$
+DROP TRIGGER IF EXISTS sysUGrps_last_delete$$
+DROP TRIGGER IF EXISTS sysUGrps_last_update$$
 
+
+--  			insert
 	CREATE
 	DEFINER=`root`@`localhost`
 	TRIGGER `sysUGrps_last_insert`
@@ -781,32 +836,46 @@ DELIMITER $$
 	FOR EACH ROW
 		update sysTableLastUpdated set tlu_DateStamp=now() where tlu_TableName="sysUGrps"$$
 
+
+    CREATE
+    DEFINER=`root`@`localhost`
+    TRIGGER `sysUGrps_last_update`
+    AFTER UPDATE ON `sysUGrps`
+    FOR EACH ROW
+    begin
+        update sysTableLastUpdated set tlu_DateStamp=now() where tlu_TableName="sysUGrps";
+        if (OLD.ugr_eMail<>NEW.ugr_eMail) THEN
+            UPDATE `Heurist_DBs_index`.`sysUsers` SET sus_Email=NEW.ugr_eMail WHERE `sus_Database`=(SELECT DATABASE()) AND `sus_Email`=OLD.ugr_eMail;  
+        END IF;
+    end$$
+    
+    CREATE
+    DEFINER=`root`@`localhost`
+    TRIGGER `sysUGrps_last_delete`
+    AFTER DELETE ON `sysUGrps`
+    FOR EACH ROW
+    begin
+        DELETE FROM `Heurist_DBs_index`.`sysUsers` WHERE `sus_Database`=(SELECT DATABASE()) AND `sus_Email`=OLD.ugr_eMail;  
+    end$$
+
 DELIMITER ;
+
+-- ------------------------------------------------------------------------------
+-- --------sysIdentification
+
 DELIMITER $$
 
---  			update
-	DROP TRIGGER IF EXISTS sysUGrps_last_update$$
+DROP TRIGGER IF EXISTS update_sys_index_trigger$$
 
-	CREATE
-	DEFINER=`root`@`localhost`
-	TRIGGER `sysUGrps_last_update`
-	AFTER UPDATE ON `sysUGrps`
-	FOR EACH ROW
-		update sysTableLastUpdated set tlu_DateStamp=now() where tlu_TableName="sysUGrps"$$
-
-DELIMITER ;
-DELIMITER $$
-
---  			delete
--- 5/9/11 This trigger gives an error "multiple triggers with the same action time and event for one table" not yet supported
---	DROP TRIGGER IF EXISTS sysUGrps_last_delete$$
-
---	CREATE
---	DEFINER=`root`@`localhost`
---	TRIGGER `sysUGrps_last_delete`
---	AFTER DELETE ON `sysUGrps`
---	FOR EACH ROW
---		update sysTableLastUpdated set tlu_DateStamp=now() where tlu_TableName="sysUGrps"$$
+    CREATE
+    DEFINER=`root`@`localhost`
+    TRIGGER `update_sys_index_trigger`
+    AFTER UPDATE ON `sysIdentification`
+    FOR EACH ROW
+    begin
+       delete from `Heurist_DBs_index`.`sysIdentifications` where `sys_Database`=(SELECT DATABASE());
+       insert into `Heurist_DBs_index`.`sysIdentifications` select (SELECT DATABASE()) as dbName, s.* from `sysIdentification` as s;
+    end$$
 
 DELIMITER ;
 
@@ -815,42 +884,93 @@ DELIMITER ;
 
 DELIMITER $$
 
---  			insert
-	DROP TRIGGER IF EXISTS sysUsrGrpLinks_last_insert$$
+DROP TRIGGER IF EXISTS sysUsrGrpLinks_last_insert$$
+DROP TRIGGER IF EXISTS sysUsrGrpLinks_last_update$$
+DROP TRIGGER IF EXISTS sysUsrGrpLinks_last_delete$$
 
-	CREATE
-	DEFINER=`root`@`localhost`
-	TRIGGER `sysUsrGrpLinks_last_insert`
-	AFTER INSERT ON `sysUsrGrpLinks`
-	FOR EACH ROW
-		update sysTableLastUpdated set tlu_DateStamp=now() where tlu_TableName="sysUsrGrpLinks"$$
+    CREATE
+    DEFINER=`root`@`localhost`
+    TRIGGER `sysUsrGrpLinks_last_insert`
+    AFTER INSERT ON `sysUsrGrpLinks`
+    FOR EACH ROW
+    begin
+       update sysTableLastUpdated set tlu_DateStamp=now() where tlu_TableName="sysUsrGrpLinks";
+    
+       IF (NEW.ugl_UserID<>2) THEN
+               
+       select ugr_Email, COALESCE(ugl_Role,'member') as role from sysUGrps 
+        LEFT JOIN sysUsrGrpLinks on ugr_ID=ugl_UserID and ugl_GroupID=1 and ugl_Role='admin' 
+        where ugr_ID=NEW.ugl_UserID INTO @email, @role;
+       
+       select `sus_ID`,`sus_Role` from `Heurist_DBs_index`.`sysUsers` 
+       where `sus_Database`=(SELECT DATABASE()) AND `sus_Email`=@email 
+       into @sus_id, @sus_role;
+       
+       IF (@sus_id>0)  THEN
+        IF(@sus_role<>@role)  THEN
+            update `Heurist_DBs_index`.`sysUsers` set sus_Role=@role WHERE sus_ID=@sus_id;
+        END IF;
+       ELSE
+            insert into `Heurist_DBs_index`.`sysUsers` (sus_Email, sus_Database, sus_Role) values (@email, (SELECT DATABASE()), @role);
+       END IF;
+       
+      END IF;
+    end$$
 
-DELIMITER ;
-DELIMITER $$
+    CREATE
+    DEFINER=`root`@`localhost`
+    TRIGGER `sysUsrGrpLinks_last_update`
+    AFTER UPDATE ON `sysUsrGrpLinks`
+    FOR EACH ROW
+    begin
+       update sysTableLastUpdated set tlu_DateStamp=now() where tlu_TableName="sysUsrGrpLinks";
+    
+       IF (NEW.ugl_UserID<>2) THEN
+               
+       select ugr_Email, COALESCE(ugl_Role,'member') as role from sysUGrps 
+        LEFT JOIN sysUsrGrpLinks on ugr_ID=ugl_UserID and ugl_GroupID=1 and ugl_Role='admin' 
+        where ugr_ID=NEW.ugl_UserID INTO @email, @role;
+       
+       select `sus_ID`,`sus_Role` from `Heurist_DBs_index`.`sysUsers` 
+       where `sus_Database`=(SELECT DATABASE()) AND `sus_Email`=@email 
+       into @sus_id, @sus_role;
+       
+       IF(@sus_id>0)  THEN
+        IF(@sus_role<>@role) THEN
+            update `Heurist_DBs_index`.`sysUsers` set sus_Role=@role WHERE sus_ID=@sus_id;
+        END IF;
+       ELSE
+            insert into `Heurist_DBs_index`.`sysUsers` (sus_Email, sus_Database, sus_Role) values (@email, (SELECT DATABASE()), @role);
+       END IF;
+       
+      END IF;
+    end$$
 
---  			update
-	DROP TRIGGER IF EXISTS sysUsrGrpLinks_last_update$$
+    CREATE
+    DEFINER=`root`@`localhost`
+    TRIGGER `sysUsrGrpLinks_last_delete`
+    AFTER DELETE ON `sysUsrGrpLinks`
+    FOR EACH ROW
+    begin
+      IF (OLD.ugl_UserID<>2) THEN
+               
+-- get new role               
+     select ugr_eMail, COALESCE(ugl_Role,'member') as role from sysUGrps 
+        LEFT JOIN sysUsrGrpLinks on ugr_ID=ugl_UserID and ugl_GroupID=1 and ugl_Role='admin' 
+        where ugr_ID=OLD.ugl_UserID INTO @email, @role;       
+       
+        IF ((@email IS NOT NULL) AND (@email<>'')) THEN
+            select `sus_ID`,`sus_Role` from `Heurist_DBs_index`.`sysUsers` 
+            where `sus_Database`=(SELECT DATABASE()) AND `sus_Email`=@email 
+            into @sus_id, @sus_role;
+            
+           IF ((@sus_id>0) AND (@sus_role<>@role)) THEN
+              update `Heurist_DBs_index`.`sysUsers` set sus_Role=@role WHERE sus_ID=@sus_id;
+           END IF;
+        END IF;
+      END IF;
+    end$$
 
-	CREATE
-	DEFINER=`root`@`localhost`
-	TRIGGER `sysUsrGrpLinks_last_update`
-	AFTER UPDATE ON `sysUsrGrpLinks`
-	FOR EACH ROW
-		update sysTableLastUpdated set tlu_DateStamp=now() where tlu_TableName="sysUsrGrpLinks"$$
-
-DELIMITER ;
-DELIMITER $$
-
---  			delete
--- 5/9/11 This trigger gives an error "multiple triggers with the same action time and event for one table" not yet supported
---	DROP TRIGGER IF EXISTS sysUsrGrpLinks_last_delete$$
-
---	CREATE
---	DEFINER=`root`@`localhost`
---	TRIGGER `sysUsrGrpLinks_last_delete`
---	AFTER DELETE ON `sysUsrGrpLinks`
---	FOR EACH ROW
---		update sysTableLastUpdated set tlu_DateStamp=now() where tlu_TableName="sysUsrGrpLinks"$$
 
 DELIMITER ;
 

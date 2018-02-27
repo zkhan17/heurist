@@ -84,7 +84,7 @@ function EditRecStructure() {
         '<a href="#" onclick="{onEditRecordType();}">edit general description<img src="../../../common/images/edit-pencil.png" width="16" height="16" border="0" title="Edit" /></a>&nbsp;&nbsp;'+
         '<a href="#" onclick="{editStructure.doEditTitleMask(false);}">edit title mask<img src="../../../common/images/edit-pencil.png" width="16" height="16" border="0" title="Edit" /></a>&nbsp;&nbsp;&nbsp;&nbsp;</span>'+
         '<span style="float:right; text-align:right;">'+ 
-        '<input type="button" value="Save/Close" onClick="editStructure.closeWin();"/>'+
+        '<input class="save-btn" type="button" value="Save/Close" onClick="editStructure.closeWin();"/>'+
         '</span>'+
         
         '<div  id="recStructure_toolbar" style=\"text-align:right;float:right;display:none;\">'+
@@ -204,7 +204,9 @@ function EditRecStructure() {
                         aval[fi.rst_NonOwnerVisibility],
                         aval[fi.rst_DisplayHelpText],
                         '',
-                        conceptCode]);
+                        conceptCode,
+                        aval[fi.rst_CreateChildIfRecPtr],
+                        aval[fi.rst_DisplayHeight]]);
                     //statusLock]);   last column stores edited values and show either delete or lock image
                 }
             }
@@ -221,7 +223,8 @@ function EditRecStructure() {
                         "dty_Name",
                         "rst_DisplayName", "dty_Type", "rst_RequirementType",
                         "rst_DisplayWidth", "rst_MinValues", "rst_MaxValues", "rst_DefaultValue", "rst_Status",
-                        "rst_NonOwnerVisibility", "rst_DisplayHelpText", "rst_values", "conceptCode"]
+                        "rst_NonOwnerVisibility", "rst_DisplayHelpText", "rst_values", "conceptCode", 
+                        "rst_CreateChildIfRecPtr", "rst_DisplayHeight"]
                 }
             });
 
@@ -229,6 +232,9 @@ function EditRecStructure() {
                 var type = oRecord.getData("dty_Type");
                 if(type!=='separator'){
                     elLiner.innerHTML = oData;
+                    return true;
+                }else{
+                    return false;
                 }
             }
 
@@ -237,7 +243,7 @@ function EditRecStructure() {
                 {
                     key:'rst_NonOwnerVisibility',
                     label: "<img src='../../../common/images/up-down-arrow.png'>",
-                    sortable:false, width:10,
+                    sortable:false, width:20,
                     formatter: function(elLiner, oRecord, oColumn, oData) {
                         if(Number(_expandedRecord) !== Number(oRecord.getData("rst_ID"))){
                             elLiner.innerHTML = "<img src='../../../common/images/up-down-arrow.png' title='Drag up/down to change order of fields in the data entry form' style='cursor:pointer;'>";
@@ -245,27 +251,31 @@ function EditRecStructure() {
                     }
                 },
                 {
+                    key:"rst_ID", label: "Hdr", sortable:false, width:20,
+                    formatter: function(elLiner, oRecord, oColumn, oData){
+                        
+                        elLiner.innerHTML = "<img src='../../../common/images/insert_header.png' style='cursor:pointer;' "
+                        +" title='Click this button to insert a new section header at this point in the record structure / data entry form' "+
+                        " rst_ID='"+oRecord.getData("rst_ID")+"' onclick='{editStructure.onAddFieldAtIndex(event, true);}' >";
+                        
+                        //elLiner.innerHTML = oData;
+                        //elLiner.title = oRecord.getData("conceptCode");
+                    }
+                },
+                {
                     key:'addColumn',
                     label: "Add",
-                    sortable:false, width:10,
+                    sortable:false, width:20,
                     formatter: function(elLiner, oRecord, oColumn, oData) {
                         elLiner.innerHTML = "<img src='../../../common/images/insert_field.png' style='cursor:pointer;' "
-                        //+" title='Click to add new field or section header' "+
-                        +" title='Click this button to insert a new field or section header at this point in the record structure / data entry form' "+
-                        " rst_ID='"+oRecord.getData("rst_ID")+"' onclick='{editStructure.onAddFieldAtIndex(event);}' >";
+                        +" title='Click this button to insert a new field at this point in the record structure / data entry form' "+
+                        " rst_ID='"+oRecord.getData("rst_ID")+"' onclick='{editStructure.onAddFieldAtIndex(event, false);}' >";
                         //editStructure.onAddFieldMenu(event);
                     }
                 },
                 {
-                    key:"rst_ID", label: "Code", sortable:false, className:"center",
-                    formatter: function(elLiner, oRecord, oColumn, oData){
-                        elLiner.innerHTML = oData;
-                        elLiner.title = oRecord.getData("conceptCode");
-                    }
-                },
-                {
                     key:"expandColumn",
-                    label: "Edit",
+                    label: "Edit",  width:20,
                     hidden: false, //width : "16px",
                     sortable:false,
                     formatter: function(elLiner, oRecord, oColumn, oData){
@@ -286,18 +296,34 @@ function EditRecStructure() {
                 },
                 {
                     key:"rst_DisplayName", label: "Field prompt in form", width:120, sortable:false,
+                    
+                    editor: new YAHOO.widget.TextboxCellEditor({ 
+                            disableBtns:true,
+                            asyncSubmitter:function(fnCallback, oNewValue){
+                                var rec = this.getRecord();
+                                _updateSingleField(rec.getData("rst_ID"), 'rst_DisplayName', 
+                                            rec.getData("rst_DisplayName"), oNewValue, fnCallback); //fnCallback(bSuccess, oNewValue)   
+                            } 
+                                }),
+                            
                     formatter: function(elLiner, oRecord, oColumn, oData) {
-                        var ccode = oRecord.getData("conceptCode");
                         elLiner.innerHTML = oData;
-                        elLiner.title = "Base field type: "+oRecord.getData("dty_Name")+"\n\n"+
+
+                        var ccode = oRecord.getData("conceptCode");
+                        elLiner.title = 
+                        "ID: "+oRecord.getData("rst_ID")+
+                        (ccode?("\n\nConcept code: "+ccode):'')+
+                        "\n\nBase field type: "+oRecord.getData("dty_Name")+"\n\n"+
                         "Help: "+oRecord.getData("rst_DisplayHelpText")+"\n\n"+
-                        "For non owner: " + oRecord.getData("rst_NonOwnerVisibility")+
-                        (ccode?("\n\nConcept code:"+ccode):'');
+                        "For non owner: " + oRecord.getData("rst_NonOwnerVisibility");
                         
                         var type = oRecord.getData("dty_Type");
                         if(type=='separator'){
-                            $(elLiner).css({'font-size':'1.2em','font-weight':'bold'});
+                            $(elLiner).css({'font-size':'1.2em'});//,'font-weight':'bold','cursor':'normal'});
                         }
+                        $(elLiner).css({'font-weight':'bold'})
+                                .addClass('yui-dt-liner-editable');   
+                        
 
                     }
                 },
@@ -306,20 +332,45 @@ function EditRecStructure() {
                         var type = oRecord.getData("dty_Type");
                         if(type!=='separator'){
                             elLiner.innerHTML = top.HEURIST.detailTypes.lookups[type];
+                            if(type=='resource' && oRecord.getData("rst_CreateChildIfRecPtr")==1){
+                                    elLiner.innerHTML = elLiner.innerHTML + ' (child)';     
+                            }
                         }
+
+                        var ccode = oRecord.getData("conceptCode");
+                        elLiner.title = 
+                        "ID: "+oRecord.getData("rst_ID")+
+                        (ccode?("\n\nConcept code: "+ccode):'')+
+                        "\n\nBase field type: "+oRecord.getData("dty_Name")+"\n\n"+
+                        "Help: "+oRecord.getData("rst_DisplayHelpText")+"\n\n"+
+                        "For non owner: " + oRecord.getData("rst_NonOwnerVisibility");
+                        
                     }
                 },
                 {
                     key:"rst_DisplayWidth", label: "Width", sortable:false, width:25, className:"center" ,
+                    
+                    editor: new YAHOO.widget.TextboxCellEditor({
+                            validator: YAHOO.widget.DataTable.validateNumber,
+                            disableBtns:true,
+                            asyncSubmitter:function(fnCallback, oNewValue){
+                                var rec = this.getRecord();
+                                _updateSingleField(rec.getData("rst_ID"), 'rst_DisplayWidth', 
+                                            rec.getData("rst_DisplayWidth"), oNewValue, fnCallback); //fnCallback(bSuccess, oNewValue)   
+                            } 
+                    } ),
+                    
                     formatter: function(elLiner, oRecord, oColumn, oData){
                         var wid = oRecord.getData('rst_DisplayWidth');
                         var typ = oRecord.getData('dty_Type');
                         if (_isNoWidth(typ))
                         {
                             res = "";
+                            $(elLiner).css({'cursor':'normal'}); 
                         }
                         else{
                             res = wid;
+                            $(elLiner).addClass('yui-dt-liner-editable');   
                         }
 
 
@@ -329,13 +380,51 @@ function EditRecStructure() {
                 //{ key:"rst_DisplayHelpText", label: "Prompt", sortable:false },
                 {
                     key:"rst_RequirementType", label: "Requirement", sortable:false,
-                    formatter: _hidevalueforseparator
+                    minWidth:80, maxAutoWidth:80, width:80, className:'left',
+                    
+                    editor: new YAHOO.widget.DropdownCellEditor({ 
+                            dropdownOptions: ['required', 'recommended', 'optional', {value:'forbidden',label:'hidden'} ],  
+                            disableBtns:true,
+                            asyncSubmitter:function(fnCallback, oNewValue){
+                                var rec = this.getRecord();
+                                _updateSingleField(rec.getData("rst_ID"), 'rst_RequirementType', 
+                                            rec.getData("rst_RequirementType"), oNewValue, fnCallback); //fnCallback(bSuccess, oNewValue)   
+                            } 
+                    } ),
+                            
+                    formatter: function(elLiner, oRecord, oColumn, oData){
+                        if(_hidevalueforseparator(elLiner, oRecord, oColumn, oData)){
+                            $(elLiner).addClass('yui-dt-liner-editable2');
+                            if(oRecord.getData("rst_RequirementType")=='forbidden') $(elLiner).text('hidden');
+                        }
+                    }
+                    /*function(elLiner, oRecord, oColumn, oData){
+                        var type = oRecord.getData("dty_Type");
+                        if(type!=='separator'){
+                            elLiner.innerHTML = YAHOO.widget.DataTable.formatDropdown(elLiner, oRecord, oColumn, oData);                    
+                        }            
+                    },
+                    dropdownOptions: _requirements */
                 },
                 {
                     key:"rst_MinValues", label: "Min", hidden:true
                 },
                 {
                     key:"rst_MaxValues", label: "Repeatability", sortable:false,
+                    minWidth:80, maxAutoWidth:80, width:80, className:'left',
+                    editor: new YAHOO.widget.DropdownCellEditor({ 
+                            dropdownOptions: 
+                            //['single', 'repeatable', 'limited'],
+                    [{value:0, label:'repeatable'}, {value:1, label:'single'}, 
+                        {value:2, label:'limit 2'},{value:3, label:'limit 3'},{value:4, label:'limit 4'},{value:5, label:'limit 5'} ], 
+                            disableBtns:true,
+                            asyncSubmitter:function(fnCallback, oNewValue){
+                                var rec = this.getRecord();
+                                _updateSingleField(rec.getData("rst_ID"), 'rst_MaxValues', 
+                                            rec.getData("rst_MaxValues"), oNewValue, fnCallback); //fnCallback(bSuccess, oNewValue)   
+                            } 
+                    } ),
+                    
                     formatter: function(elLiner, oRecord, oColumn, oData){
                         var type = oRecord.getData("dty_Type");
                         if(type!=='separator'){
@@ -343,11 +432,12 @@ function EditRecStructure() {
                             var maxval = oRecord.getData('rst_MaxValues');
                             var res = 'repeatable';
                             if(Number(maxval)===1){
-                                res = 'single value';
+                                res = 'single'; // value';
                             }else if(Number(maxval)>1){
                                 res = 'limit '+maxval;
                             }
                             elLiner.innerHTML = res;
+                            $(elLiner).addClass('yui-dt-liner-editable2');   
                         }
                     }
 
@@ -376,7 +466,7 @@ function EditRecStructure() {
                     formatter: _hidevalueforseparator
                 },
                 {
-                    key:"rst_Status", label: "Status", sortable:false, className:"center",
+                    key:"rst_Status", label: "Status", sortable:false, className:"center", hidden:true,
                     formatter: _hidevalueforseparator
                 },
                 {
@@ -406,14 +496,13 @@ function EditRecStructure() {
                 var val0 = oRecord.getData('dty_Type');
                 if(val0 === 'separator'){
                     Dom.addClass(elTr, 'separator');
+                }
+                var val1 = oRecord.getData('rst_NonOwnerVisibility');
+                var val2 = oRecord.getData('rst_RequirementType');
+                if (val1==='hidden' || val2==='forbidden') {
+                    Dom.addClass(elTr, 'gray');
                 }else{
-                    var val1 = oRecord.getData('rst_NonOwnerVisibility');
-                    var val2 = oRecord.getData('rst_RequirementType');
-                    if (val1==='hidden' || val2==='forbidden') {
-                        Dom.addClass(elTr, 'gray');
-                    }else{
-                        Dom.removeClass(elTr, 'gray');
-                    }
+                    Dom.removeClass(elTr, 'gray');
                 }
                 return true;
             };
@@ -447,13 +536,22 @@ function EditRecStructure() {
                         '<div style="padding-left:30; padding-bottom:5; padding-right:5; background-color:#EEE">'+
 
                         // Name / prompt
-                        '<div class="input-row"><div class="input-header-cell">Prompt (display name):</div><div class="input-cell">'+
-                        '<input id="ed'+rst_ID+'_rst_DisplayName" style="width:200px;" onchange="_onDispNameChange(event)" '+
-                        'title="The name of the field, displayed next to the field in data entry and used to identify the field in report formats, analyses and so forth"/>'+
-
-                        // Field width
-                        '<span><label style="min-width:65px;width:65px">Field width:</label><input id="ed'+rst_ID+'_rst_DisplayWidth" '+
-                        'title="Display width of this field in the data entry form (does not limit maximum data length)" style="width:40" size="4" onkeypress="Hul.validate(event)"/></span></div>'+
+                        '<div class="input-row"><div class="input-header-cell">Prompt (display name):</div>'+
+                            '<div class="input-cell">'+
+                                '<input id="ed'+rst_ID+'_rst_DisplayName" style="width:200px;" onchange="_onDispNameChange(event)" '+
+                                    'title="The name of the field, displayed next to the field in data entry and used to identify the field in report formats, analyses and so forth"/>'+
+                                '<span>'+    
+                                // Field width
+                                '<span><label style="min-width:65px;width:65px">Field width:</label>'+
+                                '<input id="ed'+rst_ID+'_rst_DisplayWidth" '+
+                                    'title="Display width of this field in the data entry form (does not limit maximum data length)" style="width:40" size="4" onkeypress="Hul.validate(event)"/>'+
+                                '</span>'+
+                                '<span id="span'+rst_ID+'_rst_DisplayHeight"><label style="min-width:35px;width:35px">&nbsp;Height:</label>'+
+                                '<input id="ed'+rst_ID+'_rst_DisplayHeight" '+
+                                    'title="Display height in rows of this field in the data entry form" style="width:40" size="4" onkeypress="Hul.validate(event)"/>'+
+                                '</span>'+
+                                '</span>'+
+                            '</div></div>'+
 
 
                         // Help text
@@ -462,8 +560,16 @@ function EditRecStructure() {
                         '<div class="input-cell">'+
                         '<textarea style="width:450px" cols="450" rows="3" id="ed'+rst_ID+'_rst_DisplayHelpText" '+
                         'title="Help text displayed underneath the data entry field when help is ON"></textarea>'+
+                        '<div class="prompt">Please edit the heading and this text to values appropriate to this record type. '+
+                                            'This text is optional.</div>'+
                         '</div></div>'+
 
+                        '<div class="input-row">'+
+                        '<div class="input-header-cell">Hidden:</div>'+
+                        '<div class="input-cell">'+
+                        '<input id="ed'+rst_ID+'_rst_RequirementType_separator" type="checkbox" value="forbidden" />'+
+                        '</div></div>'+
+                        
                         // Required/recommended optional
                         '<div class="input-row"><div class="input-header-cell" style="vertical-align:top;">Requirement:</div>'+
                         '<div class="input-cell" title="Determines whether the field must be filled in, should generally be filled in, or is optional">'+
@@ -471,7 +577,7 @@ function EditRecStructure() {
                         '<option value="required">required</option>'+
                         '<option value="recommended">recommended</option>'+
                         '<option value="optional">optional</option>'+
-                        '<option value="forbidden">forbidden</option></select>'+
+                        '<option value="forbidden">hidden</option></select>'+ //was forbidden
 
                         
                         // Default value
@@ -527,7 +633,7 @@ function EditRecStructure() {
                         '<input id="ed'+rst_ID+'_rst_FilteredJsonTermIDTree" type="hidden"/>'+
                         '<input id="ed'+rst_ID+'_rst_TermIDTreeNonSelectableIDs" type="hidden"/>'+
                         '<span class="input-cell" id="termsPreview" class="dtyValue"></span>'+
-                        '<span class="input-cell" style="margin:0 10px">&nbsp;&nbsp;to change click "Edit Base Field Definition" and then "Change Vocabulary"</span>'+
+                        '<span class="input-cell" style="margin:0 10px">&nbsp;&nbsp;to change click "Edit Base Field Definition"</span>'+
                         '</div></div>'+
 
                         // Pointer target types - pointers and relmarkers
@@ -535,12 +641,24 @@ function EditRecStructure() {
                         '<div id="pointerPreview" class="input-cell" title="Determines which record types this pointer field can point to. It is preferable to select target record types than to leave the pointer unconstrained">'+
                         '<input id="ed'+rst_ID+'_rst_PtrFilteredIDs" type="hidden"/>'+
                         // TODO: the following message is not showing, whereas the one above does
-                        '<span class="input-cell" style="margin:0 10px">&nbsp;&nbsp;to change click "Edit Base Field Definition" and then "Select Record Types"</span>'+
+                        '<span class="input-cell" style="margin:0 10px">&nbsp;&nbsp;to change click "Edit Base Field Definition"</span>'+ // and then "Select Record Types"
                         '</div></div>'+
 
+                        '<div class="input-row"><div class="input-header-cell">Create new records as children:</div>'+
+                        
+                        '<div class="input-cell">'+
+                        '<input id="ed'+rst_ID+'_rst_CreateChildIfRecPtr" type="checkbox" value="1"  onclick="onCreateChildIfRecPtr(event,'+rst_ID+','+rty_ID+')"/>'+
+                        
+                        '<a href="#" class="help_rst_CreateChildIfRecPtr" onclick="onCreateChildIfRecPtrInfo(event)" style="vertical-align:bottom">'+
+                            '<img src="../../../common/images/info.png" width="14" height="14" border="0" title="Info"></a>'+
+                        '<span class="help prompt">New records created via this field become child records. Click "i" for further information.</span>'+    
+                            
+                        '</div></div>'+
+                        
+                        
                         // Base field definitions  (button)
                         '<div>'+
-                        '<div style="margin-left:190px; padding-top:5px; padding-bottom:15px;">'+
+                        '<div style="width:90%;text-align:right;padding:5px 20px 15px 0">'+ //margin-left:190px; 
                         
                         (allowEditBaseFieldType?
                         '<input style="margin-right:100px;" id="btnEdit_'+rst_ID+'" type="button" value="Edit Base Field Definition" '+
@@ -593,7 +711,7 @@ function EditRecStructure() {
             _myDataTable.subscribe("rowMouseoverEvent", _myDataTable.onEventHighlightRow);
             _myDataTable.subscribe("rowMouseoutEvent", _myDataTable.onEventUnhighlightRow);
             //ART16 _myDataTable.subscribe("rowClickEvent", _myDataTable.onEventSelectRow);
-
+            
             //
             // Subscribe to a click event to bind to expand/collapse the row
             //
@@ -608,7 +726,6 @@ function EditRecStructure() {
             _myDataTable.subscribe('linkClickEvent', function(oArgs){
 
                 if(!Hul.isnull(popupSelect) || _isServerOperationInProgress) { 
-                    console.log('popup or action-in-progress');
                     return; 
                 }
 
@@ -766,7 +883,7 @@ function EditRecStructure() {
                         (!Hul.isnull(column) && 
                             (column.key === 'rst_values' || column.key === 'rst_NonOwnerVisibility' || column.key === 'addColumn') ))
                         { 
-                            if (!Hul.isnull(popupSelect) || _isServerOperationInProgress) console.log('popup or action-in-progress');
+                            //if (!Hul.isnull(popupSelect) || _isServerOperationInProgress) console.log('popup or action-in-progress');
                             return; 
                         }
 
@@ -782,6 +899,42 @@ function EditRecStructure() {
             record_id = _myDataTable.getTdEl({record:oRecord, column:_myDataTable.getColumn("expandColumn")});
         }
 
+        //init inline edit
+        var typ = oRecord.getData("dty_Type");
+        if(!Hul.isnull(record_id) && 
+                (column.key === 'rst_RequirementType' || column.key === 'rst_MaxValues' || column.key === 'rst_DisplayName'
+                || (column.key === 'rst_DisplayWidth' && !_isNoWidth(typ))
+                )){
+            if(typ!=='separator' || column.key === 'rst_DisplayName'){
+                _myDataTable.onEventShowCellEditor(oArgs);
+                
+                if(column.key === 'rst_RequirementType' || column.key === 'rst_MaxValues'){ //force open dropdown
+                
+                    var editor = _myDataTable.getCellEditor();
+                    
+                    function __down(ele){
+                        var pos = $(ele).offset(); // remember position
+                        var len = $(ele).find("option").length;
+                            if(len > 20) {
+                                len = 20;
+                            }
+
+                        $(ele).css("position", "absolute");
+                        $(ele).css("zIndex", 9999);
+                        $(ele).offset(pos+18);   // reset position
+                        $(ele).attr("size", len); // open dropdown
+                        $(ele).unbind("focus", down);
+                        $(ele).focus();
+                                
+                    }
+                    __down(editor.dropdown);
+                }
+                
+                return;
+            }
+        }
+        
+        
                     // after expansion - fill input values from HEURIST db
                     // after collapse - save data on server
                     function __toggle(){
@@ -817,7 +970,7 @@ function EditRecStructure() {
                         _actionInProgress = false;
                     }
 
-                    if(!Hul.isnull(record_id)){
+                    if(!Hul.isnull(record_id) && column.key === 'expandColumn'){
                         _actionInProgress = true;
 
                         oRecord = _myDataTable.getRecord(record_id);
@@ -847,36 +1000,8 @@ function EditRecStructure() {
     
     /**
     * Opens popup with preview
-    *
-    * Button is hident in UI
-    * Preview record structure - doesn't always work reliably. It hasn't been fully debugged.
-    * Option:   use records/add/formAddRecordPopup.html
-    *
     */
     function _initPreview(){
-
-        if(Hul.isnull(popupSelect))
-        {
-            //save all changes
-            _doExpliciteCollapse(null, true);
-
-            var url = top.HEURIST.baseURL +
-            "admin/structure/fields/editRecStructurePreview.html?rty_ID="+editStructure.getRty_ID()+"&db="+db;
-
-            window.open(url,'','scrollbars=no,menubar=no,height=600,width=800,resizable=yes,toolbar=no,location=no,status=no');
-            /*
-            popupSelect = Hul.popupURL(top, url,
-            {	"close-on-blur": false,
-            "no-resize": false,
-            height: 640,
-            width: 800,
-            callback: function(context) {
-            popupSelect = null;
-            }
-            });
-            */
-        }
-
     }
 
     /**
@@ -887,7 +1012,7 @@ function EditRecStructure() {
     *				rstID from the last expanded row - from _expandedRecord. In this case it performs the saving only
     * @param needSave  whether to save data on server, it is false for collapse on delete only
     */
-    function _doExpliciteCollapse(rst_ID, needSave){
+    function _doExpliciteCollapse(rst_ID, needSave, needClose){
 
         if(Hul.isnull(rst_ID)){ //when user open select and new field type popup we have to save all changes
             rst_ID = _expandedRecord;
@@ -898,6 +1023,8 @@ function EditRecStructure() {
                 return;
             }
         }
+        
+        needClose = (needClose===true);
 
         var oRecord = _getRecordById(rst_ID).record;
         var record_id = _myDataTable.getTdEl({record:oRecord, column:_myDataTable.getColumn("expandColumn")});
@@ -915,11 +1042,11 @@ function EditRecStructure() {
             _expandedRecord = null;
 
             if(needSave){
-                _saveUpdates(false); //global function
+                _saveUpdates(needClose); //global function
             }
         }
     }
-
+    
     /**
     * Find the row in database by recstructure type ID and returns the object with references.
     * This object has 2 properties: reference to record (row in datatable) and its index in datatable
@@ -934,7 +1061,7 @@ function EditRecStructure() {
         for (row_index = 0; row_index < len; row_index++ )
         {
             var rec = _myDataTable.getRecord(row_index);
-            if(rec.getData('rst_ID') === rst_ID){
+            if(rec.getData('rst_ID') == rst_ID){
                 return {record:rec, row_index:row_index};
             }
         }
@@ -942,6 +1069,7 @@ function EditRecStructure() {
         return null;
     }
 
+    
     /**
     * Takes values from edit form to _updateXXX arrays and back to HEURIST db strucure
     *
@@ -980,6 +1108,8 @@ function EditRecStructure() {
                     
                     if(fieldnames[k]=="rst_DefaultValue" && $('#incValue_'+__rst_ID+'_2').is(':checked')){
                             edt.value = 'increment_new_values_by_1';
+                    }else if(fieldnames[k]=="rst_CreateChildIfRecPtr"){
+                            edt.value = $(edt).is(':checked')?1:0;
                     }
                     
                     if(values[k] !== edt.value){
@@ -1007,6 +1137,30 @@ function EditRecStructure() {
                     }
                 }
             }//end for
+
+
+            //special case for separator
+            var k = fieldnames.indexOf('rst_RequirementType');
+            var dti = fieldnames.indexOf('dty_Type');
+            if(values[dti]=='separator') {
+                var ed_name = '#ed'+__rst_ID+'_rst_RequirementType_separator';   
+                if($(ed_name).length>0){
+                    var is_hidden = $(ed_name).is(':checked');
+                    if ((is_hidden && values[k] !== 'forbidden') || (!is_hidden && values[k] == 'forbidden')){
+                       isChanged = true;
+                       values[k] = is_hidden?'forbidden':'optional';
+                       $('#ed'+__rst_ID+'_rst_RequirementType').val(values[k]);
+                            if(!Hul.isnull(_updatedFields) && _updatedFields.indexOf(k)<0){
+                                _updatedFields.push(k);
+                            }
+                            if(_updatedDetails.indexOf(__rst_ID)<0){
+                                _updatedDetails.push(__rst_ID);
+                            }
+                            dataupdate['rst_RequirementType'] = values[k];
+                    }
+                }
+            }
+            
 
             //update visible row in datatable
             if(isChanged){
@@ -1099,6 +1253,16 @@ function EditRecStructure() {
         $('#ed'+rst_ID+'_rst_RequirementType').attr('data-original', values[top.HEURIST.rectypes.typedefs.dtFieldNamesToIndex.rst_RequirementType]);
         $(selstatus).attr('data-original', status);
 
+        if(rst_type === "separator"){
+
+            $('#ed'+rst_ID+'_rst_RequirementType_separator').attr('checked',
+            values[top.HEURIST.rectypes.typedefs.dtFieldNamesToIndex.rst_RequirementType]=='forbidden');
+        }else{
+            $('#ed'+rst_ID+'_rst_RequirementType_separator').parents('.input-row').hide();  
+            //.parentNode.parentNode.style.display = "block";  
+        }
+        
+        
         var k;
         for(k=0; k<fieldnames.length; k++){
             var ed_name = 'ed'+rst_ID+'_'+fieldnames[k];
@@ -1174,27 +1338,56 @@ function EditRecStructure() {
                         edt.parentNode.parentNode.style.display = "none";
                     }
 
+                }else if(fieldnames[k] === "rst_CreateChildIfRecPtr"){
+
+                    if(rst_type === "resource"){
+                        //$(edt).parent('.input-row').show();
+                        edt.parentNode.parentNode.style.display = "block";
+                        
+                        $('#'+ed_name).attr('checked', values[k]==1);
+                        
+                        
+                    }else{
+                        edt.parentNode.parentNode.style.display = "none";
+                        //$(edt).parent('.input-row').hide();
+                    }
+                    
+                    
                 }else if(rst_type === "relationtype"){
 
                 }else if(rst_type === "resource"){
                     //show disable target pnr rectype
 
                 }else if(rst_type === "separator"  &&
-                    !(fieldnames[k] === "rst_DisplayName" || fieldnames[k] === "rst_DisplayWidth" 
-                            || fieldnames[k] === "rst_DisplayHelpText")){
+                    !(fieldnames[k] === "rst_DisplayName" //|| fieldnames[k] === "rst_DisplayWidth" 
+                            || fieldnames[k] === "rst_DisplayHelpText" )){ //|| fieldnames[k] === "rst_RequirementType"
                         //hide all but name  and help
                         edt.parentNode.parentNode.style.display = "none";
-                    }else if(rst_type === "fieldsetmarker" && 
-                        !(fieldnames[k] === "rst_DisplayName" || fieldnames[k] === "rst_DisplayWidth" || fieldnames[k] === "rst_Status")){
+                }else if(rst_type === "fieldsetmarker" && 
+                        !(fieldnames[k] === "rst_DisplayName" || fieldnames[k] === "rst_Status")){ //fieldnames[k] === "rst_DisplayWidth" || 
                             //hide all, required - once
                             edt.parentNode.parentNode.style.display = "none";
-                        }
-
+                }
+                
+                //hide width for alle except blocktext
+                if(fieldnames[k] === "rst_DisplayHeight"){
+                    if(rst_type=='blocktext'){
+                        ///edt.parentNode.style.display = "none";
+                        $(edt).parent().show();
+                    }else{
+                        //edt.parentNode.style.display = "block";
+                        $(edt).parent().hide();
+                    }
+                }else 
                 //hide width for some field types
-                if(fieldnames[k] === "rst_DisplayWidth" && _isNoWidth(rst_type) ){
-                    edt.parentNode.style.display = "none";
-                }else if(fieldnames[k] === "rst_DisplayName"){
-                    edt.parentNode.parentNode.style.display = "block";
+                if(fieldnames[k] === "rst_DisplayWidth"){
+                    if(_isNoWidth(rst_type) ){
+                        //edt.parentNode.style.display = "none";
+                        $(edt).parent().hide();
+                    }else{
+                        //edt.parentNode.style.display = "block";
+                        $(edt).parent().show();
+                    }
                 }
 
 
@@ -1207,6 +1400,7 @@ function EditRecStructure() {
             //hide repeatability
             $('#divRepeatability'+rst_ID).hide();
             $('#divMoreDefs'+rst_ID).hide();
+            
         }else{
 
             //determine what is repeatability type
@@ -1416,7 +1610,7 @@ function EditRecStructure() {
                 var arrs = detTypes[dty_ID].commonFields;
                 // add new detail type
                 // note that integer, boolean, year, urlinclude can no longer be created but are retained for backward compatibility
-                var def_width = 80;  // default width, used by single line text fields
+                var def_width = 80, def_height = 0;  // default width, used by single line text fields
                 var dt_type = arrs[fi.dty_Type];
 
                 if (_isNoWidth(dt_type))  // types which have no intrinsic width ie. adapt to content
@@ -1424,6 +1618,7 @@ function EditRecStructure() {
                     def_width = 0;
                 }else if (dt_type === "blocktext"){  // multi line text generally need to be wider
                     def_width = 100;
+                    def_height = 3;
                 }else if (dt_type === "date" || dt_type === "integer" || dt_type === "float" || dt_type === "year" ||
                     dt_type === "calculated") { // numeric and date don't need much width by default
                         def_width = 10;
@@ -1440,11 +1635,13 @@ function EditRecStructure() {
                 arr_target[rst.rst_MaxValues] = "1";
                 arr_target[rst.rst_MinValues] = "0";
                 arr_target[rst.rst_DisplayWidth] = def_width;
+                arr_target[rst.rst_DisplayHeight] = def_height; //rows
                 arr_target[rst.rst_RecordMatchOrder] = "0";
                 arr_target[rst.rst_DisplayOrder] = order;
                 arr_target[rst.rst_DisplayDetailTypeGroupID] = "1";
                 arr_target[rst.rst_FilteredJsonTermIDTree] = null;
                 arr_target[rst.rst_PtrFilteredIDs] = null;
+                arr_target[rst.rst_CreateChildIfRecPtr] = 0;
                 arr_target[rst.rst_TermIDTreeNonSelectableIDs] = null;
                 arr_target[rst.rst_CalcFunctionID] = null;
                 arr_target[rst.rst_Status] = "open";
@@ -1465,6 +1662,7 @@ function EditRecStructure() {
                     dty_Type: arrs[fi.dty_Type],
                     rst_RequirementType: "optional",
                     rst_DisplayWidth: def_width,
+                    rst_DisplayHeight: def_height,
                     rst_MinValues: 1,
                     rst_MaxValues: 1,
                     rst_DefaultValue: "",
@@ -1548,21 +1746,80 @@ function EditRecStructure() {
             _saveUpdates(false);
         }
         
-        //emulate click on last record
         _isServerOperationInProgress = false;
         
-        setTimeout(function(){
-            
-            var oRecord = _getRecordById(lastID).record;
-            var elLiner = _myDataTable.getTdLinerEl({record:oRecord, column:_myDataTable.getColumn('rst_DisplayName')});
-            //$.find("tr.yui-dt-last > td.yui-dt-col-rst_DisplayName")[0]
-            var oArgs = {event:'MouseEvent', target: elLiner};
-            onCellClickEventHandler(oArgs);
-        },500);
-        
+        //remark this exit to prevent expand after insert
+        if($('#showEditOnNewField').is(':checked')){
+            //emulate click on just added row
+            setTimeout(function(){
+                
+                var oRecord = _getRecordById(lastID).record;
+                var elLiner = _myDataTable.getTdLinerEl({record:oRecord, column:_myDataTable.getColumn('expandColumn')});
+                //$.find("tr.yui-dt-last > td.yui-dt-col-rst_DisplayName")[0]
+                var oArgs = {event:'MouseEvent', target: elLiner};
+                onCellClickEventHandler(oArgs);
+            },500);
+        }
     }
 
+    /**
+    * asyncSubmitter for inline editor
+    * 
+    */
+    function _updateSingleField(dty_ID, fieldName, oOldValue, oNewValue, fnCallback){
+         
+         fnCallback(true, oNewValue);
+          
+         if(oOldValue!=oNewValue){
+    
+            _isServerOperationInProgress = true;             
+             
+            _myDataTable.render();
+            //create and fill the data structure
+            var orec = {rectype:{
+                colNames:{common:[], dtFields:[fieldName]},
+                defs: {}
+            }};
+            orec.rectype.defs[rty_ID] = {common:[], dtFields:{}};
+            orec.rectype.defs[rty_ID].dtFields[dty_ID] = [oNewValue];
+            
+            var str = YAHOO.lang.JSON.stringify(orec);            
+     
+            var updateResult = function(context){
+                if(!Hul.isnull(context)){
+                    var win = top;
+                    win.HEURIST.rectypes = context.rectypes;
+                    win.HEURIST.detailTypes = context.detailTypes;
+                        if(win.hWin && win.hWin.HEURIST4){
+                            win.hWin.HEURIST4.rectypes = context.rectypes;
+                            win.hWin.HEURIST4.detailtypes = context.detailTypes;
+                            win.hWin.HEURIST4.terms = context.terms;
+                        }
+    
+                    editStructure._structureWasUpdated = true;
+                    
+                    //fnCallback(true, oNewValue);
+                }else{
+                    //fnCallback(false, oNewValue);    
+                }
+                _isServerOperationInProgress = false;
+                
+                $('.save-btn').removeProp('disabled').css('opacity','1');
+            };
+            
+            $('.save-btn').prop('disabled', 'disabled').css('opacity','0.3');
+            
+            var baseurl = top.HEURIST.baseURL + "admin/structure/saveStructure.php";
+            var callback = updateResult;
+            var params = "method=saveRTS&db="+db+"&data=" + encodeURIComponent(str);
 
+            Hul.getJsonData(baseurl, callback, params);           
+         }else{
+            //fnCallback(true, oNewValue); 
+         }
+    }
+
+    
 
     /**
     * Clears _updateXXX arrays
@@ -1648,13 +1905,14 @@ function EditRecStructure() {
                         if(top.hWin && top.hWin.HEURIST4){
                             top.hWin.HEURIST4.rectypes = context.rectypes;
                             top.hWin.HEURIST4.detailtypes = context.detailTypes;
+                            top.hWin.HEURIST4.terms = context.terms;
                         }
                     
-                    _structureWasUpdated = true;
+                    editStructure._structureWasUpdated = true;
                 }
                 _isServerOperationInProgress = false;
                 if(needClose){
-                    window.close(_structureWasUpdated);
+                    window.close(editStructure._structureWasUpdated);
                 }
             };
             var baseurl = top.HEURIST.baseURL + "admin/structure/saveStructure.php";
@@ -1663,6 +1921,8 @@ function EditRecStructure() {
             _isServerOperationInProgress = true;
             Hul.getJsonData(baseurl, callback, params);
 
+        }else if(needClose){
+            window.close();
         }
     }
 
@@ -1757,7 +2017,7 @@ function EditRecStructure() {
         });
     }
 
-    function _onAddFieldAtIndex(e){
+    function _onAddFieldAtIndex(e, isSectionHeader){
         e = top.HEURIST.util.stopEvent(e);
         var targ = e.target;
         var rst_ID = targ.getAttribute("rst_ID")
@@ -1767,7 +2027,13 @@ function EditRecStructure() {
         var index_toinsert = _getRecordById(rst_ID).row_index;
         _myDataTable.unselectAllRows();
 
-        onAddNewDetail(index_toinsert);
+        
+        if(isSectionHeader===true){
+            _onAddSeparator(index_toinsert);
+        }else{
+            onAddNewDetail(index_toinsert);
+        }
+        
     }
 
     //Ian decided to remove this feature -however it may be helpful in another place
@@ -1948,8 +2214,7 @@ function EditRecStructure() {
         }
     }
 
-
-
+    
     //////////////////////////////////////////////////////////////////////////////
     // Custom drag and drop class
     //////////////////////////////////////////////////////////////////////////////
@@ -2158,14 +2423,14 @@ function EditRecStructure() {
             _onAddSeparator(index_toinsert);
         },
 
-        onAddFieldAtIndex: function(e){
-            _onAddFieldAtIndex(e);
+        onAddFieldAtIndex: function(e, isSectionHeader){
+            _onAddFieldAtIndex(e, isSectionHeader);
         },
 
         onAddFieldMenu: function(e){
             _addFieldMenu(e);
         },
-
+        
         doEditTitleMask: function(is_onexit){
             _doEditTitleMask(is_onexit);
         },
@@ -2181,9 +2446,27 @@ function EditRecStructure() {
         },
 
         closeWin:function(){
+            if(_expandedRecord!=null){
+                
+                _doExpliciteCollapse(null, true, true);
+                
+                //alert("You have to save or cancel changes for editing field first");
+                return;                
+            }
             if(_checkForRequired()){
 
-                _checkForTitleMask(function(){ window.close(_structureWasUpdated); });
+                _checkForTitleMask(function(){ 
+                        //wait for inline editor
+                        function __waitForInlineEditor(){
+                             if(_isServerOperationInProgress){ //wait next 500 seconds
+                                setTimeout(__waitForInlineEditor, 300);
+                             }else{
+                                window.close(editStructure._structureWasUpdated);          
+                             }
+                        }
+                        
+                        setTimeout(__waitForInlineEditor, 300);
+                });
 
             }else{
                 alert("You should have at least one required field and at least one of them should appear in the title mask to ensure that the constructed title is not blank. \n\nPlease set one or more fields to Required.");
@@ -2228,7 +2511,7 @@ function onAddNewDetail(index_toinsert){
             "admin/structure/fields/selectDetailType.html?rty_ID="+editStructure.getRty_ID()+"&db="+db,
             {	"close-on-blur": false,
                 "no-resize": false,
-                title: 'Add Field or Section Header',
+                title: 'Add Field', // or Section Header
                 height: dim.h*0.9,
                 width: 700, //back to fixed width    dim.w*0.5,
 
@@ -2332,6 +2615,8 @@ function onStatusChange(evt){
     
     el = Dom.get(name+"_rst_Status");
 
+    if(el==null) return;    
+    
     var curr_value = $(el).attr('data-original');
     var new_value = el.value;
         
@@ -2407,7 +2692,7 @@ function onReqtypeChange(evt){
         var curr_value = values[top.HEURIST.rectypes.typedefs.dtFieldNamesToIndex.rst_RequirementType];     */
         var curr_value = $(el).attr('data-original');
         var new_value = el.value;
-        if(new_value=='forbidden'){
+        if(new_value=='forbidden' || new_value=='hidden'){
             el.value = curr_value; //restore
             return;
         }
@@ -2473,7 +2758,7 @@ function onReqtypeChange(evt){
         el_min.value = 0;
 
         //Dom.setStyle(span_min, "visibility", "hidden");
-    } else if(el.value === "forbidden"){
+    } else if(el.value === "forbidden" || el.value === "hidden"){
         el_min.value = 0;
         el_max.value = 0;
 
@@ -2481,7 +2766,7 @@ function onReqtypeChange(evt){
         Dom.setStyle(span_max, "visibility", "hidden");
     }
 
-    if(el.value !== "forbidden"){
+    if (!(el.value == "forbidden" || el.value == "hidden" )){
         //rep_el.disabled = false;
         onRepeatChange(evt);
     }
@@ -2555,7 +2840,7 @@ function onRepeatChange(evt){
     function ___onRepeatChange_continue(){    
 
     var el =  Dom.get(name+'_rst_RequirementType');
-    if(el.value !== "forbidden"){
+    if(!(el.value === "forbidden" || el.value === "hidden")){
 
         el =  Dom.get(name+'_Repeatability');
         var span_min = Dom.get(name+'_spanMinValue');
@@ -2595,6 +2880,118 @@ function onRepeatValueChange(evt){
     if(el_max.value<el_min.value){
         el_max.value=el_min.value;
     }
+}
+
+function onCreateChildIfRecPtr(event,rst_ID, rty_ID){
+  event.preventDefault();
+  
+  var ele = event.target;
+  var $dlg;
+    
+  if(!$(ele).is(':checked')){
+    //warning on cancel
+ $dlg = window.hWin.HEURIST4.msg.showMsgDlg(
+'<h3>Turning off child-record function</h3><br>'
++'<div><b>DO NOT DO THIS</b> if you have entered data for child records, unless you fully understand the consequences. It is likely to invalidate the titles of child records, make it hard to retrieve them or to identify what they belong to.</div><br>'
++'<div>If you do accidentally turn this function off, it IS possible to turn it back on again (preferably immediately …) and recover most of the information/functionality.</div><br>'
++'<div><label><input type="checkbox">Yes, I want to turn child-record function OFF for this field</label></div>',
+                     function(){
+                       $(ele).prop('checked',false);
+                     },
+                     {title:'Warning',yes:'Proceed',no:'Cancel'});    
+      
+  }else{
+ $dlg = window.hWin.HEURIST4.msg.showMsgDlg(
+'<h3>Convert existing records to children</h3><br>'
++'<div>Records referenced by this pointer field will become child records of the record which references them. Once allocated as a child record, the parent cannot be changed. </div><br>'
++'<div>WARNING: It is difficult to undo this step ie. to change a child record pointer field back to a standard pointer field.</div><br>'
++'<div><label><input type="checkbox">Yes, I want to turn child-record function ON for this field</label></div>',
+                     function(){
+                        $(ele).prop('checked',true);
+                        //start action
+                        var request = {
+                             a: 'add_reverse_pointer_for_child',
+                             rtyID: rty_ID,
+                             dtyID: rst_ID,
+                             allow_multi_parent:true
+                        };
+                        
+                        window.hWin.HAPI4.RecordMgr.batch_details(request, function(response){
+                            if(response.status == hWin.HAPI4.ResponseStatus.OK){
+                                //show report
+
+var link = '<a target="blank" href="'+window.hWin.HAPI4.baseURL + '?db='+window.hWin.HAPI4.database+'&q=ids:';
+var link2 = '"><img src="'+window.hWin.HAPI4.baseURL+'common/images/external_link_16x16.gif">&nbsp;';
+           
+function __getlink(arr){
+    return link+arr.join(',')+link2+arr.length; 
+}           
+           
+                                
+sMsg = '<h3>Conversion of records to child records</h3><br>'
++'<div>'+response.data['passed']+' values were found (child record ids)</div>'
++(response.data['disambiguation']>0?('<div>'+response.data['disambiguation']+' values ignored. The same records were pointed to as a child record by more than one parent</div>'):'')
++(response.data['noaccess']>0?('<div>'+response.data['noaccess']+' records can not be converted to child records (no access rights)</div>'):'');
+
+if(response.data['processedParents'].length>0){
+sMsg = sMsg
++'<br><div>'+__getlink(response.data['processedParents'])+' parent records</a> (records of this type with this pointer field) were processed</div>'
++((response.data['childInserted'].length>0)?('<div>'+__getlink(response.data['childInserted'])+' records</a> were converted to child records</div>'):'')
++((response.data['childUpdated'].length>0)?('<div>'+__getlink(response.data['childUpdated'])+' child records</a> changed its parent</div>'):'')
++((response.data['titlesFailed'].length>0)?('<div>'+__getlink(response.data['titlesFailed'])+' child records</a> failed to update tecord title</div>'):'');
+}
+if(response.data['childAlready'].length>0){
+sMsg = sMsg
++'<div>'+__getlink(response.data['childAlready'])+' child records</a> already have the required reverse pointer</div>';
+}
+
+if(response.data['childMiltiplied'].length>0){
+sMsg = sMsg
++'<div>'+__getlink(response.data['childMiltiplied'])+' records</a> were pointed to as a child record by more than one parent</div>'
++'<br><div>You will need to edit these records and choose which record is the parent (child records can only have one parent).</div>'
++'<div>To find these records use Manage > Structure > Verify <new tab icon></div><br>'
+}
+
+//sMsg = sMsg 
+sMsg = sMsg 
++'<br>Notes<br><div>We STRONGLY recommend removing - from the record structure of the child record type(s) -  any existing field which points back to the parent record</div>'
++'<br><div>You will also need to update the record title mask to use the new Parent Entity field to provide information (rather than existing fields which point back to the parent)</div>'
++'<br><div>You can do both of these changes through Manage > Structure > Build <new tab icon> or the modify structure <new tab icon> link when editing a record.</div>';
+                            
+                                window.hWin.HEURIST4.msg.showMsgDlg(sMsg);
+                                
+                                //save from UI to HEURIST
+                                editStructure.doExpliciteCollapse(rst_ID, true);
+                                
+                            }else{
+                                window.hWin.HEURIST4.msg.showMsgErr(response);
+                            }
+                        });
+                     },
+                     {title:'Warning',yes:'Proceed',no:'Cancel'});    
+  }
+  
+  var btn = $dlg.parent().find('button:contains("Proceed")');
+  var chb = $dlg.find('input[type="checkbox"]').change(function(){
+      window.hWin.HEURIST4.util.setDisabled(btn, !chb.is(':checked') );
+  })
+  window.hWin.HEURIST4.util.setDisabled(btn, true);
+    
+  return false;
+}
+
+//
+// show warning for parent-child function of pointer field
+//
+function onCreateChildIfRecPtrInfo(evt){
+  evt.preventDefault();
+    
+  top.HEURIST.util.popupElement(
+                hasH4()?top:window.hWin, 
+                document.getElementById('info_rst_CreateChildIfRecPtr'),
+                {title:'Creation of records as children',height:300});
+    
+  return false;
 }
 
 
@@ -2769,7 +3166,9 @@ function _onAddEditFieldType(dty_ID, rty_ID){
                     //refresh the local heurist
                     top.HEURIST.detailTypes = context.detailTypes;
                     _cloneHEU = null;
-
+                    
+                    editStructure._structureWasUpdated = true; //no access  to top object
+                    
                     var fi = top.HEURIST.detailTypes.typedefs.fieldNamesToIndex;
 
                     var rst_type = top.HEURIST.detailTypes.typedefs[dty_ID].commonFields[fi.dty_Type];
@@ -2799,6 +3198,7 @@ function _onAddEditFieldType(dty_ID, rty_ID){
             
     });
 }
+
 
 function onEditRecordType(){
 

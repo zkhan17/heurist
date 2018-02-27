@@ -707,6 +707,36 @@ class AndLimb {
             case 'ids':
                 return new BibIDPredicate($this, $pred_val);
 
+            case 'fc':
+
+                $colon_pos = strpos($raw_pred_val, ':');
+                if (! $colon_pos) {
+                    if (($colon_pos = strpos($raw_pred_val, '='))) $this->exact = true;
+                    else if (($colon_pos = strpos($raw_pred_val, '<'))) $this->lessthan = true;
+                        else if (($colon_pos = strpos($raw_pred_val, '>'))) $this->greaterthan = true;
+                }
+                
+                $fieldtype_id = null;
+            
+                if ($colon_pos === FALSE){
+                    $value = $this->cleanQuotedValue($raw_pred_val);
+                } else if ($colon_pos == 0){
+                    $value = $this->cleanQuotedValue($raw_pred_val);
+                    $value =  substr($value, 1);
+                }else{
+                    $fieldtype_id = $this->cleanQuotedValue(substr($raw_pred_val, 0, $colon_pos));
+                    $value = $this->cleanQuotedValue(substr($raw_pred_val, $colon_pos+1));
+                    
+                    if (($colon_pos = strpos($value, '='))===0) $this->exact = true;
+                    else if (($colon_pos = strpos($value, '<'))===0) $this->lessthan = true;
+                        else if (($colon_pos = strpos($value, '>'))===0) $this->greaterthan = true;
+                            if($colon_pos===0){
+                        $value = substr($value,1);
+                    }
+                }
+
+                return new FieldCountPredicate($this, $fieldtype_id, $value);
+            
             case 'field':
             case 'f':
 
@@ -727,14 +757,14 @@ class AndLimb {
 
                     $fieldtype_id = $this->cleanQuotedValue(substr($raw_pred_val, 0, $colon_pos));
                     $value = $this->cleanQuotedValue(substr($raw_pred_val, $colon_pos+1));
-
+                          
                     if (($colon_pos = strpos($value, '='))===0) $this->exact = true;
                     else if (($colon_pos = strpos($value, '<'))===0) $this->lessthan = true;
                         else if (($colon_pos = strpos($value, '>'))===0) $this->greaterthan = true;
                             if($colon_pos===0){
                         $value = substr($value,1);
                     }
-
+                    
                     return new FieldPredicate($this, $fieldtype_id, $value);
                 }
 
@@ -1507,7 +1537,7 @@ class FieldPredicate extends Predicate {
             $isin = false;
             $isnumericvalue = is_numeric($this->value);
         }
-
+        
         /*
         if($isin){
             $match_pred_for_term = $match_pred;
@@ -1518,11 +1548,6 @@ class FieldPredicate extends Predicate {
         }*/
         
         $timestamp = $isin?false:true; //$this->isDateTime();
-
-        if ($timestamp) {
-            $date_match_pred = $this->makeDateClause();
-        }
-
 
         if($this->field_type_value=='resource'){ //field type is found - search for specific detailtype
             return $not . 'exists (select rd.dtl_ID from recDetails rd '
@@ -1546,6 +1571,13 @@ class FieldPredicate extends Predicate {
             if(trim($this->value)==''){
                 $res = $res. " and rd.dtl_Value !='' )";
             }else{
+                
+                if ($timestamp) {
+                    $date_match_pred = $this->makeDateClause();
+                }else{
+                    $date_match_pred = $match_pred;
+                }
+                
                 $res = $res. ' and getTemporalDateString(rd.dtl_Value) ' . $date_match_pred. ')';
             }
             return $res;
@@ -1554,14 +1586,22 @@ class FieldPredicate extends Predicate {
 
             if($this->field_type_value=='file'){
                 $fieldname = 'rd.dtl_UploadedFileID';
+                
+                if(!($isnumericvalue || $isin)){
+                    return $not . 'exists (select rd.dtl_ID from recDetails rd, recUploadedFiles rf '
+                    . ' where rd.dtl_RecID=TOPBIBLIO.rec_ID and rf.ulf_ID=rd.dtl_UploadedFileID'
+                    . ' and rd.dtl_DetailTypeID=' . intval($this->field_type)
+                    . ' and (rf.ulf_OrigFileName ' . $match_pred. ' or rf.ulf_MimeExt '. $match_pred.'))';
+                }
             }else{
                 $fieldname = 'rd.dtl_Value';
-            }
+            }    
     
             return $not . 'exists (select rd.dtl_ID from recDetails rd '
-            . ' where rd.dtl_RecID=TOPBIBLIO.rec_ID '
-            . ' and rd.dtl_DetailTypeID=' . intval($this->field_type)
-            . ' and ' . $fieldname . ' ' . $match_pred. ')';
+                . ' where rd.dtl_RecID=TOPBIBLIO.rec_ID '
+                . ' and rd.dtl_DetailTypeID=' . intval($this->field_type)
+                . ' and ' . $fieldname . ' ' . $match_pred. ')';
+            
             
         }else{
         
@@ -1575,6 +1615,15 @@ class FieldPredicate extends Predicate {
                     $rd_type_clause = " and rdt.dty_Name ".$rd_type_clause;
                 }
             }
+            
+            
+        
+                if ($timestamp) {
+                    $date_match_pred = $this->makeDateClause();
+                }else{
+                    $date_match_pred = $match_pred;
+                }
+            
 
             return $not . 'exists (select rd.dtl_ID from recDetails rd '
             . 'left join defDetailTypes rdt on rdt.dty_ID=rd.dtl_DetailTypeID '
@@ -1683,6 +1732,84 @@ class FieldPredicate extends Predicate {
                 }
             }
             
+        }
+
+        return $match_pred;
+    }
+
+}
+
+
+class FieldCountPredicate extends Predicate {
+    var $field_type;        //name of dt_id
+
+    function FieldCountPredicate(&$parent, $type, $value) {
+        $this->field_type = $type;
+        parent::Predicate($parent, $value);
+
+        if ($value[0] == '-') {    // DWIM: user wants a negate, we'll let them put it here
+            $parent->negate = true;
+            $value = substr($value, 1);
+        }
+    }
+
+    function makeJSON() {
+            $compare = '';
+            if ($this->parent->exact)
+                $compare = '=';
+            else if ($this->parent->lessthan)
+                $compare = '<';
+            else if ($this->parent->greaterthan)
+                $compare = '>';
+            
+            $res = array();
+            $res['f#:'.$this->field_type] = $not.$compare.$this->value;
+            return $res;
+            //@todo implement nested values
+    }
+    
+    
+    function makeSQL() {
+        global $mysqli;
+        
+        $not = ($this->parent->negate)? '(not ' : '';
+        $not2 = ($this->parent->negate)? ') ' : '';
+
+        $match_pred = $this->get_field_value();
+        
+        $ft_compare = '';
+        if($this->field_type>0){
+            $ft_compare = 'and rd.dtl_DetailTypeID='.intval($this->field_type);
+        }
+        
+        return $not . '(select count(rd.dtl_ID) from recDetails rd left join Records link on rd.dtl_Value=link.rec_ID 
+where rd.dtl_RecID=TOPBIBLIO.rec_ID '.$ft_compare.' )'.$match_pred . $not2;       
+    }
+
+    //
+    function get_field_value(){
+        global $mysqli;
+
+        if (strpos($this->value,"<>")>0) {  //(preg_match('/^\d+(\.\d*)?|\.\d+(?:<>\d+(\.\d*)?|\.\d+)+$/', $this->value)) {
+
+            $vals = explode("<>", $this->value);
+            $match_pred = ' between '.$vals[0].' and '.$vals[1].' ';
+
+        }else {
+                
+                if(!is_numeric($this->value)){
+                    $match_value = 0;
+                }else{
+                    $match_value = intval($this->value);
+                }
+
+                if ($this->parent->lessthan) {
+                    $match_pred = " < $match_value";
+                } else if ($this->parent->greaterthan) {
+                    $match_pred = " > $match_value";
+                } else {
+                    $match_pred = ' = '.$match_value;
+                }
         }
 
         return $match_pred;
@@ -1905,6 +2032,11 @@ class LinkedFromParentPredicate extends Predicate {
                 $dty_ID = '';
             }
         }
+        
+        $rty_IDs = prepareIds($rty_ID);
+        $dty_IDs = prepareIds($dty_ID);
+        
+        
         /*
         //additions for FROM and WHERE
         if($rty_ID){
@@ -1930,9 +2062,25 @@ class LinkedFromParentPredicate extends Predicate {
         if($rty_ID==1){ //special case for relationship records
             $add_where = 'rd.rec_RecTypeID='.$rty_ID.' and rl.rl_RelationID=rd.rec_ID';
         }else{
-            $add_where = (($rty_ID) ?'rd.rec_RecTypeID='.$rty_ID.' and ':'')
-            . ' rl.rl_SourceID=rd.rec_ID and '
-            . (($dty_ID) ?'rl.rl_DetailTypeID='.$dty_ID :'rl.rl_RelationID is null' );
+
+            if(count($rty_IDs)>1){
+                $add_where = 'rd.rec_RecTypeID in ('.implode(',',$rty_IDs).') and ';
+            }else if(count($rty_IDs)>0){
+                $add_where = 'rd.rec_RecTypeID = '.$rty_IDs[0].' and ';
+            }else{
+                $add_where = '';
+            }
+            
+            $add_where = $add_where
+            . ' rl.rl_SourceID=rd.rec_ID and ';
+            
+            if(count($dty_IDs)>1){
+                $add_where = $add_where.'rl.rl_DetailTypeID in ('.implode(',',$dty_IDs).')';
+            }else if(count($dty_IDs)>0){
+                $add_where = $add_where.'rl.rl_DetailTypeID = '.$dty_IDs[0];
+            }else{
+                $add_where = $add_where.'rl.rl_RelationID is null';
+            }
         }
         
         $add_from  = 'recLinks rl ';
@@ -1955,19 +2103,25 @@ class LinkedFromParentPredicate extends Predicate {
 
         }else{
             
-            $ids = array_map('intval', explode(',', $rty_ID));
-            if(count($ids)>1){
-                $add_where = 'rl.rl_SourceID in ('.implode(',',$ids).') and ';
-            }else if(count($ids)>0){
-                $add_where = 'rl.rl_SourceID = '.$ids[0].' and ';
+            if(count($rty_IDs)>1){
+                $add_where = 'rl.rl_SourceID in ('.implode(',',$rty_IDs).') and ';
+            }else if(count($rty_IDs)>0){
+                $add_where = 'rl.rl_SourceID = '.$rty_IDs[0].' and ';
             }else{
                 $add_where = '';
             }
             
             $add_where = $add_where.' rl.rl_TargetID=rd.rec_ID ';
             if($rty_ID!=1){
-                $add_where = $add_where . ' and ' 
-                 .(($dty_ID) ?'rl.rl_DetailTypeID='.$dty_ID :'rl.rl_RelationID is null' );    
+                $add_where = $add_where . ' and ';
+                
+                if(count($dty_IDs)>1){
+                    $add_where = $add_where.'rl.rl_DetailTypeID in ('.implode(',',$dty_IDs).')';
+                }else if(count($dty_IDs)>0){
+                    $add_where = $add_where.'rl.rl_DetailTypeID = '.$dty_IDs[0];
+                }else{
+                    $add_where = $add_where.'rl.rl_RelationID is null';
+                }
             }    
             
             $select = $select.' FROM Records rd,'.$add_from.' WHERE '.$add_where.')';
@@ -1999,6 +2153,9 @@ class LinkedToParentPredicate extends Predicate {
                 $dty_ID = '';
             }
         }
+        
+        $rty_IDs = prepareIds($rty_ID);
+        $dty_IDs = prepareIds($dty_ID);
 
         /*
         //additions for FROM and WHERE
@@ -2026,9 +2183,25 @@ class LinkedToParentPredicate extends Predicate {
         if($rty_ID==1){ //special case for relationship records
             $add_where = 'rd.rec_RecTypeID='.$rty_ID.' and rl.rl_RelationID=rd.rec_ID';
         }else{
-            $add_where = (($rty_ID) ?'rd.rec_RecTypeID='.$rty_ID.' and ':'')
-                . ' rl.rl_TargetID=rd.rec_ID and '
-                . (($dty_ID) ?'rl.rl_DetailTypeID='.$dty_ID :'rl.rl_RelationID is null' );
+            
+            if(count($rty_IDs)>1){
+                $add_where = 'rd.rec_RecTypeID in ('.implode(',',$rty_IDs).') and ';
+            }else if(count($rty_IDs)>0){
+                $add_where = 'rd.rec_RecTypeID = '.$rty_IDs[0].' and ';
+            }else{
+                $add_where = '';
+            }
+            
+            $add_where = $add_where
+                . ' rl.rl_TargetID=rd.rec_ID and ';
+                
+            if(count($dty_IDs)>1){
+                $add_where = $add_where.'rl.rl_DetailTypeID in ('.implode(',',$dty_IDs).')';
+            }else if(count($dty_IDs)>0){
+                $add_where = $add_where.'rl.rl_DetailTypeID = '.$dty_IDs[0];
+            }else{
+                $add_where = $add_where.'rl.rl_RelationID is null';
+            }
         }
         $add_from  = 'recLinks rl ';
 
@@ -2050,20 +2223,25 @@ class LinkedToParentPredicate extends Predicate {
 
         }else{
             
-            $ids = array_map('intval', explode(',', $rty_ID));
-
-            if(count($ids)>1){
-                $add_where = 'rl.rl_TargetID in ('.implode(',',$ids).') and ';
-            }else if(count($ids)>0){
-                $add_where = 'rl.rl_TargetID = '.$ids[0].' and ';
+            if(count($rty_IDs)>1){
+                $add_where = 'rl.rl_TargetID in ('.implode(',',$rty_IDs).') and ';
+            }else if(count($rty_IDs)>0){
+                $add_where = 'rl.rl_TargetID = '.$rty_IDs[0].' and ';
             }else{
                 $add_where = '';
             }
             
             $add_where = $add_where.' rl.rl_SourceID=rd.rec_ID ';
             if($rty_ID!=1){
-                $add_where = $add_where . ' and ' 
-                 .(($dty_ID) ?'rl.rl_DetailTypeID='.$dty_ID :'rl.rl_RelationID is null' );    
+                $add_where = $add_where . ' and ';
+                
+                if(count($dty_IDs)>1){
+                    $add_where = $add_where.'rl.rl_DetailTypeID in ('.implode(',',$dty_IDs).')';
+                }else if(count($dty_IDs)>0){
+                    $add_where = $add_where.'rl.rl_DetailTypeID = '.$dty_IDs[0];
+                }else{
+                    $add_where = $add_where.'rl.rl_RelationID is null';
+                }
             }    
             
             
@@ -2162,7 +2340,7 @@ class RelatedFromParentPredicate extends Predicate {
 
         }else{
 
-            $ids = array_map('intval', explode(',', $source_rty_ID));
+            $ids = prepareIds($source_rty_ID);
             if(count($ids)>1){
                 $add_where = 'rl.rl_SourceID in ('.implode(',',$ids).') and ';
             }else if(count($ids)>0){
@@ -2273,7 +2451,7 @@ class RelatedToParentPredicate extends Predicate {
 
         }else{
 
-            $ids = array_map('intval', explode(',', $source_rty_ID));
+            $ids = prepareIds($source_rty_ID);
             if(count($ids)>1){
                 $add_where = 'rl.rl_TargetID in ('.implode(',',$ids).') and ';
             }else if(count($ids)>0){
@@ -2337,7 +2515,7 @@ class AllLinksPredicate  extends Predicate {
 
         }else{
         
-            $ids = array_map('intval', explode(',', $source_rty_ID));
+            $ids = prepareIds($source_rty_ID);
             if(count($ids)>1){
                 $add_where1 = $add_where1.'and rl1.rl_TargetID in ('.implode(',',$ids).')';
                 $add_where2 = $add_where2.'and rl2.rl_SourceID in ('.implode(',',$ids).')';
@@ -2366,7 +2544,7 @@ class LinkToPredicate extends Predicate {
     function makeSQL() {
         if ($this->value) {
             
-            $ids = array_map('intval', explode(',', $this->value));
+            $ids = prepareIds($this->value);
             if(count($ids)>1){
                 return '(1=0)';
             }else{
@@ -2390,12 +2568,12 @@ class LinkedToPredicate extends Predicate {
     function makeSQL() {
         if ($this->value) {
             
-            $ids = array_map('intval', explode(',', $this->value));
+            $ids = prepareIds($this->value);
             if(count($ids)>1){
                 return '(1=0)';
             }else{
                 return 'exists (select * from defDetailTypes, recDetails bd '
-                . 'where bd.dtl_RecID in (' . join(',', $ids) .') and dty_ID=dtl_DetailTypeID and dty_Type="resource" '
+                . 'where bd.dtl_RecID in (' . implode(',', $ids) .') and dty_ID=dtl_DetailTypeID and dty_Type="resource" '
                 . '  and bd.dtl_Value=TOPBIBLIO.rec_ID)';
             }
         }
@@ -2410,7 +2588,8 @@ class LinkedToPredicate extends Predicate {
 class RelatedToPredicate extends Predicate {
     function makeSQL() {
         if ($this->value) {
-            $ids = "(" . join(",", array_map("intval", explode(",", $this->value))) . ")";
+            $ids = prepareIds($this->value);
+            $ids = "(" . implode(",",$ids) . ")";
             return "exists (select * from recRelationshipsCache where (rrc_TargetRecID=TOPBIBLIO.rec_ID and rrc_SourceRecID in $ids)
             or (rrc_SourceRecID=TOPBIBLIO.rec_ID and rrc_TargetRecID in $ids))";
         }
@@ -2425,7 +2604,8 @@ class RelatedToPredicate extends Predicate {
 class RelationsForPredicate extends Predicate {
     function makeSQL() {
         global $mysqli;
-        $ids = "(" . join(",", array_map("intval", explode(",", $this->value))) . ")";
+        $ids = prepareIds($this->value);
+        $ids = "(" . implode(",", $ids) . ")";
         /*
         return "exists (select * from recRelationshipsCache where ((rrc_TargetRecID=TOPBIBLIO.rec_ID or rrc_RecID=TOPBIBLIO.rec_ID) and rrc_SourceRecID=$id)
         or ((rrc_SourceRecID=TOPBIBLIO.rec_ID or rrc_RecID=TOPBIBLIO.rec_ID) and rrc_TargetRecID=$id))";
@@ -2726,6 +2906,9 @@ $_REQUEST['q'] = $q;
 }
 */
 
+//
+// returns null if some of csv is not integer
+//
 function getCommaSepIds($value)
 {
     if(substr($value, -1) === ','){
@@ -2737,7 +2920,6 @@ function getCommaSepIds($value)
     $n = array_map('intval', $a);
     
     if(!array_diff($a, $n)){
-        //join(',', array_map('intval', explode(',', $this->value)))
         return $value;
     }else{
         return null;

@@ -65,6 +65,8 @@ $.widget( "heurist.searchEntity", {
                 });
                 return;
             }else{
+                //template for search not defined 
+                // define btn_search_start and input_search at least in manageEntity
                 that._initControls();
             }
             
@@ -78,25 +80,17 @@ $.widget( "heurist.searchEntity", {
             //init buttons
             this.btn_search_start = this.element.find('#btn_search_start')
                 //.css({'width':'6em'})
-                .button({label: window.hWin.HR("Start search"), text:false, icons: {
-                    secondary: "ui-icon-search"
-                }});
-                        
+                .button({label: window.hWin.HR("Start search"), showLabel:false, 
+                        icon:"ui-icon-search", iconPosition:'end'});
+                 
+                    
+            //this is default search field - define it in your instance of html            
             this.input_search = this.element.find('#input_search');
             if(!window.hWin.HEURIST4.util.isempty(this.options.filter_title)) {
                 this.input_search.val(this.options.filter_title);    
             }
             
-            this._on( this.input_search, {
-                keypress:
-                function(e){
-                    var code = (e.keyCode ? e.keyCode : e.which);
-                        if (code == 13) {
-                            window.hWin.HEURIST4.util.stopEvent(e);
-                            e.preventDefault();
-                            this.startSearch();
-                        }
-                }});
+            this._on( this.input_search, { keypress: this.startSearchOnEnterPress });
             this._on( this.btn_search_start, {
                 click: this.startSearch });
                 
@@ -113,17 +107,26 @@ $.widget( "heurist.searchEntity", {
                 this._on( this.btn_summary, { click: this.startSearch });
             }
                 
-            // help buttons
-            window.hWin.HEURIST4.ui.initHintButton(this.element.find('#btn_help_hints'));
-            window.hWin.HEURIST4.ui.initHelper(this.element.find('#btn_help_content'),'Help',
-                window.hWin.HAPI4.baseURL+'context_help/'+this.options.entity.helpContent+' #content');
-            
             var right_padding = window.hWin.HEURIST4.util.getScrollBarWidth()+4;
             this.element.find('#div-table-right-padding').css('min-width',right_padding);
         
         
             //EXTEND this.startSearch();
     },  
+    
+    //
+    //
+    //
+    startSearchOnEnterPress: function(e){
+        
+        var code = (e.keyCode ? e.keyCode : e.which);
+        if (code == 13) {
+            window.hWin.HEURIST4.util.stopEvent(e);
+            e.preventDefault();
+            this.startSearch();
+        }
+
+    },
     
     //
     // use_cache = true
@@ -148,7 +151,7 @@ $.widget( "heurist.searchEntity", {
     // public methods
     //
     startSearch: function(){
-        //EXTEND        
+        //TO EXTEND        
     },
     
 

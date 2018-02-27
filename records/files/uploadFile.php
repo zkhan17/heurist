@@ -38,6 +38,7 @@
 
     require_once(dirname(__FILE__)."/../../common/connect/applyCredentials.php");
     require_once(dirname(__FILE__)."/../../common/php/dbMySqlWrappers.php");
+    require_once("fileUtils.php");
 
     /**
     * Invoked from HAPI.saveFile.php
@@ -65,7 +66,7 @@
         if ($size <= 0  ||  $error) {
             return "File size recognized as 0. Either file size more than php upload_max_filesize or file is corrupted. Error: $error";
         }
-
+        
         /* clean up the provided file name -- these characters shouldn't make it through anyway */
         $name = str_replace("\0", '', $name);
         $name = str_replace('\\', '/', $name);
@@ -100,6 +101,32 @@
         }else{
             $file_size = round($size / 1024);
         }
+        
+        $is_image = (strpos($mimeType,'image')===0); 
+        
+        //limit the size upload file to 50Mb and 120Mpix for images       
+        if($size>50*1048576){
+
+            $uploadFileError = 'The file you are attempting to upload exceeds the limit set for this system (50 Mbytes - this maximum can be reset by the system administrator). File size is restricted both to avoid excessive server space usage'
+            .($is_image?' and because very large images are not generally useful in a web context. Please rescale images to an appropriate size before upload (we suggest a good quality JPG)':'').'. (File size='.round($size/1048576).'Mb)';
+            return $uploadFileError;
+            
+        }else if($is_image && file_exists($tmp_name)) {
+                $imageInfo = getimagesize($tmp_name); 
+                $memoryNeeded = 0;
+                
+                if(is_array($imageInfo)){
+                    if(array_key_exists('channels', $imageInfo) && array_key_exists('bits', $imageInfo)){
+                        $memoryNeeded = round(($imageInfo[0] * $imageInfo[1] * $imageInfo['bits'] * $imageInfo['channels'] / 8 + Pow(2,16)) * 1.65); 
+                    }else{ //width x height
+                        $memoryNeeded = round($imageInfo[0] * $imageInfo[1]*3);  
+                    } 
+                }
+                if($memoryNeeded>120*1048576){  
+                    $uploadFileError = 'The file you are attempting to upload exceeds the limit set for this system (120 MPix - this maximum can be reset by the system administrator). File size is restricted both to avoid excessive server space usage and because very large images are not generally useful in a web context. Please rescale images to an appropriate size before upload (we suggest a good quality JPG). (Image resolution='.round($memoryNeeded/1048576).'M)';
+                    return $uploadFileError;
+                }
+        }
 
         $res = mysql__insert('recUploadedFiles', array(	'ulf_OrigFileName' => $name,
             'ulf_UploaderUGrpID' => get_user_id(),
@@ -131,9 +158,9 @@ error_log("NOT FOUND ".$tmp_name);
         }
 
         $pos = strpos($tmp_name, HEURIST_FILES_DIR);
-        if( copy($tmp_name, HEURIST_FILES_DIR .  $filename) )  //file is already in upload folder
+        if( copy($tmp_name, HEURIST_FILES_DIR .  $filename) ) 
         {
-            //rename file
+            //remove temp file
             unlink($tmp_name);
             return $file_id;
 
@@ -161,6 +188,36 @@ error_log("MOVE ".$tmp_name.">>>".HEURIST_FILES_DIR . $filename.">>>>error=".$is
         }
     }
 
+    /**
+    * check if file is already registered
+    */
+    function check_if_register_file($fullname, $needConnect) {
+        
+        if($needConnect){
+            mysql_connection_overwrite(DATABASE);
+        }
+        $path_parts = pathinfo($fullname);
+        $dirname = $path_parts['dirname'].'/';
+        $filename = $path_parts['basename'];
+        
+        // get relative path to db root folder
+        $relative_path = getRelativePath(HEURIST_FILESTORE_DIR, $dirname);
+      
+        $res = mysql_query('select ulf_ID from recUploadedFiles '
+            .'where ulf_FileName = "'.mysql_real_escape_string($filename).'" and '
+            .' (ulf_FilePath = "file_uploads/" or ulf_FilePath = "'.mysql_real_escape_string($relative_path).'")');
+
+        if (mysql_num_rows($res) == 1) {
+            $row = mysql_fetch_assoc($res);
+            $file_id = $row['ulf_ID'];
+            return $file_id;
+        }else{
+            return null;
+        }
+        
+    }
+    
+    
     /**
     * Registger the file on the server in recUploadedFiles
     *
@@ -192,6 +249,12 @@ error_log("MOVE ".$tmp_name.">>>".HEURIST_FILES_DIR . $filename.">>>>error=".$is
             mysql_connection_overwrite(DATABASE);
         }
 
+        //check if such file is already registered
+        $file_id = check_if_register_file($fullname, false);
+        if($file_id>0){
+            return $file_id;
+        }
+        
         //get folder, extension and filename
         $path_parts = pathinfo($fullname);
         $dirname = $path_parts['dirname'].'/';
@@ -205,6 +268,7 @@ error_log("MOVE ".$tmp_name.">>>".HEURIST_FILES_DIR . $filename.">>>>error=".$is
                 return "Error: mimtype for extension $mimetypeExt is is not defined in database";
             }
         }
+        
 
         if ($size && $size < 1024) {
             $file_size = 1;
@@ -215,42 +279,30 @@ error_log("MOVE ".$tmp_name.">>>".HEURIST_FILES_DIR . $filename.">>>>error=".$is
         // get relative path to db root folder
         $relative_path = getRelativePath(HEURIST_FILESTORE_DIR, $dirname);
 
-        //check if such file is already registered
-        $res = mysql_query('select ulf_ID from recUploadedFiles '
-            .'where ulf_FileName = "'.mysql_real_escape_string($filename).'" and '
-            .' (ulf_FilePath = "file_uploads/" or ulf_FilePath = "'.mysql_real_escape_string($relative_path).'")');
-
-        if (mysql_num_rows($res) == 1) {
-            $row = mysql_fetch_assoc($res);
-            $file_id = $row['ulf_ID'];
-            return $file_id;
-        }else{
-
-            $toins = array(	'ulf_OrigFileName' => $filename,
-                'ulf_UploaderUGrpID' => get_user_id(),
-                'ulf_Added' => date('Y-m-d H:i:s'),
-                'ulf_MimeExt ' => $mimetypeExt,
-                'ulf_FileSizeKB' => $file_size,
-                'ulf_Description' => $description?$description : NULL,
-                'ulf_FilePath' => $relative_path,
-                'ulf_FileName' => $filename,
-                'ulf_Parameters' => "mediatype=".getMediaType($mimeType, $mimetypeExt));
+        $toins = array(	'ulf_OrigFileName' => $filename,
+            'ulf_UploaderUGrpID' => get_user_id(),
+            'ulf_Added' => date('Y-m-d H:i:s'),
+            'ulf_MimeExt ' => $mimetypeExt,
+            'ulf_FileSizeKB' => $file_size,
+            'ulf_Description' => $description?$description : NULL,
+            'ulf_FilePath' => $relative_path,
+            'ulf_FileName' => $filename,
+            'ulf_Parameters' => "mediatype=".getMediaType($mimeType, $mimetypeExt));
 
 
 
-            $res = mysql__insert('recUploadedFiles', $toins);
+        $res = mysql__insert('recUploadedFiles', $toins);
 
-            if (!$res) {
-                return "Error registration file $fullname into database";
-            }
-
-            $file_id = mysql_insert_id();
-
-            mysql_query('update recUploadedFiles set ulf_ObfuscatedFileID = "' . addslashes(sha1($file_id.'.'.rand())) . '" where ulf_ID = ' . $file_id);
-
-            return $file_id;
-
+        if (!$res) {
+            return "Error registration file $fullname into database";
         }
+
+        $file_id = mysql_insert_id();
+
+        mysql_query('update recUploadedFiles set ulf_ObfuscatedFileID = "' . addslashes(sha1($file_id.'.'.rand())) . '" where ulf_ID = ' . $file_id);
+
+        return $file_id;
+
     }
 
     /**
@@ -271,6 +323,45 @@ error_log("MOVE ".$tmp_name.">>>".HEURIST_FILES_DIR . $filename.">>>>error=".$is
     */
     function unregister_for_recid2($recid, $needDelete){
 
+        $ulf_ToDelete = array();
+        $query = "select dtl_UploadedFileID from recDetails where dtl_RecID=".$recid;
+        $res = mysql_query($query);
+        while ($row = mysql_fetch_array($res)) {
+            $ulf_ID = $row[0];
+            if($ulf_ID>0){
+            //verify that other records does not refer to this file
+            $query = 'select count(*) from recDetails where dtl_UploadedFileID='.$ulf_ID;
+            $res2 = mysql_query($query);
+            if($res2){
+                $cnt = mysql_fetch_array($res2);
+                if($cnt[0]==1){
+                    array_push($ulf_ToDelete, $ulf_ID);
+                }
+            }
+            }
+        }
+
+        if(count($ulf_ToDelete)>0){
+        
+            if($needDelete){
+                foreach ($ulf_ToDelete as $ulf_ID) {
+                    deleteUploadedFiles($ulf_ID);
+                }
+            }
+            
+            //remove from database
+            mysql_query('SET foreign_key_checks = 0');
+            mysql_query('delete from recUploadedFiles where ulf_ID in ('.implode(',',$ulf_ToDelete).')');
+            mysql_query('SET foreign_key_checks = 1');
+
+            if (mysql_error()) {
+                return mysql_error();
+            }
+        
+        }
+        return null;
+        
+        /* OLD WAY
         if($needDelete){
             // find all files associated with this record
             $query = "select dtl_UploadedFileID from recDetails where dtl_RecID=".$recid;
@@ -290,6 +381,7 @@ error_log("MOVE ".$tmp_name.">>>".HEURIST_FILES_DIR . $filename.">>>>error=".$is
         }else{
             return null;
         }
+        */
     }
 
 
@@ -324,6 +416,7 @@ error_log("MOVE ".$tmp_name.">>>".HEURIST_FILES_DIR . $filename.">>>>error=".$is
                 $path_parts = pathinfo($filename);
                 $dirname = $path_parts['dirname']."/";
 
+                //HEURIST_FILESTORE root or file_uploads subfolder  
                 if( $dirname == HEURIST_FILESTORE_DIR || $dirname == HEURIST_FILES_DIR ){
                     //remove physically from file_uploads or db root only
                     if(file_exists($filename)){
@@ -750,6 +843,7 @@ error_log("MOVE ".$tmp_name.">>>".HEURIST_FILES_DIR . $filename.">>>>error=".$is
                 (defined('HEURIST_DBNAME') ? "db=".HEURIST_DBNAME."&" : "" )."ulf_ID=".$res["nonce"];
             }
 
+            
 
             $downloadURL = HEURIST_BASE_URL."records/files/downloadFile.php/".$origName."?".
             (defined('HEURIST_DBNAME') ? "db=".HEURIST_DBNAME."&" : "" )."ulf_ID=".$res["nonce"];
@@ -771,12 +865,12 @@ error_log("MOVE ".$tmp_name.">>>".HEURIST_FILES_DIR . $filename.">>>>error=".$is
             $res["remoteSource"] = (array_key_exists('source', $params))?$params['source']:null;
 
             $type_source = $res['remoteSource'];
-            if (!($type_source==null || $type_source=='heurist')){ //verify that this is actually remote resource
+            if ($type_source==null || $type_source!='heurist'){ //verify that this is actually remote resource
                 if( @$res['fullpath'] && file_exists($res['fullpath']) ){
                     $res['remoteSource'] = 'heurist';
                 }
             }
-
+            
             //
             //@todo - add special parameters for specific sources and media types
             // QUESTION - store it in database? Or create on-fly??
@@ -982,5 +1076,164 @@ error_log("MOVE ".$tmp_name.">>>".HEURIST_FILES_DIR . $filename.">>>>error=".$is
             || false !== ($colonPos = strpos($path, ':')) && ($colonPos < ($slashPos = strpos($path, '/')) || false === $slashPos)
             ? './'.$path : $path;
     }
+    
+    //
+    // 
+    //
+    function getPlayerTag($fileid, $mimeType, $url, $size){
+            
+            $is_video = (strpos($mimeType,"video/")===0);
+            $is_audio = (strpos($mimeType,"audio/")===0);
+            $is_image = (strpos($mimeType,"image/")===0);
+            
+            $res = '';
+                
+            if($url){
+                $filepath = $url;  //external 
+            }else{
+                //to itself
+                $filepath = HEURIST_BASE_URL."?db=".HEURIST_DBNAME."&file=".$fileid;
+            }
+            $thumb_url = HEURIST_BASE_URL."?db=".HEURIST_DBNAME."&thumb=".$fileid;
+                
+            if ( $is_video ) {
+                    
+                    if($size==null || $size==''){
+                        $size = 'width="640" height="360"';
+                    }
+                    
+                    if ($mimeType=='video/youtube' || $mimeType=='video/vimeo'
+                            || strpos($url, 'vimeo.com')>0
+                            || strpos($url, 'youtu.be')>0
+                            || strpos($url, 'youtube.com')>0)
+                    {
+                    
+                        $playerURL = getPlayerURL($mimeType, $url);
+                        
+                        $res = '<iframe '.$size.' src="'.$playerURL.'" frameborder="0" '
+                            . ' webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>';                        
+                            
+                        
+                    }else{
+                        //preload="none"
+                        $res = "<video  type='$size'  controls='controls''>"
+                                ."<source type='$mimeType' src='$filepath'/></video>";
+                         /*
+                        $player = HEURIST_BASE_URL."ext/mediaelement/flashmediaelement.swf";
+                         //note: we may remove flash fallback since it is blocked in most modern browsers
+                                <!-- Flash fallback for non-HTML5 browsers -->
+                                <object width="640" height="360" type="application/x-shockwave-flash" data="<?php echo $player;?>">
+                                    <param name="movie" value="<?php echo $player;?>" />
+                                    <param name="flashvars" value="controls=true&file=<?php echo $filepath;?>" />
+                                    <img src="<?php echo $thumb_url;?>" width="320" height="240" title="No video playback capabilities" />
+                                </object>
+                         */    
+                    }
+                    
+                }
+                else if ( $is_audio ) 
+                {
+                    
+                    if ($mimeType=='audio/soundcloud'
+                            || strpos($url, 'soundcloud.com')>0)
+                    {
+                        
+                        if($size==null || $size==''){
+                            $size = 'width="640" height="166"';
+                        }
 
+                        $playerURL = getPlayerURL($mimeType, $url);
+                        
+                        $res = '<iframe '.$size.' src="'.$playerURL.'" frameborder="0"></iframe>';                        
+                    
+                    }else{
+                        $res = '<audio controls="controls"><source src="'.$filepath
+                            .'" type="'.$mimeType.'"/>Your browser does not support the audio element.</audio>';                        
+                    }
+
+                }else 
+                if($is_image){
+                    
+                    // || strpos($url,".jpg")>0 || strpos($url,".jpeg")>0  || strpos($url,".png")>0 || strpos($url,".gif")>0
+                
+                        if($size==null || $size==''){
+                            $size = 'width="300"';
+                        }
+                        $res = '<img '.$size.' src="'.$filepath.'"/>';
+                    
+                }else{
+                    //not media - show thumb with download link
+                    $res = '<a href="'.$filepath.'" target="_blank"><img src="'.$thumb_url.'"/></a>';
+                    /*                
+                        if($size==null || $size==''){
+                            $size = 'width="420" height="345"';
+                        }
+                        print '<iframe '.$size.' src="'.$filepath.'" frameborder="0"></iframe>';                        
+                    */    
+                }
+                
+            return $res;
+    }
+    
+    
+
+//
+// get player url for youtube, vimeo, soundcloud
+//
+function getPlayerURL($mimeType, $url){
+    
+    if( $mimeType == 'video/youtube' 
+            || strpos($url, 'youtu.be')>0
+            || strpos($url, 'youtube.com')>0){ //match('http://(www.)?youtube|youtu\.be')
+            
+        $url = 'https://www.youtube.com/embed/'.youtube_id_from_url($url);
+        
+    }else if( $mimeType == 'video/vimeo' || strpos($url, 'viemo.com')>0){
+        
+        $hash = json_decode(loadRemoteURLContent("http://vimeo.com/api/oembed.json?url=".rawurlencode($url), false), true);
+        $video_id = @$hash['video_id'];
+        if($video_id>0){
+           $url =  'https://player.vimeo.com/video/'.$video_id;
+        }
+    }else if( $mimeType == 'audio/soundcloud' || strpos($url, 'soundcloud.com')>0){
+    
+        return 'https://w.soundcloud.com/player/?url='.$url
+                .'&amp;auto_play=false&amp;hide_related=false&amp;show_comments=false&amp;show_user=false&amp;'
+                .'show_reposts=false&amp;show_teaser=false&amp;visual=true';
+    } 
+    
+    return $url;
+}
+
+function youtube_id_from_url($url) {
+/*    
+    $pattern = 
+        '%^# Match any youtube URL
+        (?:https?://)?  # Optional scheme. Either http or https
+        (?:www\.)?      # Optional www subdomain
+        (?:             # Group host alternatives
+          youtu\.be/    # Either youtu.be,
+        | youtube\.com  # or youtube.com
+          (?:           # Group path alternatives
+            /embed/     # Either /embed/
+          | /v/         # or /v/
+          | /watch\?v=  # or /watch\?v=
+          )             # End path alternatives.
+        )               # End host alternatives.
+        ([\w-]{10,12})  # Allow 10-12 for 11 char youtube id.
+        $%x'
+        ;
+        
+    //$url = urldecode(rawurldecode($_GET["q"]));
+    $result = preg_match($pattern, $url, $matches);
+    if ($result) {
+        return $matches[1];
+    }
+    return false;
+*/    
+    # https://www.youtube.com/watch?v=nn5hCEMyE-E
+    preg_match("/^(?:http(?:s)?:\/\/)?(?:www\.)?(?:m\.)?(?:youtu\.be\/|youtube\.com\/(?:(?:watch)?\?(?:.*&)?v(?:i)?=|(?:embed|v|vi|user)\/))([^\?&\"'>]+)/", $url, $matches);
+    return $matches[1];    
+}
+    
 ?>

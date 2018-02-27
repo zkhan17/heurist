@@ -62,8 +62,8 @@ if(isset($_POST['data'])) {
   <meta http-equiv="content-type" content="text/html; charset=utf-8">
   <title>Bulk email sender</title>
 
-  <script type="text/javascript" src="../../ext/jquery-ui-1.10.2/jquery-1.9.1.js"></script>
-  <link rel="stylesheet" type="text/css" href="../../ext/jquery-ui-1.10.2/themes/heurist/jquery-ui.css" />
+  <script type="text/javascript" src="../../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
+  <link rel="stylesheet" type="text/css" href="../../ext/jquery-ui-themes-1.12.1/themes/heurist/jquery-ui.css" />
   <link rel="stylesheet" type="text/css" href="../../h4styles.css">
 
   <style>
@@ -258,7 +258,7 @@ if(isset($_POST['data'])) {
             //this.record = records.getFirstRecord(); // Reference to first record; 
             var rectype = this.record[rectype_index]; // Record type of first record
             this.definitions = window.hWin.HEURIST4.rectypes.typedefs[rectype].dtFields; // Definitions for this record type
-            console.log("Rectype: " + rectype + ", definitions", this.definitions);
+//console.log("Rectype: " + rectype + ", definitions", this.definitions);
 
             // TEXT ONLY DROPDOWNS
             var text_options = determineOptions(text_types);

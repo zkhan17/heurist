@@ -71,7 +71,7 @@ function getRecordOverlayData(record) {
                 
                 if(!settings.isDatabaseStructure){
                     // Relation
-                    var relation = {text: "➜ " + truncateText(link.target.name, maxLength), size: "9px", height: 11, indent: true};
+                    var relation = {text: "➜ " + truncateText(link.target.name, maxLength), size: "9px", height: 11, indent: true, subheader:1};
                     if(settings.showCounts) {
                         relation.text += ", n=" + link.targetcount;                      
                     }
@@ -108,7 +108,7 @@ function getRecordOverlayData(record) {
         // Convert map to array
         for(key in map) {                                   
             array.push({text: truncateText(key, maxLength), size: "8px", 
-                    style:"italic", height: fontSize, indent:true, enter: true}); // Heading
+                    style:"italic", height: fontSize, indent:true, enter: true, subheader:1}); // Heading
             for(text in map[key]) {
                 array.push(map[key][text]);    
             }
@@ -123,7 +123,7 @@ function getRelationOverlayData(line) {
     var array = [];
     var maxLength = getSetting(setting_textlength);
     var relation = {type: line.relation.type, cnt: line.targetcount, text: 
-            truncateText(line.relation.name, maxLength), size: "9px", height: 11};
+            truncateText(line.relation.name, maxLength), size: "9px", height: 11, subheader:1};
     if(true || settings.showCounts) {
             relation.text = relation.text + ", n=" + line.targetcount;
     }
@@ -135,7 +135,7 @@ function getRelationOverlayData(line) {
 function getRelationOverlayData_old(line) {
     var array = [];
     var maxLength = getSetting(setting_textlength);
-    var linetype = getSetting(setting_linetype);
+    var linetype = getSetting(setting_linetype,'straight');
     
     // Header
     var header1 = truncateText(line.source.name, maxLength);
@@ -238,7 +238,8 @@ function createOverlay(x, y, type, selector, node_obj, parent_node) {
         }
     
     if(parent_node){
-        parent_node.on("mouseover", function(d) {
+        parent_node
+        .on("mouseover", function(d) {
             if(drag_link_source_id!=null){
                 //cancel timer
                 if(drag_link_timer>0){
@@ -254,7 +255,7 @@ function createOverlay(x, y, type, selector, node_obj, parent_node) {
             drag_link_timer = setTimeout(function(){
                 drag_link_target_id = null;
                 if(drag_link_line) drag_link_line.attr("stroke","#ff0000");
-            },500);
+            },300);
             }            
         });
     }
@@ -262,8 +263,17 @@ function createOverlay(x, y, type, selector, node_obj, parent_node) {
     
     
         // Draw a semi transparant rectangle       
-        var rect = overlay.append("rect")
-                          .attr("class", "semi-transparant info-mode")              
+        var rect_full = overlay.append("rect")
+                          .attr("class", "semi-transparant info-mode-full rect-info-full")              
+                          .attr("x", 0)
+                          .attr("y", 0)
+                          .attr("rx", 6)
+                          .attr("ry", 6)
+                          .style('stroke','#ff0000')
+                          .style("stroke-width", 0.5)
+                          .style("filter", "url(#drop-shadow)");
+        var rect_info = overlay.append("rect")
+                          .attr("class", "semi-transparant info-mode rect-info")              
                           .attr("x", 0)
                           .attr("y", 0)
                           .attr("rx", 6)
@@ -316,7 +326,11 @@ function createOverlay(x, y, type, selector, node_obj, parent_node) {
                               return d.text;
                           })
                           .attr("class", function(d, i) {
-                             return (i>0?'info-mode ':'nodelabel ')+'namelabel';
+                              if(i>0 && d.subheader==1){ // d.style=='italic'
+                                    return 'info-mode-full namelabel';
+                              }else{
+                                    return (i>0?'info-mode ':'nodelabel ')+'namelabel';     
+                              }
                           })
                           .attr("x", function(d, i) {
                               // Indent check
@@ -328,7 +342,9 @@ function createOverlay(x, y, type, selector, node_obj, parent_node) {
                           .attr("y", function(d, i) {
                               // Multiline check
                               if(!d.multiline) {
-                                  position += (d.height*1.2);
+                                  if(!(isNaN(d.height) || d.height==null)){
+                                    position += (d.height*1.2);
+                                  }
                               }
                               return position; // Position calculation
                           })
@@ -425,11 +441,14 @@ function createOverlay(x, y, type, selector, node_obj, parent_node) {
                     var x = bbox.left + bbox.width/2 - svgPos.left;
                     var y = bbox.top + bbox.height/2 - svgPos.top;  
                     
+                    var dx = (x < (event.clientX - svgPos.left))?-2:2;
+                    var dy = (y < (event.clientY - svgPos.top))?-2:2;
+                    
                     drag_link_line = svg.append("svg:line")
                        .attr("stroke","#ff0000")
                        .attr("stroke-width",4)
                        .attr("x1", x).attr("y1", y)
-                       .attr("x2", event.clientX - svgPos.left).attr("y2", event.clientY - svgPos.top);
+                       .attr("x2", event.clientX - svgPos.left+dx).attr("y2", event.clientY - svgPos.top+dy);
                     
                  })
                  .on("drag", 
@@ -438,11 +457,14 @@ function createOverlay(x, y, type, selector, node_obj, parent_node) {
                         //drag_link_line
                         //.attr("x2", Number(drag_link_line.attr("x2"))+d3.event.dx)
                         //.attr("y2", Number(drag_link_line.attr("y2"))+d3.event.dy); //scale is not used
-                    
                         var svgPos = $("svg").position();
+
+                    var dx = (drag_link_line.attr('x1') < (event.clientX - svgPos.left))?-2:2;
+                    var dy = (drag_link_line.attr('y1') < (event.clientY - svgPos.top))?-2:2;
+
                         drag_link_line
-                            .attr("x2", event.clientX - svgPos.left)
-                            .attr("y2", event.clientY - svgPos.top);
+                            .attr("x2", event.clientX - svgPos.left+dx)
+                            .attr("y2", event.clientY - svgPos.top+dy);
                         
                     }
                     
@@ -471,6 +493,8 @@ function createOverlay(x, y, type, selector, node_obj, parent_node) {
 
         widthTitle = widthTitle+(iconSize+3)*(icons_cnt+2);
         if(widthTitle>maxWidth) maxWidth = widthTitle;
+        
+        if( settings.isDatabaseStructure ||  settings.onRefreshData){
         
         //link button      
         var btnAddLink = overlay
@@ -504,7 +528,7 @@ function createOverlay(x, y, type, selector, node_obj, parent_node) {
                          
                       var hinttext = hintoverlay.append("text")
                       .text('drag me to another node …')
-                      .attr('x',3)
+                      .attr('x',3)                
                       .attr('y',10)
                       .attr("fill", fontColor)
                       .style("font-style", 'italic', "important")
@@ -527,7 +551,7 @@ function createOverlay(x, y, type, selector, node_obj, parent_node) {
                    .text(function(d) {
                         return 'Click and drag to another node to create link';
                    });
-
+        }
 
         //edit button
         var btnEdit = overlay
@@ -549,8 +573,7 @@ function createOverlay(x, y, type, selector, node_obj, parent_node) {
                             _editRecStructure(rty_ID);    
                       }else{
                             window.open(window.hWin.HAPI4.baseURL
-                                +'records/edit/editRecord.html?db='
-                                +window.hWin.HAPI4.database+'&recID='+rec_ID, '_new');
+                                +'?fmt=edit&db='+window.hWin.HAPI4.database+'&recID='+rec_ID, '_new');
                       }
                       
                       
@@ -566,39 +589,53 @@ function createOverlay(x, y, type, selector, node_obj, parent_node) {
             // Close button
             var close = overlay.append("g")
                                .attr("class", "close info-mode")
-                               .attr("transform", "translate("+(maxWidth-iconSize)+",3)")
+                               .attr("transform", "translate("+(maxWidth-10)+",3)")  //position of icon maxWidth-iconSize
                                .on("mouseup", function(d) {
                                    $(".show-record[name='"+node_obj.name+"']").prop('checked', false).change();                                              });
                                
             // Close rectangle                                                                     
             close.append("rect")
-                   .attr("class", "close-button")
-                   .attr("width", iconSize)
-                   .attr("height", iconSize)
-
+                   .attr("class", "close-button");
+            
             // Close text        
             close.append("text")
                  .attr("class", "close-text")
-                 .text("X")
-                 .attr("x", iconSize/4)
-                 .attr("y", iconSize*0.75);
+                 .text("x")
+                 .attr("x", iconSize/4-3)
+                 .attr("y", 7);
                  
         }
                   
       }else{
-          maxHeight = maxHeight + fontSize*1;
+          maxHeight = maxHeight + 12; //fontSize*1;
       }
       
       
       // Set optimal width & height
-      rect.attr("width", maxWidth+4)
+      rect_full.attr("width", maxWidth+4)
             .attr("height", maxHeight);      
       
-      
+      rect_info.attr("width", maxWidth+4)
+            .attr("height", 26);      
       
       if(type=='record'){
-        if(currentMode=='icons'){
+
+        if(currentMode=='infoboxes'){
+
+            rect_full.style('display', 'none');
+            overlay.selectAll(".info-mode-full").style('display', 'none');
+            //overlay.selectAll(".rect-info").style('display', 'initial');
+            
+        }else if(currentMode=='infoboxes_full'){
+            
+            rect_info.style('display', 'none');
+  
+        }else if(currentMode=='icons'){
+            
             overlay.selectAll('.info-mode').style('display', 'none');
+            overlay.selectAll('.info-mode-full').style('display', 'none');
+            overlay.selectAll(".rect-info-full").style('display', 'none');
+            overlay.selectAll(".rect-info").style('display', 'none');
         }
       }
              
@@ -626,7 +663,7 @@ function _editRecStructure(rty_ID) {
 
     window.hWin.HEURIST4.msg.showDialog(URL, {
             "close-on-blur": false,
-            "no-resize": false,
+            resizable: true,
             title: 'RECORD STRUCTURE',
             height: 600, //dim.h*0.9,
             width: 860,
@@ -722,7 +759,7 @@ function _addNewLinkField(source_ID, target_ID){
                     + '&source_ID='+source_ID;
                     
                dlg_title = 'Add new link or create a relationship between records'; 
-               dim.w = 550;
+               dim.w = 750;
                dim.h = 380;
             }
                    
@@ -735,8 +772,6 @@ function _addNewLinkField(source_ID, target_ID){
             hWin.HEURIST4.msg.showDialog(url, 
                 {
                     "close-on-blur": false,
-                    //"no-resize": true,
-                    //"no-close": true, //hide close button
                     title: dlg_title,
                     height: dim.h,
                     width: dim.w,
@@ -753,7 +788,7 @@ function _addNewLinkField(source_ID, target_ID){
                             hWin.HEURIST4.msg.showMsgFlash(sMsg, 2000);
                             if(settings.isDatabaseStructure){
                                 getDataFromServer();    
-                            }else{
+                            }else if(settings.onRefreshData){
                                 // Trigger refresh
                                 settings.onRefreshData.call(this);
                             }

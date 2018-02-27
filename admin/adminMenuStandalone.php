@@ -68,8 +68,7 @@ if (array_key_exists('mode', $_REQUEST)) {
     </head>
 
     <body>
-        <script src="../external/jquery/jquery-1.5.1.min.js"></script>
-        <script src="../external/jquery/jquery-ui-1.8.13.custom.min.js"></script>
+        <script src="../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
         <script type="text/javascript" src="../external/yui/2.8.2r1/build/yahoo/yahoo-min.js"></script>
         <script type="text/javascript" src="../external/yui/2.8.2r1/build/json/json-min.js"></script>
         <script src="../common/js/utilsLoad.js"></script><!-- core HEURIST functions -->
@@ -206,11 +205,8 @@ if (array_key_exists('mode', $_REQUEST)) {
 
                             */
 
-                            // June 2014: TODO: need to fix the triggers on record creation and editing for this function to work.
-                            /*
                             menuEntry('','Rollback','rollback/rollbackRecords.php?db=',
                             'Selectively roll back the data in the database to a specific date and time)');
-                            */
                         }
                         ?>
                     </ul>
@@ -228,7 +224,7 @@ if (array_key_exists('mode', $_REQUEST)) {
                         'Add new or modify existing record types, including general characteristics '.
                         'and the data fields and rules which compose a record');
 
-                        menuEntry('','Acquire from databases','structure/import/selectDBForImport.php?db='.HEURIST_DBNAME,
+                        menuEntry('','Browse templates','structure/import/selectDBForImport.php?db='.HEURIST_DBNAME,
                         'Selectively import structural elements (record types, fields, terms and connected record types) '.
                         'from other Heurist databases into the current database');
 
@@ -358,6 +354,8 @@ if (array_key_exists('mode', $_REQUEST)) {
                         menuEntry('','Verify uploaded files','verification/listUploadedFilesErrors.php?db='.HEURIST_DBNAME,
                             'Find errors in database uploaded files');
 
+                        menuEntry('','Verify concept codes','verification/verifyConceptCodes.php?db='.HEURIST_DBNAME,
+                            'Find duplications of concept codes in all databases');
                         ?>
                         <li><a href="<?=HEURIST_BASE_URL?>?w=bookmark&amp;q=-tag&amp;label=Bookmarks without tags&amp;db=<?=HEURIST_DBNAME?>" target="_blank"
                                 title="Show bookmarked records which you have not tagged">

@@ -28,33 +28,52 @@ require_once(dirname(__FILE__)."/../initPage.php");
         <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>ext/fancytree/skin-themeroller/ui.fancytree.css" />
         <script type="text/javascript" src="<?php echo PDIR;?>ext/fancytree/jquery.fancytree-all.min.js"></script>
 
+        <link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>ext/fancybox/jquery.fancybox.css" />
+        <script type="text/javascript" src="<?php echo PDIR;?>ext/fancybox/jquery.fancybox.js"></script>
+        
+        <script type="text/javascript" src="<?php echo PDIR;?>ext/layout/jquery.layout-latest.js"></script>
+        <!-- script type="text/javascript" src="<?php echo PDIR;?>ext/yoxview/jquery.yoxview-2.21.js"></script -->
+        <script type="text/javascript" src="<?php echo PDIR;?>ext/yoxview/yoxview-init.js"></script>
+        
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing2.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing_input.js"></script>
         
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/resultList.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageRecord.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchRecord.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/media_viewer.js"></script>
 
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageEntity.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchEntity.js"></script>
+
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageRecords.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchRecords.js"></script>
         
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageSysUsers.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchSysUsers.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageSysGroups.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchSysGroups.js"></script>
-
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageDefRecTypes.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchDefRecTypes.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageDefRecTypeGroups.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchDefRecTypeGroups.js"></script>
-
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageDefDetailTypes.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchDefDetailTypes.js"></script>
-        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageDefDetailTypeGroups.js"></script>
-
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageDefTerms.js"></script>
         <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchDefTerms.js"></script>
+
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageSysIdentification.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageSysDatabases.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchSysDatabases.js"></script>
+
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageSysBugreport.js"></script>
+
+        <!--      
+
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageUsrTags.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchUsrTags.js"></script>
         
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageDefFileExtToMimetype.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchDefFileExtToMimetype.js"></script>
+
+
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageRecUploadedFiles.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchRecUploadedFiles.js"></script>
+
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageUsrTags.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchUsrTags.js"></script>
+
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageSysGroups.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchSysGroups.js"></script>
+-->
         <style>
             .fancytree-hide{
                 display: none;
@@ -72,6 +91,9 @@ require_once(dirname(__FILE__)."/../initPage.php");
                 font-weight: normal !important;
                 white-space:normal;                
             }
+            .fancybox-container{
+                z-index:99999999;
+            }
         </style>
         
         <script type="text/javascript">
@@ -79,10 +101,22 @@ require_once(dirname(__FILE__)."/../initPage.php");
             function onPageInit(success){
                 if(success){
                     
+                    
+                // OLD H3 stuff
+                if(window.HEURIST && window.HAPI4.baseURL){
+                    window.HEURIST.baseURL  = window.HAPI4.baseURL;
+                    window.HEURIST.loadScript(window.HAPI4.baseURL+"common/php/loadUserInfo.php?db=" + window.HAPI4.database);
+                    window.HEURIST.iconBaseURL = window.HAPI4.iconBaseURL;
+                    window.HEURIST.database = {  name: window.HAPI4.database };
+                }
+                    
                     //testUsers();
                     //testUsers();
                     
+                    
+                    $('#curr_user').html(window.hWin.HAPI4.currentUser['ugr_ID']+'  '+window.hWin.HAPI4.currentUser['ugr_Name']);
                 }
+                
                 
                         var $datepicker = $('#datepicker').datepicker({
                             showOn: "button",
@@ -104,7 +138,8 @@ require_once(dirname(__FILE__)."/../initPage.php");
                 
                 
             }
-            
+             
+            // to remove 
             function testRecords(){
                     var ispopup = true;
                     var select_mode = 'select_multi'; //'single',
@@ -132,6 +167,39 @@ require_once(dirname(__FILE__)."/../initPage.php");
                     }                
             }
 
+            function testTags(){
+                
+                        window.hWin.HEURIST4.ui.showEntityDialog('usrTags', {
+                                container: '#main_div',
+                                select_mode:'select_multi', 
+                                layout_mode: '<div class="recordList"/>',
+                                list_mode: 'compact', //special option for tags
+                                selection_ids:[4,5,6,11,12,15,18], //already selected tags
+                                select_return_mode:'recordset', //ids by default
+                                onselect:function(event, data){
+                                    if(data && data.selection){
+                                        /*assign new set of tags to record
+                                        var request = {};
+                                        request['a']          = 'action'; //batch action
+                                        request['entity']     = 'usrTags';
+                                        request['tagIDs']  = data.selection.getOrder();
+                                        request['recIDs']  = that._currentEditID;
+                                        request['request_id'] = window.hWin.HEURIST4.util.random();
+                                        
+                                        window.hWin.HAPI4.EntityMgr.doRequest(request, 
+                                            function(response){
+                                                if(response.status == window.hWin.HAPI4.ResponseStatus.OK){
+                                                }
+                                            });
+                                        //update panel
+                                        that._renderSummaryTags(data.selection, panel);
+                                        */
+                                    }
+                                }
+                        });
+                
+                
+            }
             //
             //
             //
@@ -173,39 +241,54 @@ require_once(dirname(__FILE__)."/../initPage.php");
                 
                 if(mode){//popup
                 
+                    options.isdialog = true;
+                
+/*                
                     var func_name = 'showManage'+entity;
                     
                     if($.isFunction(window[func_name])){
-                        
-                       if(entity=='SysUsers'){
-                            showManageSysUsers( options );      
+                   
+                       if(entity=='UsrTags'){
+                            showManageUsrTags( options );      
+
                        }else if(entity=='SysGroups'){
+                            
+                           options.height = 640;
+                            options.width = 840;
                             showManageSysGroups( options );      
-                       }else if(entity=='DefRecTypes'){
-                            showManageDefRecTypes( options );      
-                       }else if(entity=='DefRecTypeGroups'){
-                            showManageDefRecTypeGroups( options );      
-                       }else if(entity=='DefDetailTypes'){
-                            showManageDefDetailTypes( options );      
-                       }else if(entity=='DefDetailTypeGroups'){
-                            options.edit_dialog = false;
+                                
+                       }else if(entity=='DefFileExtToMimetype'){
                             options.height = 400;
                             options.width = 840;
-                            showManageDefDetailTypeGroups( options );      
+                            showManageDefFileExtToMimetype( options );      
                        }else if(entity=='DefTerms'){
                            
-                            options.edit_dialog = false;
                             options.height = 600;
                             options.width = 840;
                             showManageDefTerms( options );      
+                            
+                       }else if(entity=='RecUploadedFiles'){
+                           
+                            options.height = 600;
+                            options.width = 940;
+                            showManageRecUploadedFiles( options );
+                                  
+                       }else if(entity=='Records'){
+                           
+                            options.height = 600;
+                            options.width = 840;
+                            showManageRecords( options );      
+                            
                        }
                         
                     }else{
                         window.hWin.HEURIST4.msg.showMsgWorkInProgress();
                     }
-                    
+*/
                 }else{//on this page
-                
+
+                    options.container = '#main_div';
+/*                
                     var widgetname = 'manage'+entity,
                         $content = $('#main_div');
 
@@ -214,36 +297,43 @@ require_once(dirname(__FILE__)."/../initPage.php");
                        $content.empty();
                        //$content[widgetname]( options );   //call constructor
                        
-                       if(entity=='SysUsers'){
-                            $content.manageSysUsers( options );      
+                       if(entity=='UsrTags'){
+                            $content.manageUsrTags( options );      
                        }else
-                       if(entity=='SysGroups'){
-                            $content.manageSysGroups( options );      
-                       }else
-                       if(entity=='DefRecTypes'){
-                            $content.manageDefRecTypes( options );      
-                       }else
-                       if(entity=='DefRecTypeGroups'){
-                            $content.manageDefRecTypeGroups( options );      
-                       }else
-                       if(entity=='DefDetailTypes'){
-                            $content.manageDefDetailTypes( options );      
-                       }else
-                       if(entity=='DefDetailTypeGroups'){
-                            $content.manageDefDetailTypeGroups( options );      
+                       if(entity=='DefFileExtToMimetype'){
+                            $content.manageDefFileExtToMimetype( options );      
                        }else
                        if(entity=='DefTerms'){
                             $content.manageDefTerms( options );      
+
+                       }else 
+                       if(entity=='RecUploadedFiles'){
+                            $content.manageRecUploadedFiles( options );      
+                       }else 
+                       if(entity=='Records'){
+                            $content.manageRecords( options );      
                        }
                         
                     }else{
                         window.hWin.HEURIST4.msg.showMsgWorkInProgress();
                     }
-
+*/                
+                }
+                
+                
+                if(entity=='DefTerms'){
+                    //options.select_mode = 'images';
+                    //options.initialTermsIds = [414,415,5424,528,5426,5449];
+                }else if(entity=='SysGroups'){
+                    //options.edit_mode = 'none';
+                    //options.select_mode = 'select_role';
+                    //options.ugl_UserID = 
+                }else if(entity=='UsrTags'){
                     
                 }
                 
                 
+                window.hWin.HEURIST4.ui.showEntityDialog(entity, options);
                 
             }
             
@@ -253,9 +343,9 @@ require_once(dirname(__FILE__)."/../initPage.php");
                             {"key":"SysGroups",title:"Workgroups",icon:'ui-icon-group'},
                             {"key":"Tags",title:"Tags",icon:'ui-icon-tag'},
                             {"key":"RecUploadedFiles",title:"Uploaded Files",icon:'ui-icon-image'},
-                            {"key":"Reminders",title:"Reminders",icon:'ui-icon-mail-closed'},
-                            {"key":"Databases",title:"Databases",icon:'ui-icon-database'},
-                            {"key":"Records",title:"Saved Searches",icon:'ui-icon-search'},
+                            {"key":"usrReminders",title:"Reminders",icon:'ui-icon-mail-closed'},
+                            {"key":"sysDatabases",title:"Databases",icon:'ui-icon-database'},
+                            {"key":"",title:"Saved Searches",icon:'ui-icon-search'},
                             {"key":"DefRecTypes",title:"Record Types",icon:'ui-icon-image'},
                             {"key":"DefRecTypeGroups",title:"Record Type Groups"},
                             {"key":"DefDetailTypes",title:"Field Types"},
@@ -271,6 +361,9 @@ require_once(dirname(__FILE__)."/../initPage.php");
 
     <!-- HTML -->
     <body>
+    
+        <script src="<?=HEURIST_BASE_URL?>common/js/utilsLoad.js"></script>
+        <script src="<?=HEURIST_BASE_URL?>common/php/displayPreferences.php"></script>
     
 <?php
             /*
@@ -323,23 +416,29 @@ print $targetPath.'<br>';
                 <div style="padding:5px; border-bottom:1px solid lightgrey">
                     <label>Entity:
                         <select id="entity-sel">
+                            <option value="SysBugreport">Bug report</option>
                             <option value="Records">Records</option>
-                            <option value="SysUsers">Users +</option>
-                            <option value="SysGroups">Workgroups +</option>
-                            <option value="Tags">Tags</option>
-                            <option value="RecUploadedFiles">Uploaded Files</option>
-                            <option value="Reminders">Reminders</option>
-                            <option value="Databases">Databases</option>
+                            <option value="SysUsers" >Users +</option>
+                            <option value="SysGroups" >Workgroups +</option>
+                            <option value="UsrTags">Tags +</option>
+                            <option value="RecUploadedFiles">Uploaded Files +</option>
+                            <option value="UsrReminders" >Reminders</option>
+                            <option value="SysIdentification" selected>Database Property</option>
+                            <option value="SysDatabases">Databases</option>
                             <option value="Records">Saved Searches</option>
-                            <option value="DefRecTypes">Record Types +</option>
-                            <option value="DefRecTypeGroups">Record Type Groups +</option>
-                            <option value="DefDetailTypes">Field Types +</option>
+                            <option value="DefRecTypes">Record Types</option>
+                            <option value="DefRecTypeGroups">Record Type Groups</option>
+                            <option value="DefDetailTypes">Field Types</option>
                             <option value="DefDetailTypeGroups">Field Type Groups +</option>
                             <option value="DefTerms">Terms</option>
-                            <option value="RecComments">Record Comments</option>
+                            <option value="DefFileExtToMimetype">Ext To Mimetype +</option>
+                            <option value="RecThreadedComments">Record Comments</option>
                             <option value="Smarty">Smarty Reports</option>
                             <option value="SmartySchedule">Smarty Reports Schedule</option>
                         </select></label>
+                        
+                        
+                        <label id="curr_user"></label>
                 </div>
                 
                 <div style="padding:5px; xborder-bottom:1px solid lightgrey">
@@ -367,8 +466,9 @@ print $targetPath.'<br>';
                 <div style="padding:5px; border-bottom:1px solid lightgrey">
                     <span style="padding-left:20px;">
                         <label>Edit mode</label>
-                        <label><input type="radio" name="edit_mode" checked=checked value="inline">inline</label> 
-                        <label><input type="radio" name="edit_mode" value="popup">popup</label> 
+                        <label><input type="radio" name="edit_mode" value="editonly">edit only</label> 
+                        <label><input type="radio" name="edit_mode" value="inline">inline</label> 
+                        <label><input type="radio" name="edit_mode" checked=checked  value="popup">popup</label> 
                         <label><input type="radio" name="edit_mode" value="none">none</label> 
                     </span>
                 </div>
@@ -382,6 +482,7 @@ print $targetPath.'<br>';
                 <div style="padding:5px; border-bottom:1px solid lightgrey">
                     <button onclick="testEntity(true)">show in popup dialog</button>
                     <button onclick="testEntity(false)">show on this page</button>
+                    <button onclick="testTags()">embedded select tags</button>
                 </div>
             </div>
         <div id="main_div" style="position:absolute;top:250px;min-height:300px;width:700;border:1px solid">

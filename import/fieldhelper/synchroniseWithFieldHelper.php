@@ -115,17 +115,26 @@ if (! is_logged_in()) {
             die("Sorry, could not connect to the database (mysql_connection_overwrite error)");
         }
 
-        print "<h2>ADVANCED USERS</h2>";
-        print "This function reads FieldHelper (http://fieldhelper.org) XML manifest files from the folders (and their descendants)";
-        print " listed in Admin > Database > Advanced Properties and writes the metadata as records in the current database, ".
-        "with pointers back to the files described by the manifests.";
-        print "<p>If no manifests exist, they are created (and can be read by FieldHelper). ".
-        "New files are added to the existing manifests.<br>&nbsp;<br>";
-        print "The current database may already contain data; new records are appended, existing records are unaffected.<br>&nbsp;<br>";
-        print "Note: the folders to be indexed must be writeable by the PHP system - normally they should be owned by Apache or www-data (as appropriate).";
-        print "<p>Files will need to be uploaded to the server via direct access to the server or through Import > Multi-file upload.";
-        print "</p>";
+        ?>
+        <h2>ADVANCED USERS</h2>
 
+        <p style="font-weight:bold;font-size:larger;padding:10 0">This function is designed for the indexing of bulk uploaded files (often images)</p>
+        
+        This function reads FieldHelper (http://fieldhelper.org) XML manifest files from the folders (and their descendants)
+        listed in Admin > Database > Advanced Properties and writes the metadata as records in the current database, 
+        with pointers back to the files described by the manifests.
+        
+         <p>
+            If no manifests exist, they are created (and can be read by FieldHelper). 
+            New files are added to the existing manifests.<br>&nbsp;<br>
+            The current database may already contain data; new records are appended, existing records are unaffected.<br>&nbsp;<br>
+            Note: the folders to be indexed must be writeable by the PHP system - normally they should be owned by Apache or www-data (as appropriate).
+         </p>   
+         <p>
+            Files will need to be uploaded to the server via direct access to the server or through Import > Multi-file upload.
+         </p>
+         <?php
+        
         $notfound = array();
         foreach ($fieldhelper_to_heurist_map as $key=>$id){
             if(is_numeric($id) && $id==0){
@@ -138,7 +147,7 @@ if (! is_logged_in()) {
             "</b><br />Note: these fields may appear to be present, but do not have the correct origin codes ".
             "(source of the field definition) for this function to use them.".
             "<p>We recommend importing the appropriate fields by (re)importing the Digital Media Item record type as follows".
-            "<ul><li>Go to Database &gt; Structure &gt; Acquire from Databases<br>&nbsp;</li>".
+            "<ul><li>Go to Manage &gt; Structure &gt; Browse templates<br>&nbsp;</li>".
             "<li>Navigate to the HeuristCoreDefinitions database<br>&nbsp;</li>".
             "<li>Check 'Show existing record types'</li>&nbsp;".
             "<li>Check 'Click the download icon on the Digital Media Item'</li></ul>".
@@ -236,7 +245,9 @@ if (! is_logged_in()) {
         function sanitizeFolderName($folder) {
             $folder = str_replace("\0", '', $folder);
             $folder = str_replace('\\', '/', $folder);
-            if( substr($folder, -1, 1) != '/' )  $folder = $folder.'/';
+            if( substr($folder, -1, 1) != '/' )  {
+                $folder = $folder.'/';
+            }
             return $folder;
         }
 
@@ -271,13 +282,26 @@ if (! is_logged_in()) {
                         $orig = $dir;
                         chdir(HEURIST_FILESTORE_DIR);
                         $dir = realpath($dir);
+                        
+                        //realpath gives real path on remote file server
+                        if(strpos($dir, '/srv/HEURIST_FILESTORE/')===0){
+                            $dir = str_replace('/srv/HEURIST_FILESTORE/', HEURIST_UPLOAD_ROOT, $dir);
+                        }else
+                        if(strpos($dir, '/misc/heur-filestore/')===0){
+                            $dir = str_replace('/misc/heur-filestore/', HEURIST_UPLOAD_ROOT, $dir);
+                        }
+                        
                         $dir = str_replace('\\','/',$dir);     
                         if(!( substr($dir, 0, strlen(HEURIST_FILESTORE_DIR)) === HEURIST_FILESTORE_DIR )){
                             print "<div style=\"color:red\">$orig is ignored. Folder must be in heurist filestore directory.</div>";
                             continue;
                         }
                     }
-                    
+
+                    if(substr($dir, -1) != '/'){
+                        $dir .= "/";
+                    }
+
                 }
 
                 if(in_array($dir, $system_folders)){

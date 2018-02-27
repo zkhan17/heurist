@@ -36,6 +36,7 @@ require_once(dirname(__FILE__)."/initPage.php");
 
 ?>
 <script type="text/javascript" src="recordAddLink.js"></script>
+<script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing_input.js"></script>
 
 <style>
 </style>
@@ -43,37 +44,45 @@ require_once(dirname(__FILE__)."/initPage.php");
 <body style="overflow:hidden">
 
         <div id="mainForm" class="popup_content_div" class="ui-widget-content">
-            <label>Choose the field(s) on wich to create the link(s)</label>
+            <label id="helpmsg">Choose the field(s) on which to create the link(s)</label>
             <br><br>
             
-            <label style="vertical-align: top; padding-top:4px">Source:</label>
-            <div style="display:inline-block;"">
+            <label style="vertical-align: top; padding-top:4px;display:inline-block;width:95px;">Source record:</label>
+            <div id="div_source1" style="display:inline-block;">
                 <img src='../assets/16x16.gif' id="source_rectype_img" 
-                    style="vertical-align:top;margin-left:10px;" />
+                    style="vertical-align:top;margin-left:0px;" />
             
                 <h2 id="source_rectype" class="truncate" 
-                    style="max-width:400px;display:inline-block;margin-left:5px;"></h2>
+                    style="max-width:400px;margin-left:30px;display:inline-block;"></h2>
                     
-                <h2 class="header truncate" id="rec0_title" 
-                    style="max-width:400px;color:black;vertical-align:top; margin-top:5px;margin-left:35px">
+                <h2 class="header truncate" id="source_title" 
+                    style="display:inline-block;max-width:400px;color:black;vertical-align:top;margin-left:10px">
                 </h2>
                     
             </div>    
-                <div id="rec0" style="padding-top:10px;padding-bottom:20px">
-                </div>
-
-            <label style="vertical-align: top; padding-top:4px">Target:</label>
-            <div style="display:inline-block;">
-                <img src='../assets/16x16.gif' id="target_rectype_img" 
-                    style="vertical-align:top;margin-left:10px;" />
+            <div id="div_source2" style="display:none;">
+                <select id="sel_record_scope" class="text ui-widget-content ui-corner-all" style="max-width:30em"></select>
+            </div>
             
+            <!-- field selector -->
+            <div id="source_field" 
+                style="margin-top:5px;margin-bottom:40px;max-height: 40%;overflow: auto;border: 1px solid gray;">
+            </div>
+
+            <label style="vertical-align: top; padding-top:4px;display:inline-block;width:95px;">Target record:</label>
+            <div id="div_target2" style="display:none; padding-top:4px">
+            </div>
+            <div id="div_target1" style="display:inline-block;">
+                <img src='../assets/16x16.gif' id="target_rectype_img" 
+                    style="vertical-align:top;margin-left:0px;" />
+                    
                 <h2 id="target_rectype" class="truncate" 
-                    style="max-width:400px;display:inline-block;margin-left:5px;"></h2>
-                    
-                    
-                <h2 class="header truncate" id="rec1_title" 
-                    style="max-width:400px;color:black;vertical-align:top; margin-top:5px;margin-left:35px">
+                    style="max-width:400px;margin-left:30px;display:inline-block;"></h2>
+            
+                <h2 class="header truncate" id="target_title" 
+                    style="display:inline-block;max-width:400px;color:black;vertical-align:top;margin-left:10px">
                 </h2>
+
             </div>    
                 
                 <!-- 
@@ -84,9 +93,10 @@ require_once(dirname(__FILE__)."/initPage.php");
                     </div>
                 </div>
                 -->
-                
-                <div id="rec1" style="padding-top:10px">
-                </div>
+                                    
+            <!-- field selector -->
+            <div id="target_field" style="margin-top:5px;max-height:25%;overflow: auto;border: 1px solid lightgray;">
+            </div>
                     
         </div>
         
@@ -104,7 +114,7 @@ require_once(dirname(__FILE__)."/initPage.php");
         <div class="popup_buttons_div" style="text-align:right">
 
             <button id="btn_save">Create links</button>
-            <button id="btn_cancel">Cancel</button>
+            <button id="btn_cancel" style="margin-left:30px;">Cancel</button>
         </div>
 
 </body>

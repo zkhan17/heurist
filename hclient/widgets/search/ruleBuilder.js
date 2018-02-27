@@ -66,31 +66,31 @@ $.widget( "heurist.ruleBuilder", {
 
         this.select_source_rectype = $( "<select>" )
         .attr('title', 'The starting point entity type for this rule. The result set will be expanded by following pointers/relationships from/to this type' )
-        .addClass('text ui-corner-all')
+        .addClass('text ui-corner-all ui-widget-content')
         .appendTo( cont );
 
-        window.hWin.HEURIST4.ui.createRectypeSelect(this.select_source_rectype.get(0), this.options.recordtypes, (this.options.level==1?'select....':false) );
+        window.hWin.HEURIST4.ui.createRectypeSelect(this.select_source_rectype.get(0), this.options.recordtypes, (this.options.level==1?'select....':false), true );
 
         //create list/combobox of pointer/relmarker fields
         this.select_fields = $( "<select>" )
         .attr('title', 'The pointer and relationship fields in the starting point entities and in entities which point at the starting point entities' )
-        .addClass('text ui-corner-all')
+        .addClass('text ui-corner-all ui-widget-content')
         .appendTo( $('<div>').appendTo(this.element) );
 
         //create list/combobox of relation types
         this.select_reltype = $( "<select>" )
         .attr('title', 'The type of pointer or relationship which is followed to add entities to the current result set' )
-        .addClass('text ui-corner-all')
+        .addClass('text ui-corner-all ui-widget-content')
         .appendTo( $('<div>').appendTo(this.element) ).hide();
 
         //create list/combobox of target record types
         this.select_target_rectype = $( "<select>" )
         .attr('title', 'The entity type(s) which will be added to the current result set by this rule' )
-        .addClass('text ui-corner-all')
+        .addClass('text ui-corner-all ui-widget-content')
         .appendTo( $('<div>').appendTo(this.element) );
 
         //
-        this.additional_filter = $( "<input>" ).addClass('text ui-corner-all').css({'width':'220px'})
+        this.additional_filter = $( "<input>" ).addClass('text ui-corner-all ui-widget-content').css({'width':'220px'})
         .attr('title', 'Add an additional Heurist query string which will filter the set of records retrieved by this rule' )
         .appendTo( $('<div>').css({'width':'220px'}).appendTo(this.element) );
 
@@ -245,7 +245,7 @@ $.widget( "heurist.ruleBuilder", {
     this._super( key, value );
     if ( key === "recordtypes" ) {
 
-    window.hWin.HEURIST4.ui.createRectypeSelect(this.select_source_rectype.get(0), value, false);
+    window.hWin.HEURIST4.ui.createRectypeSelect(this.select_source_rectype.get(0), value, false, true);
     this._onSelectRectype();
     this._refresh();
     }
@@ -405,19 +405,21 @@ $.widget( "heurist.ruleBuilder", {
                                     if(arr_fields[i].key == dtyID){   //this field may be added already
                                         arr_fields[i].rectypes.push(rtyID);
 
-                                        if(arr_fields[i].isreverse && arr_fields[i].title.length<73){
-                                            if(arr_fields[i].title.length>=70){
+                                            var tlen = arr_fields[i].title.length;
+                                        if(arr_fields[i].isreverse && tlen<73){
+                                            if(tlen>=70){
                                                 arr_fields[i].title = arr_fields[i].title.substr(0,70)+'...';
                                             }else{
                                                 var rt_name = alldetails[rtyID].commonFields[0];
-                                                arr_fields[i].title = arr_fields[i].title + ', '+rt_name;
+                                                //'<< '+rt_name + ' . ' + name
+                                                arr_fields[i].title = '<< '+rt_name+' | '+arr_fields[i].title.substr(3,tlen-1);
                                             }
                                         }
 
                                         isnotfound = false;
                                         break;
                                     }
-                                }
+                                }//for fields
 
                                 //
                                 if(isnotfound){ //it means this is reverse
@@ -435,14 +437,14 @@ $.widget( "heurist.ruleBuilder", {
                                         temp = ( typeof(temp) === "string" && !window.hWin.HEURIST4.util.isempty(temp) ) ?  temp.split(",") :[];
                                         if(temp.length>0) arr_terms_dis = arr_terms_dis.concat(temp);
 
-                                        arr_fields.push({key:dtyID, title:'<< '+name + ' (in: ' + rt_name +')', terms:details[dtyID][fi_term],
+                                        arr_fields.push({key:dtyID, title:'<< '+rt_name + ' . ' + name, terms:details[dtyID][fi_term],
 
                                             terms_dis:temp, rectypes:[rtyID], isreverse:true });
 
                                     }else{ // reverse pointer
 
                                         this._has_rev_pointers = '1';
-                                        arr_fields.push({key:dtyID, title:'<< '+name + ' (in: ' + rt_name+')', rectypes:[rtyID], isreverse:true });
+                                        arr_fields.push({key:dtyID, title:'<< '+rt_name + ' . ' + name, rectypes:[rtyID], isreverse:true });
                                     }
                                 } // reverse pointer
 
@@ -524,10 +526,10 @@ $.widget( "heurist.ruleBuilder", {
                         //this.label_3.show();
                         this.select_reltype.show();
                         this.select_reltype.prop('disabled', false);
-                        window.hWin.HEURIST4.ui.createTermSelectExt(this.select_reltype.get(0), 'relation', arr_field.terms, arr_field.terms_dis, null, 'Any relationship type', false);
+                        window.hWin.HEURIST4.ui.createTermSelectExt(this.select_reltype.get(0), 'relation', arr_field.terms, arr_field.terms_dis, null, 'Any relationship type', false, true);
                     }
                     //reduced list of constraints
-                    window.hWin.HEURIST4.ui.createRectypeSelect(this.select_target_rectype.get(0), arr_field.rectypes, null); //arr_field.rectypes.length>1?'any':null);
+                    window.hWin.HEURIST4.ui.createRectypeSelect(this.select_target_rectype.get(0), arr_field.rectypes, null, true); //arr_field.rectypes.length>1?'any':null);
                     if(arr_field.rectypes.length!=1){
                         window.hWin.HEURIST4.ui.addoption(this.select_target_rectype.get(0), '', 'Any record (entity) type');
                         this.select_target_rectype.val(0);
@@ -552,7 +554,7 @@ $.widget( "heurist.ruleBuilder", {
         }
         if(is_not_selected){
             //show all constraints
-            window.hWin.HEURIST4.ui.createRectypeSelect(this.select_target_rectype.get(0), this._arr_rectypes , null); //this._arr_rectypes.length>1?'any':null);
+            window.hWin.HEURIST4.ui.createRectypeSelect(this.select_target_rectype.get(0), this._arr_rectypes , null, true); //this._arr_rectypes.length>1?'any':null);
             if(this._arr_rectypes.length>1){
                 window.hWin.HEURIST4.ui.addoption(this.select_target_rectype.get(0), '', 'Any record (entity) type');
             }

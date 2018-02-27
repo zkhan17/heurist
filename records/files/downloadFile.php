@@ -78,10 +78,12 @@
       $height =  '100%';
     }
 
-    if($type_source=='youtube')
+    
+    if($type_source=='youtube' || $filedata['mimeType'] == 'video/youtube' || $filedata['ext'] == 'youtube')
     {
       print linkifyYouTubeURLs($filedata['URL'], $size); //returns iframe
-    }else if($type_source=='gdrive')
+    }
+    else if($type_source=='gdrive')
     {
         print linkifyGoogleDriveURLs($filedata['URL'], $size); //returns iframe
     }
@@ -90,8 +92,9 @@
       $size = 'width="'.$width.'" height="'.$height.'"';
 
       $annot_edit = ($isannotation_editor)?'&annedit=yes':'';
+      $origin = (!$isannotation_editor && @$_REQUEST['origin'])?'&origin='.$_REQUEST['origin']:'';
 
-      $text = '<iframe '.$size.' src="'.HEURIST_BASE_URL.'records/files/mediaViewer.php?ulf_ID='.$_REQUEST['ulf_ID'].$annot_edit.'&db='.$_REQUEST['db'].'" frameborder="0"></iframe>';
+      $text = '<iframe '.$size.' src="'.HEURIST_BASE_URL.'records/files/mediaViewer.php?ulf_ID='.$_REQUEST['ulf_ID'].$annot_edit.'&db='.$_REQUEST['db'].$origin.'" frameborder="0"></iframe>';
 
       print $text;
     }
@@ -248,6 +251,36 @@
     return $text;
   }
 
+  function linkifyVimeoURLs($text, $size) {
+
+    if($size==null || $size==''){
+      $size = 'width="640" height="360"';
+    }
+    
+    $hash = json_decode(file_get_contents("https://vimeo.com/api/oembed.json?url=".$text), true);
+    $video_id = @$hash['video_id'];
+    if($video_id>0){
+       $res = '<iframe '.$size.' src="https://player.vimeo.com/video/'.$video_id.'" frameborder="0" '
+      . ' webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>';
+    }else{
+       $res = $text;  
+    }
+    //$res = preg_replace('(https?:\/\/)?(www\.)?(player\.)?vimeo\.com\/([a-z]*\/)*([??0-9]{6,11})[?]?.*', $text);
+  
+    return $res;
+  }  
+
+  function linkifySoundcloudURL($url, $size) {
+
+    if($size==null || $size==''){
+      $size = 'height="166"';
+    }
+  
+  return '<iframe width="100%" '.$size.' scrolling="no" frameborder="no" allow="autoplay" '
+  .'src="https://w.soundcloud.com/player/?url='.$url.'&amp;auto_play=false&amp;hide_related=false&amp;show_comments=false&amp;show_user=false&amp;show_reposts=false&amp;show_teaser=false&amp;visual=true"></iframe>';
+  
+  }
+  
 function linkifyGoogleDriveURLs($text, $size) {
     if($size==null || $size==''){
         $size = 'width="420" height="345"';

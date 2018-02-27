@@ -334,7 +334,7 @@ class AndLimb {
 			$this->negate = false;
 		}
 
-		$this->pred = &$this->createPredicate($text);
+		$this->pred = $this->createPredicate($text); //was &$this
 	}
 
 
@@ -637,7 +637,7 @@ class Predicate {
 		$this->query = NULL;
 	}
 
-	function makeSQL($table_name) { return '1'; }
+	function makeSQL() { return '1'; }
 
 
 	var $query;

@@ -79,8 +79,6 @@ $(document).ready(function() {
 		          '../../../common/php/getMagicNumbers.php?db='+dbname,
 		          '../../../common/php/loadUserInfo.php?db='+dbname,
 		          '../../../common/php/loadCommonInfo.php?db='+dbname,
-		          //'../../../records/edit/editRecord.js'
-		          //'../../common/php/loadHAPI.php?db='+dbname,
 		    ])
 		        .done(onScriptsReady)
 		        .fail(function(error) {
@@ -95,6 +93,7 @@ $(document).ready(function() {
 	
 	function onScriptsReady(){
 	
+/*
   	top.HEURIST.edit.allInputs = [];
 	
 	var container = document.getElementById("inpt0");
@@ -133,22 +132,25 @@ $(document).ready(function() {
                                                                            
 	container = document.getElementById("inpt9");
 	//input = top.HEURIST.edit.createInput(1, getFirstFieldWithType('relmarker'), null, [], container);
+    $(container).find('[name="savebutton"]').css('color','lightgray').prop('disabled','disabled');
+    
+*/    
 /*	var record = {recID:-1,title:'',rectype:2,isTemporary:true}
     var relManager = new top.RelationManager(container, record,[], 0, null, false, true);
 	$(relManager.addOtherTd).hide(); 
 	$(relManager.addOtherTd).find('a').click();*/
-	$(container).find('[name="savebutton"]').css('color','lightgray').prop('disabled','disabled');
+	
     
-
         if(top.HEURIST4){
+
             top.HEURIST4.ui.initHelper( $('#hint_more_info1'), 
                             'Field data type: Record pointer', 
                             top.HAPI4.baseURL+'context_help/field_data_types.html #resource',
-                            { my: "left+200 top+100", at: "center center", of:$(document.body)}, true);
+                            { my: "left top", at: "left top", of:$(window.frameElement)}, true); 
             top.HEURIST4.ui.initHelper( $('#hint_more_info2'), 
                             'Field data type: Relationship marker', 
                             top.HAPI4.baseURL+'context_help/field_data_types.html #relmarker',
-                            { my: "left+200 top+100", at: "center center", of:$(document.body)}, true);
+                            { my: "left top", at: "left top", of:$(window.frameElement)}, true); 
         }else{
             
             $('#hint_more_info1').click(function(){
@@ -162,6 +164,7 @@ $(document).ready(function() {
             
         }
 	
+/*    
 	$('.input-cell > .prompt').hide(); //hide help text
 	$('.input-header-cell').css({'width':'0','min-width':'15ex','font-size':'0.8em'});
     $('.input2-header-cell').css({'min-width':'0','font-size':'0.8em'});
@@ -181,7 +184,8 @@ $(document).ready(function() {
     $('.temporal-div img').css({'vertical-align':'baseline'});
     
     $('.separator > .input-header-cell').css({'text-align':'right','min-width':'15ex'});
-
+*/
+    
     $('input[name="ft_type"]').change(function(){
         $('#btnSelect').removeProp('disabled');
         $('#btnSelect').css('color','black');

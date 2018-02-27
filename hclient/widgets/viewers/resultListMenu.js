@@ -53,20 +53,22 @@ $.widget( "heurist.resultListMenu", {
         //this._initMenu('Layout');
         this.divMainMenuItems.menu();
 
-        this.divMainMenuItems.find('li').css('padding-right','3px'); //reduce gap
+        this.divMainMenuItems.find('li').css({'padding':'0 3px'}); //reduce gap
 
         this.divMainMenuItems.find('.ui-menu-item > a').addClass('ui-widget-content');
 
         //-----------------------     listener of global events
-        var sevents = window.hWin.HAPI4.Event.LOGIN+' '+window.hWin.HAPI4.Event.LOGOUT+' '+window.hWin.HAPI4.Event.ON_REC_SEARCHSTART+' '+window.hWin.HAPI4.Event.ON_REC_SELECT;
-        /*window.hWin.HAPI4.Event.LOGIN+' '+window.hWin.HAPI4.Event.LOGOUT;
+        var sevents = window.hWin.HAPI4.Event.ON_CREDENTIALS+' '
+                 +window.hWin.HAPI4.Event.ON_REC_SEARCHSTART+' '
+                 +window.hWin.HAPI4.Event.ON_REC_SELECT;
+        /*window.hWin.HAPI4.Event.ON_CREDENTIALS;
         if(this.options.isapplication){
         sevents = sevents + ' ' + window.hWin.HAPI4.Event.ON_REC_SEARCHRESULT + ' ' + window.hWin.HAPI4.Event.ON_REC_SEARCHSTART + ' ' + window.hWin.HAPI4.Event.ON_REC_SELECT;
         }*/
 
         $(this.document).on(sevents, function(e, data) {
 
-            if(e.type == window.hWin.HAPI4.Event.LOGIN || e.type == window.hWin.HAPI4.Event.LOGOUT){
+            if(e.type == window.hWin.HAPI4.Event.ON_CREDENTIALS){
 
                 that._refresh();
             }else if(e.type == window.hWin.HAPI4.Event.ON_REC_SEARCHRESULT){
@@ -112,7 +114,7 @@ $.widget( "heurist.resultListMenu", {
     */
     _refresh: function(){
 
-        if(window.hWin.HAPI4.is_logged()){
+        if(window.hWin.HAPI4.has_access()){
 
             this.menu_Selected.find('.logged-in-only').show();
             this.menu_Collected.find('.logged-in-only').show();
@@ -130,7 +132,7 @@ $.widget( "heurist.resultListMenu", {
     // custom, widget-specific, cleanup.
     _destroy: function() {
 
-        $(this.document).off(window.hWin.HAPI4.Event.LOGIN+' '+window.hWin.HAPI4.Event.LOGOUT+' '+window.hWin.HAPI4.Event.ON_REC_SEARCHSTART+' '+window.hWin.HAPI4.Event.ON_REC_SELECT);
+        $(this.document).off(window.hWin.HAPI4.Event.ON_CREDENTIALS+' '+window.hWin.HAPI4.Event.ON_REC_SEARCHSTART+' '+window.hWin.HAPI4.Event.ON_REC_SELECT);
 
         // remove generated elements
         if(this.btn_Search){
@@ -155,7 +157,7 @@ $.widget( "heurist.resultListMenu", {
         var _hide = function(ele) {
             myTimeoutId = setTimeout(function() {
                 $( ele ).hide();
-                }, 800);
+                }, 1);
             //$( ele ).delay(800).hide();
         },
         _show = function(ele, parent) {
@@ -167,6 +169,13 @@ $.widget( "heurist.resultListMenu", {
             .show()
             .position({my: "left top", at: "left bottom", of: parent });
             //$( document ).one( "click", function() { menu.hide(); });
+/*
+console.log('padleft');            
+console.log(menu.find('.ui-menu-item').css('padding-left'));
+            menu.find('.ui-menu-item').css({'padding':'0 !important'});
+console.log('pad');            
+console.log(menu.find('.ui-menu-item').css('padding'));
+*/            
             return false;
         };
 
@@ -188,22 +197,28 @@ $.widget( "heurist.resultListMenu", {
             .css('position','absolute')
             .appendTo( that.document.find('body') )
             //.addClass('ui-menu-divider-heurist')
-            .menu({select: function(event, ui){ 
+            .menu({
+                icons: { submenu: "ui-icon-circle-triangle-e" },
+                select: function(event, ui){ 
                 event.preventDefault(); 
                 that._menuActionHandler(ui.item.attr('id')); 
                 return false; }});
 
-            if(window.hWin.HAPI4.is_logged()){
+            if(window.hWin.HAPI4.has_access()){
                 that['menu_'+name].find('.logged-in-only').show();
             }else{
                 that['menu_'+name].find('.logged-in-only').hide();
             }
-
+            
+            that['menu_'+name].find('li').css('padding-left',0);
+            
         })
         //.position({my: "left top", at: "left bottom", of: this['btn_'+name] })
         .hide();
 
         //{select: that._menuActionHandler}
+        
+
 
         this._on( this['btn_'+name], {
             mouseenter : function(){_show(this['menu_'+name], this['btn_'+name])},
@@ -278,10 +293,6 @@ $.widget( "heurist.resultListMenu", {
 
             this.selectShow();
 
-        }else if(action == "menu-selected-relateto"){  //show add relation dialog
-
-            this.addRelationshipsPopup();
-
         }else if(action == "menu-selected-merge"){  //show add relation dialog
 
             this.fixDuplicatesPopup();
@@ -312,7 +323,8 @@ $.widget( "heurist.resultListMenu", {
 
         }else if(action == "menu-selected-ownership"){
 
-            this.setWorkgroupPopup();
+            //this.setWorkgroupPopup();
+            this.detailBatchEditPopup('ownership');
 
         }else if(action == "menu-selected-delete"){
 
@@ -333,6 +345,14 @@ $.widget( "heurist.resultListMenu", {
         }else if(action == "menu-selected-value-delete"){
 
             this.detailBatchEditPopup('delete_detail');
+
+        }else if(action == "menu-selected-add-link"){
+
+            this.detailBatchEditPopup('add_link');
+            
+        }else if(action == "menu-selected-rectype-change"){
+
+            this.detailBatchEditPopup('rectype_change');
 
         }else if(action == "menu-collected-add"){
 
@@ -551,22 +571,20 @@ $.widget( "heurist.resultListMenu", {
 
     convertGroupsForH3: function() {
 
-        var groups = window.hWin.HAPI4.currentUser.usr_GroupsList;
         var workgroups = [];
         var workgroups2 = {};
-        for (var idx in groups)
-        {
-            if(idx){
-                var groupID = idx;
-                var name = groups[idx][1];
-
-                if(!Hul.isnull(name))
-                {
-                    workgroups.push(groupID);
-                    workgroups2[groupID] = {name: name};
-                }
+        var groups = window.hWin.HAPI4.currentUser.ugr_Groups;
+        
+        for (var groupID in groups)
+        if(groupID>0){
+            var name = window.hWin.HAPI4.sysinfo.db_usergroups[groupID];
+            if(!Hul.isnull(name))
+            {
+                workgroups.push(groupID);
+                workgroups2[groupID] = {name: name};
             }
         }
+        
         if(top.HEURIST){
             top.HEURIST.user.workgroups = workgroups;
             top.HEURIST.workgroups = workgroups2;
@@ -651,6 +669,8 @@ $.widget( "heurist.resultListMenu", {
         })
     },
 
+    // replaced  with this.detailBatchEditPopup('ownership');
+    /* not used anymore
     setWorkgroupPopup: function() {
 
         var recIDs_list = this.getSelectionIds("Please select at least one record to set workgroup ownership and visibility");
@@ -659,7 +679,7 @@ $.widget( "heurist.resultListMenu", {
         var that = this;
 
         this.convertGroupsForH3();
-
+        
         var url = window.hWin.HAPI4.baseURL+ "records/permissions/setRecordOwnership.html?db=" + window.hWin.HAPI4.database;
 
         window.hWin.HEURIST4.msg.showDialog(url, { height:300, width:650, title: window.hWin.HR('Set workgroup / access'),
@@ -674,7 +694,7 @@ $.widget( "heurist.resultListMenu", {
                 that.executeAction( "set_wg_and_vis", _data );
             }
         });
-    },
+    }, */
 
     //-------------------------------------- SELCT ALL, NONE, SHOW -------------------------------
 
@@ -835,38 +855,6 @@ $.widget( "heurist.resultListMenu", {
 
 
     //-------------------------------------- RELATION, MERGE -------------------------------
-
-    addRelationshipsPopup: function(){
-
-        var recIDs_list = this.getSelectionIds("Please select at least one record to add relationships");
-        if(Hul.isempty(recIDs_list)) return;
-
-        var that = this;
-
-        if(top.HEURIST && !top.HEURIST.rectypes){
-            $.getScript(window.hWin.HAPI4.baseURL + 'common/php/loadCommonInfo.php?db='+window.hWin.HAPI4.database, function(){ that.addRelationshipsPopup(); } );
-            return
-        }
-
-        var url = window.hWin.HAPI4.baseURL + "search/actions/setRelationshipsPopup.html?db=" + window.hWin.HAPI4.database;
-
-        window.hWin.HEURIST4.msg.showDialog(url, {
-            title: window.hWin.HR('Add Relationships'),
-            onpopupload: function(frame){
-                var ele = frame.contentDocument.getElementById("record-count");
-                if(Hul.isempty(recIDs_list) || Hul.isnull(ele)) return;
-
-                ele.innerHTML = recIDs_list.length;
-                ele = frame.contentDocument.getElementById("record-selected");
-                ele.innerHTML = recIDs_list.join(",");
-            },
-            callback: function(context) {
-                that.reloadSearch();
-            }
-        });
-
-    },
-
     fixDuplicatesPopup: function(){
 
 
@@ -925,7 +913,7 @@ $.widget( "heurist.resultListMenu", {
 
         window.hWin.HEURIST4.msg.showDialog(url, {height:500, width:700, title: window.hWin.HR('Add field value')} );
     },
-
+    
     //
     //  MAIN  in use
     //  
@@ -937,6 +925,28 @@ $.widget( "heurist.resultListMenu", {
             return;
         }
         window.hWin.HAPI4.currentRecordsetSelection = this.getSelectionIds();
+        
+        var script_name = 'recordAction';
+        var callback = null;
+        
+        if(action_type=='add_link'){
+            script_name = 'recordAddLink';
+            callback = function(context) {
+                        if(context!="" && context!=undefined) {
+                            var sMsg = (context==true)?'Link created...':context;
+                            hWin.HEURIST4.msg.showMsgFlash(sMsg, 2000);
+                        }
+            };            
+        }else if(action_type=='ownership'){
+
+            var that = this;
+            callback = function(context) {
+                        if(context!="" && context!=undefined) {
+                                that.executeAction( "set_wg_and_vis", context );
+                        }
+            };            
+        }
+        
         /*
         var that = this;
 
@@ -956,11 +966,12 @@ $.widget( "heurist.resultListMenu", {
         top.HEURIST.search4.rectypes =  window.hWin.HAPI4.currentRecordset.getRectypes();
         top.HEURIST.search4.executeAction = this.executeAction;
         */
-        var url = window.hWin.HAPI4.baseURL + 'hclient/framecontent/recordAction.php?db='+window.hWin.HAPI4.database+'&action='+action_type;
+        var url = window.hWin.HAPI4.baseURL + 'hclient/framecontent/'+script_name+'.php?db='+window.hWin.HAPI4.database+'&action='+action_type;
 
-        window.hWin.HEURIST4.msg.showDialog(url, {height:450, width:700,
+        window.hWin.HEURIST4.msg.showDialog(url, {height:450, width:750,
             padding: '0px',
             title: window.hWin.HR(action_type),
+            callback: callback,
             class:'ui-heurist-bg-light'} );
     },
 

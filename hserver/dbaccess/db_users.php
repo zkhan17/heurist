@@ -40,7 +40,7 @@
     define('USER_GROUPS_ROLE_FIELD', 'ugl_Role');
     */
 
-    require_once (dirname(__FILE__).'/utils_mail.php');
+    require_once (dirname(__FILE__).'/../utilities/utils_mail.php');
 
     /**
     * Get user/group by field value
@@ -69,6 +69,21 @@
     function user_getById($mysqli, $ugr_ID){
         return user_getByField($mysqli, 'ugr_ID', $ugr_ID);
     }
+    
+    function user_getNamesByIds($system, $ugr_IDs){
+        
+        $ugr_IDs = prepareIds($ugr_IDs);
+        if(count($ugr_IDs)>0){
+            $mysqli = $system->get_mysqli();
+            $query = 'SELECT ugr_ID, IF(ugr_Type=\'workgroup\',ugr_Name,concat(ugr_FirstName, \' \', ugr_LastName)) '
+            .' FROM sysUGrps WHERE ugr_ID in ('.implode(',',$ugr_IDs).')';
+            return mysql__select_assoc2($mysqli, $query);
+        }else{
+            $system->addError(HEURIST_INVALID_REQUEST,'User ids are not defined');
+            return false;
+        }
+    }
+    
 
     /**
     * get db owner user or specific field of this user
@@ -101,7 +116,10 @@
         if($username){
             $mysqli = $system->get_mysqli();
             $user = user_getByField($mysqli, 'ugr_Name', $username);
-            if(null==$user) $user = user_getByField($system->get_mysqli(), 'ugr_Name', $username);
+            if(null==$user) {
+                $user = user_getByField($system->get_mysqli(), 'ugr_eMail', $username);   
+            }
+            
             if(null==$user) {
                 $system->addError(HEURIST_NOT_FOUND,  "It is not possible to recover password. Username / email, you specified, not found");
 
@@ -194,9 +212,11 @@
         return $result;
     }
 
+    //@todo verify why it returns db onwer
     function user_getAllWorkgroups($mysqli){
-
-        $result = mysql__select_assoc($mysqli, 'sysUGrps', 'ugr_ID', 'ugr_Name', '(ugr_Type != "user") OR (ugr_ID=2)');
+//OR (ugr_ID=2) 
+        $query = 'SELECT ugr_ID, ugr_Name FROM sysUGrps WHERE (ugr_Type != "user") ORDER BY ugr_Name';
+        $result = mysql__select_assoc2($mysqli, $query);
         
         if($result==null) $result = array();
         
@@ -266,7 +286,7 @@
         $ret = false;
 
         if($system->is_admin() && $recID>0){
-            $res = mysql__select_array($system->get_mysqli(),
+            $row = mysql__select_row($system->get_mysqli(),
                 "select ugr_Type, ugr_Enabled, ugr_LoginCount from sysUGrps  where ugr_ID=".$recID);
             $ret = ($row[0]=="user" && $row[1]=="n" && $row[2]==0);
         }
@@ -293,7 +313,7 @@
 
                 $system->addError(HEURIST_REQUEST_DENIED, 'Registration is not allowed for current database');
 
-            }else if ($is_registration || $system->is_admin2($recID)) {
+            }else if ($is_registration || $system->has_access($recID)) {
 
                 //do not allow registration if approvement mail cannot be sent
                 if($is_registration){
@@ -318,7 +338,7 @@
 
                 $res = mysql__select_value($mysqli,
                     "select ugr_ID from sysUGrps  where ugr_Name='"
-                    .$mysqli->real_escape_string( $record['ugr_Enabled'])."' or ugr_eMail='"
+                    .$mysqli->real_escape_string( $record['ugr_Name'])."' or ugr_eMail='"
                     .$mysqli->real_escape_string($record['ugr_eMail'])."'");
                 if($res!=$recID){
                     $system->addError(HEURIST_INVALID_REQUEST, 'The provided name or email already exists');

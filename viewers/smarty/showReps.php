@@ -26,6 +26,10 @@
 * 'publish' - 0 vsn 3 UI (smarty tab),  1 - publish,  2 - no browser output (save into file only),
 *
 * other parameters are hquery's
+* 
+* 
+* smarty_function_wrap  - function for var wrap
+* 
 *
 * @author      Tom Murtagh
 * @author      Kim Jackson
@@ -125,6 +129,8 @@ function executeSmartyTemplate($params){
             $params["limit"] = PHP_INT_MAX;
         }
     }
+    
+    $recIDs = array();
 
     if(@$params['recordset']){ //we already have the list of record ids
 
@@ -481,6 +487,7 @@ function save_report_output2($tpl_source){
     }
     }
 
+    //$publishmode=2 download
     if($publishmode!=1){
 
         if($errors!=null){
@@ -504,25 +511,17 @@ function save_report_output2($tpl_source){
         echo $tpl_res;
 
     }else if ($publishmode==1){
-
-        header("Content-type: text/html");
-            
+        
         if($errors!=null){
+            header("Content-type: text/html;charset=UTF-8");
             echo $errors;
         }else{
-
             ?>
-
-
             <html>
-
-
             <head>
                 <meta http-equiv="content-type" content="text/html; charset=utf-8">
                 <link rel="stylesheet" type="text/css" href="../../common/css/global.css">
             </head>
-
-
             <body style="margin: 25px;">
             <h2>
                 The following file has been updated:  <?=$res_file?></h2><br />
@@ -775,21 +774,45 @@ function smarty_function_wrap($params, &$smarty)
 
                 if($limit>0 && $idx>=$limit) break;
 
-                $type_media = $value['mediaType'];
+                $mimeType = $value['mimeType'];
+                
+                $value['playerURL'] = HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&file='.$value['nonce'].'&mode=tag';
+                //$value['URL'] = HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&file='.$value['nonce'];
+                
+                if($mode=="link") {
 
-                if($mode=="thumbnail"){
+                    $sname = ($value['origName']=='_remote')?$value['URL']:$value['origName'];
+                    $sres = $sres."<a href='".$value['URL']."' target='_blank' title='".$value['description']."'>".$sname."</a>";
+                    
+                }else 
+                if($mode=="thumbnail" ){
 
-                    $sres = $sres."<a href='".($value['playerURL']?$value['playerURL']:$value['URL'])."' target='_blank'>".
+                    $sres = $sres."<a href='".$value['URL']."' target='_blank'>".
                     "<img src='".$value['thumbURL']."' title='".$value['description']."'/></a>";
 
-                }else if($mode=="player"){
+                }else{ //player is default
 
+                    
+                    $sres = $sres.getPlayerTag($value['nonce'], $value['mimeType'], $value['URL'], $size);
+                    //$value['playerURL'] = $value['playerURL'].'&size='.$size;
+                    //it does not work  $sres = $sres.file_get_contents($value['playerURL']);
+                    
+                    /*
                     if($type_media == 'image'){
                         $sres = $sres."<img src='".$value['URL']."' ".$size." title='".$value['description']."'/>"; //.$value['origName'];
-                    }else if($value['remoteSource']=='youtube' ){
-
+                    }else if($value['remoteSource']=='youtube' || $value['mimeType'] == 'video/youtube' || $value['ext'] == 'youtube'){
+                     //video/youtube
                         $sres = $sres.linkifyYouTubeURLs($value['URL'], $size);
 
+                        
+                    }else if($value['mimeType'] == 'video/vimeo' || $value['ext'] == 'vimeo'){
+                     //video/viemo
+                        $sres = $sres.linkifyVimeoURLs($value['URL'], $size);
+                        
+                    }else if($value['mimeType'] == 'audio/soundcloud' || $value['ext'] == 'soundcloud'){
+                     //audio/soundcloud
+                        $sres = $sres.linkifySoundcloudURL($value['URL'], $size);                        
+                                                    
                     }else if($value['remoteSource']=='gdrive' ){
                         $sres = $sres.linkifyGoogleDriveURLs($value['URL'], $size);
 
@@ -797,33 +820,18 @@ function smarty_function_wrap($params, &$smarty)
 
                         $sres = $sres.'<embed $size name="plugin" src="'.$value['URL'].'" type="'.$value['mimeType'].'" />';
 
-                    }else if($type_media=='video'){
+                    }else if($type_media=='video' ||  strpos($value['mimeType'],'video')===0){
                         // UNFORTUNATELY HTML5 rendering does not work properly
                         // $sres = $sres.createVideoTag($value['URL'], $value['mimeType'], $size);
 
                         $sres = $sres.createVideoTag2($value['URL'], $value['mimeType'], $size);
 
-                    }else if($type_media=='audio'){
+                    }else if($type_media=='audio' ||  strpos($value['mimeType'],'audio')===0){
                         $sres = $sres.createAudioTag($value['URL'], $value['mimeType']);
                     }else{
                         $sres = $sres."Unsupported media type ".$type_media;
                     }
-
-                }else{
-
-                    $lurl = strtolower($value['URL']);
-
-                    if( $value['remoteSource']=='youtube' ){
-                        $sres = $sres.linkifyYouTubeURLs($value['URL'], $size);
-                    }else if( $value['remoteSource']=='gdrive' ){
-                        $sres = $sres.linkifyGoogleDriveURLs($value['URL'], $size);
-                    }else if($type_media == 'image' || strpos($lurl,".jpg")>0 || strpos($lurl,".png")>0 || strpos($lurl,".gif")>0) {
-
-                        $sres = $sres."<img src='".$value['URL']."' ".$size." title='".$value['description']."'/>"; //.$value['origName'];
-                    }else{
-
-                        $sres = $sres."<a href='".$value['URL']."' target='_blank' title='".$value['description']."'>".$value['origName']."</a>";
-                    }
+                    */
                 }
 
             }

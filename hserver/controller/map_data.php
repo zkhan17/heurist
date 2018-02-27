@@ -1,6 +1,6 @@
 <?php
 
-//ARTEM:   @todo JJ makes a lot duplication - many methods already exist
+//ARTEM:   @todo JJ made a lot of duplication - many methods already exist
 
 /**
 * Retrieves map data for a certain database.
@@ -29,7 +29,8 @@ $recordQuery = "SELECT * FROM Records r INNER JOIN defRecTypes d ON r.rec_RecTyp
 $recordWhere = '(not r.rec_FlagTemporary) and ((not r.rec_NonOwnerVisibility="hidden") or '
 . 'rec_OwnerUGrpID = 0 )';
 
-$detailQuery = "SELECT dtl_DetailTypeID, dtl_Value, dtl_UploadedFileID, AsWKT(dtl_Geo) as dtl_Geo FROM recDetails rd WHERE rd.dtl_RecID=";
+$detailQuery = "SELECT dtl_DetailTypeID, dtl_Value, rf.ulf_ObfuscatedFileID, AsWKT(dtl_Geo) as dtl_Geo "
+."FROM recDetails rd LEFT JOIN recUploadedFiles rf on rf.ulf_ID=rd.dtl_UploadedFileID WHERE rd.dtl_RecID=";
 
 
 /**
@@ -40,20 +41,7 @@ $detailQuery = "SELECT dtl_DetailTypeID, dtl_Value, dtl_UploadedFileID, AsWKT(dt
 * @return mixed Image URL
 */
 function getFileURL($system, $fileID) {
-
-    return HEURIST_BASE_URL."redirects/file_download.php?db=".HEURIST_DBNAME."&id=".$fileID;
-
-    $paths = fileGetPath_URL_Type($system, $fileID);
-    //print_r($paths);
-
-    if(isset($paths[0][0])) {
-        // Heurist URL
-        return HEURIST_FILES_URL . $paths[0][0];
-    }else if(isset($paths[0][1])) {
-        // External URL
-        return $paths[0][1];
-    }
-    return "null";
+    return HEURIST_BASE_URL."?db=".HEURIST_DBNAME."&file=".$fileID;
 }
 
 /**
@@ -141,7 +129,8 @@ function getRecord($row) {
 function getDetailedRecord($system, $id) {
     //echo "Get detailed record #".$id;
     $record = getRecordByID($system, $id);
-    $record = getRecordDetails($system, $record);
+    if(@$record->id)
+        $record = getRecordDetails($system, $record);
     return $record;
 }
 
@@ -185,16 +174,19 @@ function getRecordDetails($system, $record) {
 
         $record->bookmarks = array();
 
-        // [dtl_ID]  [dtl_RecID]  [dtl_DetailTypeID]  [dtl_Value] [dtl_AddedByImport]  [dtl_UploadedFileID]   [dtl_Geo]  [dtl_ValShortened]  [dtl_Modified]
+        // [dtl_ID]  [dtl_RecID]  [dtl_DetailTypeID]  [dtl_Value] [dtl_AddedByImport]  [ulf_ObfuscatedFileID]   [dtl_Geo]  [dtl_ValShortened]  [dtl_Modified]
         while($detail = $details->fetch_assoc()) {
             // Fields
             //print_r($detail);
             $type = $detail["dtl_DetailTypeID"];
             $value = $detail["dtl_Value"];
-            $fileID = $detail["dtl_UploadedFileID"];
+            $fileID = $detail["ulf_ObfuscatedFileID"];
             $geo_value = $detail["dtl_Geo"];
 
             /* GENERAL */
+            if($type == DT_NAME) {
+                $record->name = $value; //for layers use it instead of title (rec_Title)
+            }else
             if($type == DT_SHORT_SUMMARY) {
                 // Description
                 $record->description = $value;
@@ -245,6 +237,10 @@ function getRecordDetails($system, $record) {
 
                 /* ZOOM - from 2017 DT_MINIMUM_ZOOM and DT_MAXIMUM_ZOOM are used for both maps and map layers, 
                 but older databases may have set DT_MINIMUM_MAP_ZOOM or DT_MAXIMUM_MAP_ZOOM for either maps or for layers */
+                
+            }else if(defined('DT_SYMBOLOGY_POINTMARKER') && $type == DT_SYMBOLOGY_POINTMARKER) {
+                //marker icon url 
+                $record->iconMarker = getFileURL($system, $fileID);;
 
             }else if(defined('DT_MAXIMUM_MAP_ZOOM') && $type == DT_MAXIMUM_MAP_ZOOM) {
                 // Maximum zoom
@@ -277,13 +273,12 @@ function getRecordDetails($system, $record) {
                 /* alas timemap understands color only as hex or rgb 
                 else{
                 $record->color = $color->label;   
-                }-*
+                }*/
 
 
-                }else if(defined('DT_MINOR_SPAN') && $type == DT_MINOR_SPAN) {
+            }else if(defined('DT_MINOR_SPAN') && $type == DT_MINOR_SPAN) {
                 // Initial minor span
                 $record->minorSpan = floatval($value);
-
 
                 /* IMAGE INFO */
             } else if(defined('DT_THUMBNAIL') && $type == DT_THUMBNAIL) {
@@ -403,7 +398,6 @@ function getMapDocuments($system, $recId) {
 // Initialize a System object that uses the requested database
 $system = new System();
 
-
 if( $system->init(@$_REQUEST['db']) ){
 
     $wg_ids = $system->get_user_group_ids();
@@ -412,6 +406,7 @@ if( $system->init(@$_REQUEST['db']) ){
     $recordWhere = '(not r.rec_FlagTemporary) and ((not r.rec_NonOwnerVisibility="hidden") or '
     . 'rec_OwnerUGrpID in (' . join(',', $wg_ids).') )';
 
+    $system->defineConstants();
     // Get all Map Documents
     $documents = getMapDocuments($system, @$_REQUEST['id']);
 

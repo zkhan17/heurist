@@ -273,12 +273,18 @@ function mysql__update($table, $condition, $pairs_assoc) {
 function mysql__select_array($table, $column, $condition) {
     if (defined('T1000_DEBUG')) error_log("T1000 select: SELECT $column FROM $table WHERE $condition");
     $query = "SELECT $column FROM $table WHERE $condition";
+    return mysql__select_array_2( $query );
+}
+
+function mysql__select_array_2($query) {
     $res = mysql_query($query);
     if (!$res) return NULL;
     $matches = array();
     while (($row = mysql_fetch_array($res))) array_push($matches, $row[0]);
     return $matches;
 }
+
+
 /**
 * Return an associative array containing all matching rows,
 * using the two columns to construct an associative array.
@@ -478,7 +484,12 @@ function execSQL($mysqli, $sql, $params, $retCnt=true) {
             }
         }
     } else { //prepared query
-        $stmt = $mysqli->prepare($sql) or die("Failed to prepare the SQL statement: ".$sql);
+        $stmt = $mysqli->prepare($sql);
+        if(!$stmt){
+            error_log('Failed to prepare the SQL statement: '.$sql);            
+            error_log(print_r($params, true));
+            die('Failed to prepare the SQL statement: '.$sql);
+        }
         call_user_func_array(array($stmt, 'bind_param'), refValues($params));
         $stmt->execute();
         if ($retCnt) {

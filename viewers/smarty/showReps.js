@@ -679,7 +679,7 @@ $('<hr/><p>Output truncated at '+limit+' records (out of '
             }
 
         }else{
-            alert('Database must be registered to allow translation of local template to global template');
+            alert('Database must be registered to allow translation of local template to global template.');
         }
     }
 
@@ -715,7 +715,7 @@ $('<hr/><p>Output truncated at '+limit+' records (out of '
 
                     _keepTemplateValue = template_body;
                 }else{
-                    alert('The template body is suspiciously short. No operation performed');
+                    alert('The template body is suspiciously short. No operation performed.');
                     squery = null;
                 }
             }
@@ -870,7 +870,9 @@ $('<hr/><p>Output truncated at '+limit+' records (out of '
 
             squery = squery + '&replevel='+replevel+'&template_body='+encodeURIComponent(template_body);
 
-
+            //squery = squery + '&DBGSESSID=425944380594800002;d=1,p=0,c=07';
+            
+            
             infoMessageBox.setBody("<img src='../../common/images/loading-animation-black.gif'>");
             infoMessageBox.show();
             
@@ -2166,7 +2168,7 @@ this_id       : "term"
 
         generateTemplate:  function (name){
             if(_needSelection){
-                alert('Please select some records to allow generation of the template');
+                alert('Please select some records to allow generation of the template.');
             }else{
                 _needListRefresh = true;
                 _generateTemplate(name, true);
@@ -2175,7 +2177,7 @@ this_id       : "term"
 
         showEditor:  function (template_file, needRefresh){
             if(_needSelection){
-                alert('Please select some records in the search results before editing the template');
+                alert('Please select some records in the search results before editing the template.');
             }else{
                 _needListRefresh = (needRefresh===true);
                 _showEditor(template_file);

@@ -23,9 +23,10 @@ require_once(dirname(__FILE__)."/initPage.php");
 ?>
         <script type="text/javascript" src="<?php echo PDIR;?>ext/layout/jquery.layout-latest.js"></script>
 
-        <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=drawing,geometry"></script>
+        <!-- script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCan9ZqKPnKXuzdb2-pmES_FVW2XerN-eE&libraries=drawing,geometry"></script -->
 
         <script type="text/javascript" src="mapDraw.js"></script>
+        <script type="text/javascript" src="mapLayer.js"></script>
 
         <!-- Initializing -->
 
@@ -38,26 +39,54 @@ require_once(dirname(__FILE__)."/initPage.php");
                 
                 if(!success) return;
 
-                // Mapping data
-                mapping = new hMappingDraw('map_digitizer');
-                
                 // init helper (see utils.js)
                 window.hWin.HEURIST4.ui.initHelper( $('#btn_help'), 
                             'Mapping Drawing Overview', 
                             '../../context_help/mapping_drawing.html #content');
 
+
+                if (typeof window.hWin.google === 'object' && typeof window.hWin.google.maps === 'object') {
+console.log('google map api: already loaded')                    
+                    handleApiReady();
+                }else{                            
+console.log('load google map api')                    
+                    $.getScript('https://maps.googleapis.com/maps/api/js?key=AIzaSyDtYPxWrA7CP50Gr9LKu_2F08M6eI8cVjk'
+                    +'&libraries=drawing,geometry&callback=handleApiReady');                                           
+                    //AIzaSyCan9ZqKPnKXuzdb2-pmES_FVW2XerN-eE
+                }
+
             } //onPageInit
+            
+            function handleApiReady(){
+                var initial_wkt = window.hWin.HEURIST4.util.getUrlParameter('wkt', location.search);
+                // Mapping data
+                mapping = new hMappingDraw('map_digitizer', initial_wkt);
+            }
+            
+            function assignParameters(params){
+                if(params && params['wkt']){
+                    var initial_wkt = params['wkt'];
+                    
+                    mapping.loadWKT(initial_wkt);
+                }
+            }
 
         </script>
         <style type="text/css">
-            #map_digitizer {
+            #map_container {
                 position: absolute;
-                top: 30px;
+                top: 50px;
                 left: 0px;
                 right: 200px;
                 bottom: 0px;
                 background-color: #ffffff;
             }  
+            #map_digitizer {
+                height:100%;
+                width:100%;
+            }  
+            
+            
             .color-button {
                 width: 14px;
                 height: 14px;
@@ -88,7 +117,7 @@ require_once(dirname(__FILE__)."/initPage.php");
             #rightpanel{
                 text-align:center;
                 position: absolute;
-                top: 30px;
+                top: 50px;
                 width: 200px;
                 right: 0px;
                 bottom: 0px;
@@ -104,7 +133,7 @@ require_once(dirname(__FILE__)."/initPage.php");
                 padding: 5px;
                 font-weight: normal;
                 width:190px;
-                height:290px;
+                min-height:135px;
                 border:1px solid #000000;
                 font-size:0.9em;
                 text-align:left;
@@ -114,60 +143,73 @@ require_once(dirname(__FILE__)."/initPage.php");
     </head>
 
     <!-- HTML -->
-    <body>
+    <body style="overflow:hidden">
         <div style="height:100%; width:100%;">
 
-            <div id="mapToolbarDiv" style="height: 30px;padding:0.2em">
+            <div id="mapToolbarDiv" style="height:50px;padding:1em 0.2em">
                     
                 <div class="div-table-cell">
-                    <label>Geocode:</label>
+                    <label>Find:</label>
                     <input id="input_search" class="text ui-widget-content ui-corner-all" 
-                            style="max-width: 250px; min-width: 10em; width: 250px; margin-right:0.2em"/>
+                            style="max-width: 100px; min-width: 6em; width: 100px; margin-right:0.2em"/>
                     <div id="btn_search_start"></div>
                 </div>
                 <div class="div-table-cell" style="padding-left: 2em;">
-                    <label for="sel_viewpoints">Zoom to saved location</label>
+                    <label for="sel_viewpoints">Zoom to extent</label>
                     <select id="sel_viewpoints" class="text ui-widget-content ui-corner-all" style="max-width:200px"></select>
                     <div id="btn_viewpoint_delete"></div>
                     <div id="btn_viewpoint_save"></div>
                 </div>
                 <div class="div-table-cell" id="coords2" style="padding-left: 1em;">
                 </div>
+                
+                <div class="div-table-cell" style="padding-left: 2em;">
+                    <label for="sel_overlays">Background</label>
+                    <select id="sel_overlays" class="text ui-widget-content ui-corner-all" style="max-width:120px">
+                        <option>none</option>
+                    </select>
+                </div>
             
-                <div style="position: absolute; right: 0.2em; top:0.2em;" class="ui-buttonset map-inited">
+                <div style="position: absolute; right: 0.2em; top:1em;" class="map-inited">
                     <button id="btn_help">Help</button>
                 </div>
             </div>
             
-            <div id="map_digitizer">Mapping</div>
+            <div id="map_container">
+                <div id="map_digitizer">Mapping</div>
+            </div>
 
             <div id="rightpanel">
 
-                <div id="color-palette"></div>
-                <div>
-                    <button id="delete-button">Delete Selected</button>
+                <label style="display:inline-block;">Draw color:</label>
+                <div style="width:auto !important;display:inline-block;height: 14px" id="color-palette"></div>
+
+                
+                <div style="padding-top:25px">
+                    <label>Select shape to draw</label><br>
+                    <label>Click to add points</label><br><br>
+                    <button id="save-button" style="font-weight:bold">Save</button>
+                </div> 
+                <div style="padding-top:40px">
+                    <button id="delete-all-button">Clear all</button>
                 </div> 
                 <div>
-                    <button id="delete-all-button">Clear Map</button>
+                    <button id="delete-button">Clear Selected</button>
                 </div> 
                 <div>
-                    <textarea id="coords1" cols="2" rows="2">
-                        Click on the map. The code for the selected shape you create will be presented here.
-                    </textarea>
-                    <button id="apply-coords-button">Apply Coordinates</button>
-                </div> 
-                <div>
+                    <button id="cancel-button">Cancel</button>
+                </div>
+                <div style="padding-top:20px">
                     <button id="load-geometry-button">Add Geometry</button>
                 </div> 
                 <div>
                     <button id="get-geometry-button">Get Geometry</button>
                 </div> 
-                <div>
-                    <button id="save-button">Save</button>
+                
+                <div style="bottom:30;position: absolute;height:150px">
+                    <textarea id="coords1">Click on the map. The code for the selected shape you create will be presented here.</textarea>
+                    <button id="apply-coords-button" style="margin-top:10px">Apply Coordinates</button>
                 </div> 
-                <div>
-                    <button id="cancel-button">Cancel</button>
-                </div>
             </div>            
         </div>
         

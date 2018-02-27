@@ -30,6 +30,10 @@
 * @subpackage  Records/Add
 */
 
+if (@$_REQUEST['h4']==2){
+    header( 'Location: ../../hclient/framecontent/recordEdit.php?'.$_SERVER['QUERY_STRING'] );
+    return;
+}
 
 // translate variable names
 if (@$_REQUEST['t']) $_REQUEST['bkmrk_bkmk_title'] = $_REQUEST['t'];
@@ -60,15 +64,20 @@ if (@$_REQUEST['addref']) {	// add a record		//saw TODO: change this to addrec
 	else
 		$outdate = '';
 }
-// url with no rectype specified gets treated as an internet bookmark
-if (@$_REQUEST['bkmrk_bkmk_url']  &&  ! @$_REQUEST['rec_rectype'])
-	$_REQUEST['rec_rectype'] = (defined('RT_INTERNET_BOOKMARK')?RT_INTERNET_BOOKMARK:0);
+
 
 require_once(dirname(__FILE__)."/../../common/connect/applyCredentials.php");
 require_once(dirname(__FILE__)."/../files/saveURLasFile.php");
 require_once(dirname(__FILE__)."/../../common/php/dbMySqlWrappers.php");
 require_once(dirname(__FILE__).'/../disambig/testSimilarURLs.php');
 require_once(dirname(__FILE__).'/../woot/woot.php');
+
+
+// url with no rectype specified gets treated as an internet bookmark
+if (@$_REQUEST['bkmrk_bkmk_url']  &&  ! @$_REQUEST['rec_rectype']){
+    $_REQUEST['rec_rectype'] = (defined('RT_INTERNET_BOOKMARK')?RT_INTERNET_BOOKMARK:0);
+}
+
 
 if (!is_logged_in()) {
 	if (! (@$_REQUEST['bkmrk_bkmk_url'] || @$_REQUEST['bkmrk_bkmk_title'] || @$_REQUEST['bkmrk_bkmk_description']))
@@ -135,13 +144,16 @@ if (@$_REQUEST['bkmrk_bkmk_url']) {
 	if (substr($burl, -1) == '/') $burl = substr($burl, 0, strlen($burl)-1);
 
 	/* look up the user's bookmark (usrBookmarks) table, see if they've already got this URL bookmarked -- if so, just edit it */
-	$res = mysql_query('select bkm_ID from usrBookmarks left join Records on rec_ID=bkm_recID where bkm_UGrpID="'.mysql_real_escape_string($usrID).'"
+	$res = mysql_query('select bkm_ID, rec_ID from usrBookmarks left join Records on rec_ID=bkm_recID where bkm_UGrpID="'.mysql_real_escape_string($usrID).'"
 							and (rec_URL="'.mysql_real_escape_string($burl).'" or rec_URL="'.mysql_real_escape_string($burl).'/")');
 	if (mysql_num_rows($res) > 0) {
 		$bkmk = mysql_fetch_assoc($res);
 		$bkm_ID = $bkmk['bkm_ID'];
-        $url = HEURIST_BASE_URL . 'records/edit/editRecord.html?db='.HEURIST_DBNAME.'&bkmk_id='.$bkm_ID.'&fromadd=exists' . $outdate;
-		header('Location: ' . $url);
+        $rec_ID = $bkmk['rec_ID'];
+        
+        $url = HEURIST_BASE_URL . '?fmt=edit&db='.HEURIST_DBNAME.'&recID='.$rec_ID;
+        header('Location: ' . $url);    
+		
 		return;
 	}
 
@@ -281,6 +293,7 @@ if (! @$_REQUEST['_submit']  &&  @$_REQUEST['bkmrk_bkmk_url']) {
 			// the rectype passed in is not available on this instance  send them to the  add resource popup
 			header('Location: ' . HEURIST_BASE_URL . 'records/add/addRecord.php'
 								. '?db='.HEURIST_DBNAME
+                                . '&ver=' . @$_REQUEST['ver']
 								. '&t=' . urlencode($_REQUEST['t'])
 								. '&error_msg=' . urlencode('Record Type #'. $rt . ' does not exist in this Heurist database'
 								. ' (it may not have been enabled). Please choose the record type from the pulldown '));
@@ -314,7 +327,7 @@ if (! @$_REQUEST['_submit']  &&  @$_REQUEST['bkmrk_bkmk_url']) {
 		}
         if($is_AddToExtendedDescription){
             mysql_query('insert into recDetails (dtl_RecID, dtl_DetailTypeID, dtl_Value) values ('.$rec_id
-                    .','.DT_EXTENDED_DESCRIPTION.',"'.mysql_real_escape_string($description).'")');
+                    .','.DT_SHORT_SUMMARY.',"'.mysql_real_escape_string($description).'")'); //was DT_EXTENDED_DESCRIPTION
         }
 		$inserts = array();
 		foreach ($dois as $doi) array_push($inserts, "($rec_id, $doiDT, '" . mysql_real_escape_string($doi) . "')");
@@ -362,6 +375,7 @@ if (! @$rec_id  and  ! @$_REQUEST['bkmrk_bkmk_url']) {
 		// the rectype passed in is not available on this instance  send them to the  add resource popup
 		header('Location: ' . HEURIST_BASE_URL . 'records/add/addRecord.php'
 							. '?db='.HEURIST_DBNAME
+                            . '&ver=' . @$_REQUEST['ver']
 							. '&t=' . urlencode($_REQUEST['t'])
 							. '&error_msg=' . urlencode('Record Type #'. $rt . ' does not exist in this Heurist Database'
 							. ' (it may not have been enabled). Please choose the record type from the pulldown '));
@@ -391,7 +405,7 @@ if (! @$rec_id  and  ! @$_REQUEST['bkmrk_bkmk_url']) {
 	}
     if($is_AddToExtendedDescription){
             mysql_query('insert into recDetails (dtl_RecID, dtl_DetailTypeID, dtl_Value) values ('.$rec_id
-                    .','.DT_EXTENDED_DESCRIPTION.',"'.mysql_real_escape_string($description).'")');
+                    .','.DT_SHORT_SUMMARY.',"'.mysql_real_escape_string($description).'")'); //was DT_EXTENDED_DESCRIPTION
     }
     
 	$inserts = array();
@@ -459,8 +473,10 @@ if ($rec_id  &&  ! @$_REQUEST['force_new']) {
 
 			insert_woot_content($rec_id, $description);
 		}
-        $url = HEURIST_BASE_URL . 'records/edit/editRecord.html?db='.HEURIST_DBNAME.'&bkmk_id='.$bkmk['bkm_ID'].'&fromadd=exists' . $outdate . "#personal";
-		header('Location: ' . $url );
+        
+        $url = HEURIST_BASE_URL . '?fmt=edit&db='.HEURIST_DBNAME.'&recID='.$rec_id;
+        header('Location: ' . $url);    
+        
 		return;
 	}
 }
@@ -475,6 +491,7 @@ if ($rec_id) {
 		'bkm_Added' => date('Y-m-d H:i:s'),
 		'bkm_Modified' => date('Y-m-d H:i:s'),
 		'bkm_UGrpID' => $usrID
+        //'bkm_Notes' => @$description
 	));
 	}
 
@@ -549,18 +566,16 @@ if ($rec_id) {
 
 
 	if ($bkm_ID) {
-		if ($isNewRecID) {
-            $url = HEURIST_BASE_URL . 'records/edit/editRecord.html?db='.HEURIST_DBNAME.'&bkmk_id=' . $bkm_ID . '&fromadd=new_bib' . $outdate . $wg;
-			header('Location: ' . $url);
-		} else {
-            $url = HEURIST_BASE_URL . 'records/edit/editRecord.html?db='.HEURIST_DBNAME.'&bkmk_id=' . $bkm_ID . '&fromadd=new_bkmk' . $outdate . $wg;
-			header('Location: ' . $url);
-		}
+        
+        $url = HEURIST_BASE_URL . '?fmt=edit&db='.HEURIST_DBNAME.'&recID='.$rec_id;
+        header('Location: ' . $url);    
 		return;
 	}
 }
 
 function insert_woot_content($rec_id, $content) {
+    return; //2017-09-04 no woot anymore
+    
 	$result = loadWoot(array("title" => "record:$rec_id"));
 	if (! $result["success"]) {
 		return;
@@ -592,6 +607,7 @@ function insert_woot_content($rec_id, $content) {
 
 function check_rectype_exist($rt) {
 	$res = mysql_query("select distinct rty_ID,rty_Name from defRecTypes where rty_ID = $rt");
+    if($res)
 	while ($row = mysql_fetch_assoc($res)) {
 		if ($row["rty_ID"] == $rt) {
 			return true;
@@ -615,8 +631,10 @@ function insert_thumbnail_content($recid, $url){
         
 //check that DT_EXTENDED_DESCRIPTION is defined for given record type
 function checkAddToDescription($rt) {
-    if(defined('DT_EXTENDED_DESCRIPTION') ){
-        $query = 'select rst_ID from defRecStructure where rst_RecTypeID = '.($rt? $rt : RT_INTERNET_BOOKMARK).' and rst_DetailTypeID='.DT_EXTENDED_DESCRIPTION;
+    //before 2017-09-07 it was DT_EXTENDED_DESCRIPTION
+    if(defined('DT_SHORT_SUMMARY') ){
+        $query = 'select rst_ID from defRecStructure where rst_RecTypeID = '
+                   .($rt? $rt : RT_INTERNET_BOOKMARK).' and rst_DetailTypeID='.DT_SHORT_SUMMARY;
         $res = mysql_query($query);
         if (mysql_num_rows($res)>0) {
             return true;

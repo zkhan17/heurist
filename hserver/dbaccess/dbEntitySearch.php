@@ -27,9 +27,10 @@ class DbEntitySearch
 {
     private $system;  
     
-    private $data = array();
+    private $data = array(); //assigned in validate params
     
     //data types: ids, int, float, date, bool, enum
+    //structure
     private $fields = array();
     
     function __construct( $system, $fields ) {
@@ -40,11 +41,11 @@ class DbEntitySearch
     //
     //
     //
-    private function _validateIds($fieldname){
+    private function _validateIds($fieldname, $data_type=null){
     
         $values = @$this->data[$fieldname];
         
-        if($values!=null){
+        if($values!=null && $data_type!='freetext'){
             //array of integer or integer
             if(!is_array($values)){
                 $values = explode(',', $values);
@@ -52,7 +53,7 @@ class DbEntitySearch
             }
             //if (preg_match('/^\d+(?:,\d+)+$/', $this->value)) 
             foreach($values as $val){  //intval()
-                if(!(is_numeric($val) && $val!=null)){
+                if( !(is_numeric($val) && $val!=null)){
                     $this->system->addError(HEURIST_INVALID_REQUEST, "Wrong parameter for field $fieldname: $val");
                     return false;
                 }
@@ -136,6 +137,7 @@ class DbEntitySearch
         
         $this->data = $data;
         
+        //loop for config
         foreach($this->fields as $fieldname=>$field_config){
             $value = @$this->data[$fieldname];
             
@@ -149,7 +151,7 @@ class DbEntitySearch
                 if($value=='NULL' || $value=='-NULL'){
                     $res = true;
                 }else if($is_ids=='ids'){
-                    $res = $this->_validateIds($fieldname); //, 'user/group IDs');
+                    $res = $this->_validateIds($fieldname, $data_type); //, 'user/group IDs');
                     
                 }else if($data_type == 'enum' && !$is_ids){
                     $res = $this->_validateEnum($fieldname);
@@ -196,31 +198,42 @@ class DbEntitySearch
         $value = @$this->data[$fieldname];
         if($value==null) return null;
         
-        $field_config = $this->fields[$fieldname];
+        $field_config = @$this->fields[$fieldname];
+        if($field_config==null) return null;
         $data_type = $field_config['dty_Type'];
         $is_ids = (@$field_config['dty_Role']=='primary') || (@$field_config['rst_FieldConfig']['entity']!=null);
         
         //special case for ids - several values can be used in IN operator        
         if ($is_ids) {  //preg_match('/^\d+(?:,\d+)+$/', $value)
-        
-            if(is_array($value)){
-                $value = implode(',',$value);
+                    
+            if($value == 'NULL'){
+                return '(NOT ('.$fieldname.'>0))';
+            }else if($value == '-NULL'){
+                return '('.$fieldname.'>0)';
             }
-            if(strpos($value, '-')===0){
+                       
+            if(!is_array($value) && is_string($value) && strpos($value, '-')===0){
                 $negate = true;
                 $value = substr($value, 1);
+                if($value=='') return null;
             }else{
                 $negate = false;
             }
-            if($value=='') return null;
-            $mysqli = $this->system->get_mysqli();
+        
+            if($data_type=='freetext'){
+                $value = prepareStrIds($value);    
+            }else{
+                $value = prepareIds($value);    
+            }
             
-            if(strpos($value, ',')>0){
+            if(count($value)==0) return null;
+            
+            if(count($value)>1){
                 // comma-separated list of ids
                 $in = ($negate)? 'not in' : 'in';
-                $res = " $in (" . $value . ")";
+                $res = " $in (" . implode(',', $value) . ")";
             }else{
-                $res = ($negate)? ' !=' : '='.$value;
+                $res = ($negate)? ' !=' : '='.$value[0];
             }
 
             return $fieldname.$res;    
@@ -240,7 +253,7 @@ class DbEntitySearch
                 array_push($or_predicates, $fieldname.' IS NULL');
                 continue;
             }else if($value == '-NULL'){
-                array_push($or_predicates, $fieldname.' IS NOT NULL');
+                array_push($or_predicates, '('.$fieldname.' IS NOT NULL AND '.$fieldname.'<>"")');
                 continue;
             }
         
@@ -377,7 +390,7 @@ class DbEntitySearch
     //
     //
     //
-    public function execute($query, $is_ids_only, $entityName){        
+    public function execute($query, $is_ids_only, $entityName, $calculatedFields=null){        
         
         $mysqli = $this->system->get_mysqli();
         
@@ -430,13 +443,18 @@ class DbEntitySearch
                     // load all records
                     while ($row = $res->fetch_row())// && (count($records)<$chunk_size) ) {  //3000 maxim allowed chunk
                     {
+                        if($calculatedFields!=null){
+                            $row = $calculatedFields($fields, $row);  
+                        }
+                        
                         $records[$row[0]] = $row;
-                        array_push($order, $row[0]);
+                        $order[] = $row[0];
                     }
                     $res->close();
 
                     $response = array(
-                            'queryid'=>@$this->data['request_id'],  //query unqiue id
+                            'queryid'=>@$this->data['request_id'],  //query unqiue id set in doRequest
+                            'pageno'=>@$this->data['pageno'],  //page number to sync
                             'offset'=>@$this->data['offset'],
                             'count'=>$total_count_rows,
                             'reccount'=>count($records),

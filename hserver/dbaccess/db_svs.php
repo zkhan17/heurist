@@ -36,11 +36,9 @@
 
         if ($rec_ids) {
 
-            if(is_string($rec_ids)){
-                $rec_ids = explode(",", $rec_ids);
-            }
-
-            if (is_array($rec_ids) && count($rec_ids)>0) {
+            $rec_ids = prepareIds($rec_ids);
+            
+            if (count($rec_ids)>0) {
 
                 $mysqli = $system->get_mysqli();
                 $query = 'SELECT svs_ID, svs_Name, svs_Query, svs_UGrpID FROM usrSavedSearches WHERE svs_ID in ('
@@ -126,14 +124,13 @@
     */
     function svsSave($system, $record){
 
-        if(!@$record['svs_Name']){
+        if( !(@$record['svs_ID']>0) && !@$record['svs_Name']){
             $system->addError(HEURIST_INVALID_REQUEST, "Name not defined");
-        }else if(!@$record['svs_Query']){
+        }else if(!(@$record['svs_ID']>0) && !@$record['svs_Query']){
             $system->addError(HEURIST_INVALID_REQUEST, "Query not defined");
         }else{
 
-            $record['svs_UGrpID'] = $system->is_admin2(@$record['svs_UGrpID']);
-            if (!$record['svs_UGrpID']) {
+            if (!$system->has_access(@$record['svs_UGrpID'])) {
                 $system->addError(HEURIST_REQUEST_DENIED, 
                     'Cannot update filter criteria. Current user must be an administrator for group');
             }else{
@@ -159,18 +156,15 @@
     function svsDelete($system, $rec_ids, $ugrID=null){
 
         //verify that current user can delete
-        $ugrID = $system->is_admin2($ugrID);
-        if (!$ugrID) {
+        if (!$system->has_access($ugrID)) {
             $system->addError(HEURIST_REQUEST_DENIED,
                 'Cannot delete filter criteria. Current user must be an administrator for group');
             return false;
         }else{
 
-            if(is_string($rec_ids)){
-                $rec_ids = explode(",", $rec_ids);
-            }
+            $rec_ids = prepareIds($rec_ids);
 
-            if (is_array($rec_ids) && count($rec_ids)>0) {
+            if (count($rec_ids)>0) {
 
                 $query = 'delete from usrSavedSearches where svs_ID in ('. join(', ', $rec_ids) .') and svs_UGrpID='.$ugrID;
 
@@ -258,22 +252,6 @@
     function svsGetTreeData($system, $grpID=null){
 
         $mysqli = $system->get_mysqli();
-        //verify that required column exists in sysUGrps
-        $query = "SHOW COLUMNS FROM `sysUGrps` LIKE 'ugr_NavigationTree'";
-
-        $res = $mysqli->query($query);
-
-        $row_cnt = $res->num_rows;
-        $res->close();
-        if(!$row_cnt){
-            //alter table
-            $query = "ALTER TABLE `sysUGrps` ADD `ugr_NavigationTree` text COMMENT 'JSON array that describes treeview for filters'";
-            $res = $mysqli->query($query);
-            if(!$res){
-                $system->addError(HEURIST_DB_ERROR, 'Cannot modify table to store filters treeview', $mysqli->error);
-            }
-            return false;
-        }
 
         $ugrID = $system->get_user_id();
         //load personal treeviews - rules, my filters (all) and bookmarks

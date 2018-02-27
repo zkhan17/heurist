@@ -121,7 +121,7 @@ $talkToSysAdmin="Please advise your system administrator or email info - a t - H
 //       in particular this duplication of HEURIST_MIN_DB_VERSION and any other explicit constants
 
 define('HEURIST_VERSION', $version);
-define('HEURIST_MIN_DBVERSION', "1.1.0");
+define('HEURIST_MIN_DBVERSION', "1.2.0");
 
 if (!$serverName) {
     $serverName = $_SERVER["SERVER_NAME"] . ((is_numeric(@$_SERVER["SERVER_PORT"]) && $_SERVER["SERVER_PORT"] != "80") ? ":" . $_SERVER["SERVER_PORT"] : "");
@@ -164,7 +164,8 @@ define('HEURIST_DIR', $documentRoot . HEURIST_SITE_PATH ); //  /var/www/html/h4/
 // Heurist Installation which contains index of registered Heurist databases (registered DB # 1)
 // DO NOT CHANGE THIS URL
 define('HEURIST_INDEX_BASE_URL', "http://heurist.sydney.edu.au/heurist/");
-define('HEURIST_INDEX_DBNAME', "HeuristMasterIndex");
+// 21aug17: This name ommitted the underscores, so didn't reference an existing database, so prob. not used
+define('HEURIST_INDEX_DBNAME', "Heurist_Master_Index");
 
 //-------------------------------------------------------------------------- MEMCACHE AND PROXY
 
@@ -172,11 +173,11 @@ define('HEURIST_INDEX_DBNAME', "HeuristMasterIndex");
 define('MEMCACHED_HOST', isset($memcachedHost) && $memcachedHost ? $memcachedHost : "localhost");
 define('MEMCACHED_PORT', isset($memcachedPort) && $memcachedPort ? $memcachedPort : "11211");
 // this was a global already anyway (in getSearchResults.php)
-$memcache = new Memcache;
+/* NO MEMCACHE ANYMORE   $memcache = new Memcache;
 // with addServer, connection is not established until actually used
 // the get/set functions return FALSE on fail so we get graceful degradation for free (if no memcached server is available)
 $memcache->addServer(MEMCACHED_HOST, MEMCACHED_PORT);
-
+*/
 if (@$httpProxy != '') {
     define('HEURIST_HTTP_PROXY', $httpProxy); //http address:port for proxy request
     if (@$httpProxyAuth != '') {
@@ -490,6 +491,7 @@ $rtDefines = array(
     'RT_RELATION' => array(2, 1),
     'RT_INTERNET_BOOKMARK' => array(2, 2),
     'RT_NOTE' => array(2, 3),
+    'RT_ORGANISATION' => array(2, 4),
     'RT_MEDIA_RECORD' => array(2, 5),
     'RT_AGGREGATION' => array(2, 6),
     'RT_COLLECTION' => array(2, 6), // duplicate naming
@@ -506,10 +508,31 @@ $rtDefines = array(
     'RT_PIPELINE' => array(2, 17),
     'RT_TOOL' => array(2, 19),
 
-    // SW & SH bibliographic record types (deprecated)
-    'RT_JOURNAL_ARTICLE' => array(3, 1012),
-    'RT_BOOK' => array(3, 1002),
-    'RT_JOURNAL_VOLUME' => array(3, 1013),
+    // Cleaned up bibliographic record types
+    'RT_BOOK' => array(3, 102),
+    'RT_CONFERENCE' => array(3, 103),
+    'RT_PUB_SERIES' => array(3, 104),
+    'RT_BOOK_CHAPTER' => array(3, 108),
+    'RT_JOURNAL' => array(3, 111),
+    'RT_JOURNAL_ARTICLE' => array(3, 112),
+    'RT_JOURNAL_VOLUME' => array(3, 113),
+    'RT_MAP' => array(3, 115),
+    'RT_OTHER_DOC' => array(3, 117),
+    'RT_REPORT' => array(3, 119),
+    'RT_THESIS' => array(3, 120),
+    'RT_PERSONAL_COMMUNICATION' => array(3, 121),
+    'RT_ARTWORK' => array(3, 122),
+    'RT_MAGAZINE_ARTICLE' => array(3, 123),
+    'RT_MAGAZINE' => array(3, 124),
+    'RT_MAGAZINE_VOLUME' => array(3, 125),
+    'RT_NEWSPAPER' => array(3, 126),
+    'RT_NEWSPAPER_VOLUME' => array(3, 127),
+    'RT_NEWSPAPER_ARTICLE' => array(3, 128),
+    'RT_PHOTOGRAPH' => array(3, 129),
+    'RT_ARCHIVAL_RECORD' => array(3, 1000),
+    'RT_ARCHIVAL_SERIES' => array(3, 1001),
+    
+    
     'RT_AUTHOR_EDITOR' => array(3, 23), //Deprecated
     'RT_FACTOID' => array(3, 22), // Deprecated
 
@@ -581,6 +604,7 @@ $dtDefines = array('DT_NAME' => array(2, 1),
     'DT_FILE_DURATION' => array(2, 66),
     'DT_FILE_SIZE' => array(2, 67),
     'DT_FILE_MD5' => array(2, 68),
+    'DT_PARENT_ENTITY' => array(2, 247),
     'DT_EDITOR' => array(3, 1013),
     'DT_OTHER_FILE' => array(3, 62), //TODO: remove from code
     'DT_LOGO_IMAGE' => array(3, 222), //TODO: remove from code

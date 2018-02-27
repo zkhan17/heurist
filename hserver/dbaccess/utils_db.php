@@ -5,13 +5,23 @@
     *
     *  mysql_connection - establish connection
     *  mysql__getdatabases4 - get list of databases
-    *  mysql__select_assoc - returns array  key_column=>val_column for given table
+    *  mysql__select_assoc2 - returns array  key_column=>val_column for given table
     *  mysql__select_list - returns array of column values
     *  mysql__select_value   - return the first column of first row
-    *  mysql__select_array   - returns first row
+    *  mysql__select_row   - returns first row
     *  mysql__insertupdate
     *  mysql__delete
+    *  mysql__begin_transaction
     *
+    *  getSysValues - Returns values from sysIdentification
+    *  isFunctionExists - verifies that mysql stored function exists
+    *  checkDatabaseFunctions - checks that all db functions reauired for H4 exists and recreates them if need it
+    *  trim_item
+    *  stripAccents
+    *  prepareIds
+    * 
+    * 
+    * 
     * @package     Heurist academic knowledge management system
     * @link        http://HeuristNetwork.org
     * @copyright   (C) 2005-2016 University of Sydney
@@ -81,9 +91,6 @@
             $mysqli->query('set character set "utf8"');
             $mysqli->query('set names "utf8"');
 
-            // @todo verify that in stored procedures we use user_id
-            // if so, set this mysql variable on session open 
-            // if (function_exists('get_user_id')) $mysqli->query('set @logged_in_user_id = ' . get_user_id());
         }
         return true;
     }
@@ -104,7 +111,6 @@
 
         if($res){
             while ($row = $res->fetch_row()) {
-
                 $database  = $row[0];
                 $test = strpos($database, $prefix);
                 if ($test === 0) {
@@ -147,12 +153,12 @@
     /**
     * returns array  key_column=>val_column for given table
     */
-    function mysql__select_assoc($mysqli, $table, $key_column, $val_column, $condition) {
-
+    function mysql__select_assoc2($mysqli, $query){
+        
         $matches = null;
-        if($mysqli){
+        if($mysqli && $query){
             
-            $res = $mysqli->query("SELECT $key_column, $val_column FROM $table WHERE $condition");
+            $res = $mysqli->query($query);
             if ($res){
                 $matches = array();
                 while ($row = $res->fetch_row()){
@@ -166,11 +172,10 @@
     /**
     * returns array of column values
     */
-    function mysql__select_list($mysqli, $table, $column, $condition) {
+    function mysql__select_list2($mysqli, $query) {
 
         $matches = null;
-        if($mysqli){
-            $query = "SELECT $column FROM $table WHERE $condition";
+        if($mysqli && $query){
             $res = $mysqli->query($query);
 
             if ($res){
@@ -184,6 +189,10 @@
 
         return $matches;
     }
+    function mysql__select_list($mysqli, $table, $column, $condition) {
+        $query = "SELECT $column FROM $table WHERE $condition";
+        return mysql__select_list2($mysqli, $query);
+    }
     
     /**
     * return the first column of first row
@@ -192,9 +201,9 @@
     * @param mixed $query
     */
     function mysql__select_value($mysqli, $query) {
-        $row = mysql__select_array($mysqli, $query);
+        $row = mysql__select_row($mysqli, $query);
 
-        if($row && @$row[0]){
+        if($row && @$row[0]!=null){
             $result = $row[0];
         }else{
             $result = null;
@@ -208,7 +217,7 @@
     * @param mixed $mysqli
     * @param mixed $query
     */
-    function mysql__select_array($mysqli, $query) {
+    function mysql__select_row($mysqli, $query) {
         $result = null;
         if($mysqli){
             $res = $mysqli->query($query);
@@ -257,7 +266,57 @@
         return $result;
     }
     
-    
+    //
+    //
+    function mysql__get_table_columns($mysqli, $table){
+
+        $res = $mysqli->query('DESCRIBE '.$table);
+        if (!$res) return NULL;
+        $matches = array();
+        if($res){
+            while (($row = $res->fetch_row())) array_push($matches, $row[0]);
+            
+            $res->close();
+        }
+        return $matches;    
+    }
+
+//
+//
+//
+    function mysql__duplicate_table_record($mysqli, $table, $idfield, $oldid, $newid){
+
+        $columns = mysql__get_table_columns($mysqli, $table);    
+       
+        //in our scheme first column is always id (primary key)
+        array_shift($columns);
+        
+        if($idfield!=null && $newid!=null){
+            
+            $idx = array_search($idfield, $columns);
+            $columns2 = $columns;
+            $columns2[$idx] = $newid;
+            $columns2 = implode(',',$columns2);
+            
+        }else{
+            $columns2 = implode(',',$columns);
+        }
+        
+        $where = ' where '.$idfield.'='.$oldid;
+        
+        $columns = implode(',',$columns);
+        //
+        $query = 'INSERT INTO '.$table.' ('.$columns.') SELECT '.$columns2.' FROM '.$table.' '.$where;
+    //print $query.'<br>';    
+        
+        $res = $mysqli->query($query);
+        if(!$res){
+            $ret = 'database error - ' .$mysqli->error;
+        }else{
+            $ret = $mysqli->insert_id;
+       }
+        return $ret;
+    }
     
     /**
     * delete record for given table
@@ -273,15 +332,16 @@
     function mysql__delete($mysqli, $table_name, $table_prefix, $rec_ID){
 
         $ret = null;
+        
+        $rec_ID = prepareIds($rec_ID);
 
-        $rec_ID = intval(@$rec_ID);
-        if($rec_ID>0){
+        if(count($rec_ID)>0){
             
             if (substr($table_prefix, -1) !== '_') {
                 $table_prefix = $table_prefix.'_';
             }
 
-            $query = "DELETE from $table_name WHERE ".$table_prefix.'ID = '.$rec_ID;
+            $query = "DELETE from $table_name WHERE ".$table_prefix.'ID in ('.implode(',', $rec_ID).')';
 
             $res = $mysqli->query($query);
             
@@ -292,7 +352,7 @@
             }
 
         }else{
-            $ret = 'Record ID provided is wrong value';
+            $ret = 'Invalid set of record identificators';
         }
         return $ret;
     }
@@ -305,7 +365,7 @@
     *
     * @param mixed $mysqli
     * @param mixed $table_name
-    * @param mixed $table_prefix
+    * @param mixed $table_prefix  - config array of fields or table prefix
     * @param mixed $record   - array(fieldname=>value) - all values considered as String except when field ended with ID
     *                          fields that don't have specified prefix are ignored
     */
@@ -313,12 +373,43 @@
 
         $ret = null;
 
-        if (substr($table_prefix, -1) !== '_') {
-            $table_prefix = $table_prefix.'_';
+        if(is_array($table_prefix)){
+            
+            $fields = array();  
+            foreach($table_prefix as $fieldname=>$field_config){
+                if(@$field_config['dty_Role']=='virtual') continue;
+                if(@$field_config['dty_Role']=='primary'){
+                    $primary_field = $fieldname;
+                    $primary_field_type = $field_config['dty_Type']; 
+                }
+                $fields[] = $fieldname;
+            }
+            
+        }else{
+            if (substr($table_prefix, -1) !== '_') {
+                $table_prefix = $table_prefix.'_';
+            }
+            $primary_field = $table_prefix.'ID';
+            $primary_field_type = 'integer';
+            
+        }
+    
+        //if integer it is assumed autoincrement
+        if($primary_field_type=='integer'){
+            $rec_ID = intval(@$record[$primary_field]);
+            $isinsert = ($rec_ID<1);
+        }else{
+            $rec_ID = @$record[$primary_field];
+            if($rec_ID==null){
+                //assign guid?
+            }else{
+                //check insert or update
+                $res = mysql__select_value($mysqli, 
+                    "SELECT $primary_field FROM $table_name WHERE $primary_field='".$rec_ID."'");
+                $isinsert = ($res==null);
+            }
         }
 
-        $rec_ID = intval(@$record[$table_prefix.'ID']);
-        $isinsert = ($rec_ID<1);
 
         if($isinsert){
             $query = "INSERT into $table_name (";
@@ -332,22 +423,31 @@
 
         foreach($record as $fieldname => $value){
 
-            if(strpos($fieldname, $table_prefix)!==0){ //ignore fields without prefix
+            if(is_array($table_prefix)){
+                
+                if(!in_array($fieldname, $fields)) continue;
+                
+            }else if(strpos($fieldname, $table_prefix)!==0){ //ignore fields without prefix
                 //$fieldname = $table_prefix.$fieldname;
                 continue;
             }
 
             if($isinsert){
+                if($primary_field_type=='integer' && $fieldname==$primary_field){ //ignore primary field for update
+                   continue;
+                }
                 $query = $query.$fieldname.', ';
                 $query2 = $query2.'?, ';
             }else{
-                if($fieldname==$table_prefix."ID"){
+                if($fieldname==$primary_field){ //ignore primary field for update
                     continue;
                 }
                 $query = $query.$fieldname.'=?, ';
             }
 
             $dtype = ((substr($fieldname, -2) === 'ID' || substr($fieldname, -2) === 'Id')?'i':'s');
+            if($fieldname == 'ulf_ObfuscatedFileID') $dtype = 's'; //exception
+            
             $params[0] = $params[0].$dtype;
             if($dtype=='i' && $value==''){
                 $value = null;
@@ -360,11 +460,15 @@
             $query2 = substr($query2,0,strlen($query2)-2).")";
             $query = $query.$query2;
         }else{
-            $query = $query." where ".$table_prefix."ID=".$rec_ID;
+            $query = $query." where ".$primary_field."=".($primary_field_type=='integer'?$rec_ID:"'".$rec_ID."'");
         }
-        
-//error_log($query);        
-//error_log(print_r($params, true));
+/*        
+if($table_name=='usrTags'){
+error_log($query);        
+error_log(print_r($params, true));
+}
+*/
+
 
         $stmt = $mysqli->prepare($query);
         if($stmt){
@@ -372,7 +476,9 @@
             if(!$stmt->execute()){
                 $ret = $mysqli->error;
             }else{
-                $ret = ($isinsert)?$stmt->insert_id:$rec_ID;
+                if($primary_field_type=='integer'){
+                    $ret = ($isinsert)?$stmt->insert_id:$rec_ID;
+                }//for non-numeric it returns null
             }
             $stmt->close();
         }else{
@@ -414,6 +520,72 @@
             }
         }
         return $sysValues;
+    }
+    
+    function updateDatabseToLatest($system){
+        
+        $mysqli = $system->get_mysqli();
+        
+        //verify that required column exists in sysUGrps
+        $query = "SHOW COLUMNS FROM `defRecStructure` LIKE 'rst_CreateChildIfRecPtr'";
+        $res = $mysqli->query($query);
+        $row_cnt = $res->num_rows;
+        if($res) $res->close();
+        if(!$row_cnt){ //column not defined
+            //alter table
+             $query = "ALTER TABLE `defRecStructure` ADD COLUMN `rst_CreateChildIfRecPtr` TINYINT(1) DEFAULT 0 COMMENT 'For pointer fields, flags that new records created from this field should be marked as children of the creating record' AFTER `rst_PtrFilteredIDs`;";
+             
+            $res = $mysqli->query($query);
+            if(!$res){
+                $system->addError(HEURIST_DB_ERROR, 'Cannot modify defRecStructure to add rst_CreateChildIfRecPtr', $mysqli->error);
+            }
+            return false;
+        }
+        
+
+        //verify that required column exists in sysUGrps
+        $query = "SHOW COLUMNS FROM `sysUGrps` LIKE 'ugr_NavigationTree'";
+        $res = $mysqli->query($query);
+        $row_cnt = $res->num_rows;
+        if($res) $res->close();
+        if(!$row_cnt){
+            //alter table
+            $query = "ALTER TABLE `sysUGrps` ADD `ugr_NavigationTree` text COMMENT 'JSON array that describes treeview for filters'";
+            $res = $mysqli->query($query);
+            if(!$res){
+                $system->addError(HEURIST_DB_ERROR, 'Cannot modify sysUGrps to add ugr_NavigationTree', $mysqli->error);
+            }
+            return false;
+        }
+        
+        //verify that required column exists in sysUGrps
+        $query = "SHOW COLUMNS FROM `usrBookmarks` LIKE 'bkm_Notes'";
+        $res = $mysqli->query($query);
+        $row_cnt = $res->num_rows;
+        if($res) $res->close();
+        if(!$row_cnt){
+            //alter table
+            $query = "ALTER TABLE `usrBookmarks` ADD `bkm_Notes` text COMMENT 'Personal notes'";
+            $res = $mysqli->query($query);
+            if(!$res){
+                $system->addError(HEURIST_DB_ERROR, 'Cannot modify usrBookmarks to add bkm_Notes', $mysqli->error);
+            }
+            return false;
+        }
+        
+        $dty_ID = mysql__select_value($mysqli,  
+            "SELECT dty_ID FROM `defDetailTypes` WHERE dty_OriginatingDBID=2  dty_IDInOriginatingDB=247");
+
+        if($dty_ID==null || !($dty_ID>0)){
+            
+            $mysqli->query("INSERT INTO `defDetailTypes`
+(`dty_Name`, `dty_Documentation`, `dty_Type`, `dty_HelpText`, `dty_ExtendedDescription`, `dty_EntryMask`, `dty_Status`, `dty_OriginatingDBID`, `dty_NameInOriginatingDB`, `dty_IDInOriginatingDB`, `dty_DetailTypeGroupID`, `dty_OrderInGroup`, `dty_JsonTermIDTree`, `dty_TermIDTreeNonSelectableIDs`, `dty_PtrTargetRectypeIDs`, `dty_FieldSetRecTypeID`, `dty_ShowInLists`, `dty_NonOwnerVisibility` ,`dty_LocallyModified`) VALUES
+('Parent entity','Please document the nature of this detail type (field)) ...','resource','The parent of a child record (a record which is specifically linked to one and only one parent record by a pointer field in each direction)', '','','approved','2', '','247','99', '0','','', '','0','1','viewable','0')");
+
+        }
+        
+        
+        return true;
     }
 
 
@@ -470,8 +642,13 @@
     }
 
     
+    //
+    //
+    //
     function trim_item(&$item, $key, $len){
-        $item = substr(trim($item),0,$len);
+        if($item!=''){
+            $item = substr(trim($item),0,$len);
+        }
     }
 
     //
@@ -504,4 +681,59 @@
     function stripAccents($stripAccents){
         return my_strtr($stripAccents,'àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝß','aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUYs');
     }    
+
+    //
+    // $rec_IDs - may by csv string or array 
+    // return array of integers
+    //
+    function prepareIds($ids){
+        
+        if($ids!=null){
+            if(!is_array($ids)){
+                if(is_int($ids)){
+                    $ids = array($ids);
+                }else{
+                    /*if(substr($ids, -1) === ','){//remove last comma
+                        $ids = substr($ids,0,-1);
+                    }*/
+                    $ids = explode(',', $ids);
+                }
+            }
+            $ids = array_filter($ids, function ($v) {
+                 return (is_numeric($v) && $v > 0);
+            });
+        }else{
+            $ids = array();
+        }
+        return $ids;
+    }
+
+    function prepareStrIds($ids){
+    
+        if(!is_array($ids)){
+            $ids = explode(',', $ids);
+        }
+        
+        $ids = array_map(function ($v) {
+             return '"'.$v.'"';
+        }, $ids);
+        
+        return $ids;
+        
+    }
+    //
+    //
+    //
+    function mysql__begin_transaction($mysqli){
+        
+        $keep_autocommit = mysql__select_value($mysqli, 'SELECT @@autocommit');
+        if($keep_autocommit===true) $mysqli->autocommit(FALSE);
+        if (strnatcmp(phpversion(), '5.5') >= 0) {
+            $mysqli->begin_transaction(MYSQLI_TRANS_START_READ_WRITE);
+        }
+        
+        return $keep_autocommit;
+        
+    }
+
 ?>

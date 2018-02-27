@@ -77,7 +77,7 @@ search: [t:10 f:1]
 NOTE - to make search fo facet value faster we may try to omit current search in query and search for entire database
 
 */
-
+                     
 /*
 step1 - selection of rectype, sup filter, rules
 step2 - select fields in treeview
@@ -90,7 +90,9 @@ $.widget( "heurist.search_faceted_wiz", {
     options: {
         svsID: null,
         domain: null, // bookmark|all or usergroup ID
-        params: {},
+        params: {
+            viewport:10
+        },
         onsave: null
     },
     isversion:2,
@@ -124,6 +126,7 @@ $.widget( "heurist.search_faceted_wiz", {
     step: 0, //current step
     step_panels:[],
     current_tree_rectype_ids:null,
+    originalRectypeID:null, //flag that allows to save on first page for edit mode
 
     // the widget's constructor
     _create: function() {
@@ -138,24 +141,24 @@ $.widget( "heurist.search_faceted_wiz", {
 
         var that = this;
 
-        this.element.css({overflow: 'none !important'}).addClass('ui-heurist-bg-light');
+        this.element.css({overflow: 'hidden !important'}).addClass('ui-heurist-bg-light');
 
         var ht = $(window).height();
         if(ht>700) ht = 700;
 
         this.element.dialog({
             autoOpen: false,
-            height: 550,
+            height: 580,
             width: 700,
             modal: true,
             title: window.hWin.HR("Define Faceted Search"),
             resizeStop: function( event, ui ) {
-                that.element.css({overflow: 'none !important','width':'100%'});
+                that.element.css({overflow: 'hidden !important','width':'100%'});
             },
             beforeClose: function( event, ui ) {
                 if(event && event.currentTarget){
                     var that_dlg = this;
-                    window.hWin.HEURIST4.msg.showMsgDlg(window.hWin.HR("Please confirm discard of any changes"),
+                    window.hWin.HEURIST4.msg.showMsgDlg(window.hWin.HR("Discard changes?"),
                         function(){ $( that_dlg ).dialog( "close" ); });
                     return false;
                 }
@@ -169,13 +172,18 @@ $.widget( "heurist.search_faceted_wiz", {
                     click: function() {
                         that.navigateWizard(1);
                 }},
+                {text:window.hWin.HR('Save'), id:'btnSave',
+                    click: function() {
+                        that._doSaveSearch()
+                        //that.navigateWizard(1);
+                }},
             ]
         });
         this.element.parent().addClass('ui-dialog-heurist');
 
         //option
         this.step0 = $("<div>")
-        .css({overflow: 'none !important', width:'100% !important', 'display':'block'})
+        .css({width:'100% !important', 'display':'block'})
         .appendTo(this.element);
         //$("<div>").append($("<h4>").html(window.hWin.HR("Options"))).appendTo(this.step0);
         $("<div>",{id:'facets_options'}).appendTo(this.step0);
@@ -187,21 +195,21 @@ $.widget( "heurist.search_faceted_wiz", {
         .css({'display':'none'})
         .appendTo(this.element);
         $("<div>").css({'padding':'1em 0'}).append($("<h4>").html(window.hWin.HR("Select record types that will be used in search"))).appendTo(this.step1);
-        //.css({overflow: 'none !important', width:'100% !important'})
+        //.css({overflow: 'hidden !important', width:'100% !important'})
         this.step1.rectype_manager({ isdialog:false, list_top:'8em', isselector:true });
 
         this.step_panels.push(this.step1);
-
+        
         //select field types
         this.step2 = $("<div>")
-        .css({overflow: 'none !important', width:'100% !important', 'display':'none'})
+        .css({width:'100% !important', 'display':'none'})
         .appendTo(this.element);
 
-        var header = $("<div>").css('font-size','0.8em').appendTo(this.step2);
+        var header = $("<div>").css({'font-size':'0.8em', 'padding-bottom':'10px'}).appendTo(this.step2);
 
         header.html("<label>"+window.hWin.HR("Select fields that act as facet")+
             "</label><br><br><label for='fsw_showreverse'><input type='checkbox' id='fsw_showreverse' style='vertical-align: middle;' />&nbsp;"+
-            window.hWin.HR("Show linked-from record types (reverse pointers)")+"</label>");
+            window.hWin.HR("Show linked-from record types (reverse pointers, indicated as &lt;&lt;)")+"</label>");
 
         //$("<label>").text(window.hWin.HR("Select fields that act as facet")).appendTo(header);
         //$("<checkbox>").text(window.hWin.HR("Show linked-from record types (reverse pointers)")).appendTo(header);
@@ -211,22 +219,31 @@ $.widget( "heurist.search_faceted_wiz", {
 
 
         //ranges
-        this.step3 = $("<div>")
-        .css({overflow: 'none !important', width:'100% !important', 'display':'none'})
+        this.step3 = $("<div>").addClass('step3')
+        .css({width:'100% !important', 'display':'none'})
         .appendTo(this.element);
 
-        var header = $("<div>").css('font-size','0.8em').appendTo(this.step3);
-        header.html("<label>"+window.hWin.HR("Define titles, help tips and facet type")+"</label>");
-
-        $("<fieldset>",{id:'facets_list'}).appendTo(this.step3);
+        var header = $("<div>").css({'font-size':'0.8em'}).appendTo(this.step3);
+        header.html("<label>"+window.hWin.HR("Define titles, help tips and facet type")+"</label>"
+        +'<br><br><label><input type="checkbox" id="cbShowHierarchy" style="vertical-align: middle;">'
+            +window.hWin.HR("Show entity hierarchy above facet label")+"</label>"
+            +'<label style="margin-left:16px" for="selViewportLimit">'+window.hWin.HR("Limit lists initially to")+'</label>'
+            +'&nbsp;<select id="selViewportLimit"><option value=0>All</option><option value=5>5</option><option value=10>10</option>'
+            +'<option value=20>20</option><option value=50>50</option></select>'
+            
+            +'<div style="float:right"><label><input type="checkbox" id="cbShowAdvanced" style="vertical-align: middle;">'
+            +window.hWin.HR("Show advanced ")+'</label></div>'
+            );
+            
+        $("<div>",{id:'facets_list'}).css({'overflow-y':'auto','padding':'10px 10px 10px 0px', 'min-width':'670px'}).appendTo(this.step3); //fieldset
         this.step_panels.push(this.step3);
 
         //preview
         this.step4 = $("<div>")
-        .css({overflow: 'none !important', width:'100% !important', 'display':'none'})
+        .css({width:'100% !important', 'display':'none'})
         .appendTo(this.element);
         $("<div>").append($("<h4>").html(window.hWin.HR("Preview"))).appendTo(this.step4);
-        $("<div>",{id:'facets_preview'}).css('top','3.2em').appendTo(this.step4);
+        $("<div>",{id:'facets_preview'}).css({'top':'3.2em'}).appendTo(this.step4);
         this.step_panels.push(this.step4);
 
 
@@ -294,6 +311,7 @@ $.widget( "heurist.search_faceted_wiz", {
         } else{
             $("#btnNext").button('option', 'label', window.hWin.HR('Next'));
         }
+        
         if(this.step != newstep){
 
             if(isNaN(this.step) && newstep==0){ //select record types
@@ -303,10 +321,15 @@ $.widget( "heurist.search_faceted_wiz", {
                 if($dlg.html()==''){
                     $dlg.load(window.hWin.HAPI4.baseURL+"hclient/widgets/search/search_faceted_wiz.html?t=19", function(){
                         that._initStep0_options();
+                        
+                        $dlg.find( ".optional_fields" ).accordion({collapsible:true, active:false});
+                        $dlg.find( ".optional_fields > fieldset" ).css({'background':'none'});
 
+                        /* it works however it produces a large gap below
                         $dlg.find("#svs_btnset")
                                 .css({'width':'20px'})
                                 .position({my: "left top", at: "right+4 top", of: $dlg.find('#svs_Rules') });
+                        */
                                 
                         $dlg.find("#svs_Rules_edit")
                         .button({icons: {primary: "ui-icon-pencil"}, text:false})
@@ -326,9 +349,11 @@ $.widget( "heurist.search_faceted_wiz", {
                         });
 
                                 
+                        /* it works however it produces a large gap below
                         $dlg.find("#svs_btnset2")
                                 .css({'width':'20px'})
                                 .position({my: "left top", at: "right+4 top", of: $dlg.find('#svs_Query') });
+                        */
 
                         $dlg.find("#svs_getCurrentFilter")
                         .button({icons: {primary: "ui-icon-search"}, text:false})
@@ -344,18 +369,20 @@ $.widget( "heurist.search_faceted_wiz", {
                                 $dlg.find('#svs_Query').val(res);
                         });
 
-                        var ishelp_on = window.hWin.HAPI4.get_prefs('help_on');
-                        $dlg.find('.heurist-helper1').css('display',ishelp_on?'block':'none');
-
-
-
                     });
                 }else{
                     this._initStep0_options();
                 }
 
-            }else if(this.step==0 && newstep==1){ //select record types
+            }
+            else if(this.step==0 && newstep==1){ //select record types
 
+                if(!($(opt_rectypes).val()>0)){
+                    window.hWin.HEURIST4.msg.showMsgErr('Select record type');
+                    $(opt_rectypes).focus();
+                    return;
+                }
+            
                 var svs_name = this.step0.find('#svs_Name');
                 var message = this.step0.find('.messages');
                 var bValid = window.hWin.HEURIST4.msg.checkLength( svs_name, "Name", message, 3, 30 );
@@ -367,6 +394,16 @@ $.widget( "heurist.search_faceted_wiz", {
                 }else{
                     message.empty();
                     svs_name.removeClass( "ui-state-error" );
+                }
+                
+                var svs_title = this.step0.find('#svs_Title');
+                bValid = window.hWin.HEURIST4.msg.checkLength( svs_title, 'Title', message, 0, 30 );
+                if(!bValid){
+                    svs_title.focus();                
+                    return;
+                }else{
+                    message.empty();
+                    svs_title.removeClass( "ui-state-error" );
                 }
 
 
@@ -450,12 +487,14 @@ $.widget( "heurist.search_faceted_wiz", {
 
         }
 
+        
+        window.hWin.HEURIST4.ui.applyCompetencyLevel(-1, $dlg); 
     }
 
     , _showStep :function(newstep){
 
-        if(this.step>=0) this.step_panels[this.step].css('display','none');
-        this.step_panels[newstep].css('display','block');
+        if(this.step>=0) this.step_panels[this.step].css({'display':'none'});
+        this.step_panels[newstep].css({'display':'block','overflow':'hidden'});
 
         if(this.step==3 && newstep==4){ //preview
             this._assignFacetParams();
@@ -466,10 +505,19 @@ $.widget( "heurist.search_faceted_wiz", {
             this._assignFacetParams();
         }
 
+        if(newstep==0 && this.options.svsID>0 && 
+            this.options.params.rectypes && this.options.params.rectypes[0]==this.originalRectypeID){
+            $("#btnSave").css('visibility','visible');//show();
+        }else{
+            $("#btnSave").css('visibility','hidden');//$("#btnSave").hide();
+        }
+        
+        
         if(newstep==0){
             var that = this;
             setTimeout(function(){that.step0.find('#svs_Name').focus();},500);
             $("#btnBack").hide();
+            
         }else{
             var ht = $(window).height();
             if(ht>700) ht = 700;
@@ -503,7 +551,15 @@ $.widget( "heurist.search_faceted_wiz", {
             svs_name.removeClass( "ui-state-error" );
 
             if($(opt_rectypes).is(':empty')){
-                window.hWin.HEURIST4.ui.createRectypeSelect( opt_rectypes, null, null);
+                window.hWin.HEURIST4.ui.createRectypeSelect( opt_rectypes, null, [{key:'',title:'select...'}], false);
+                
+                $dlg.find("#opt_rectypes").change(function(){
+                    if($(opt_rectypes).val()>0){
+                        if(svs_name.val()=='') 
+                            svs_name.val(opt_rectypes.options[opt_rectypes.selectedIndex].text+'s');
+                        svs_name.focus();
+                    }
+                });
             }
 
 
@@ -513,7 +569,7 @@ $.widget( "heurist.search_faceted_wiz", {
 
             //fill with list of Workgroups in case non bookmark search
             var selObj = svs_ugrid.get(0); //select element
-            window.hWin.HEURIST4.ui.createUserGroupsSelect(selObj, window.hWin.HAPI4.currentUser.usr_GroupsList,
+            window.hWin.HEURIST4.ui.createUserGroupsSelect(selObj, null,
                 [{key:'bookmark', title:window.hWin.HR('My Bookmarks')}, {key:'all', title:window.hWin.HR('All Records')}],
                 function(){
                     svs_ugrid.val(window.hWin.HAPI4.currentUser.ugr_ID);
@@ -521,6 +577,7 @@ $.widget( "heurist.search_faceted_wiz", {
 
 
             if(isEdit){
+                
                 var svs = window.hWin.HAPI4.currentUser.usr_SavedSearch[svsID];
                 svs_id.val(svsID);
                 svs_name.val(svs[0]);
@@ -536,9 +593,23 @@ $.widget( "heurist.search_faceted_wiz", {
 
                 if(this.options.params.rectypes) {
                     $(opt_rectypes).val(this.options.params.rectypes[0]);
+                    
+                    $(opt_rectypes).change(function(){
+                            that.originalRectypeID=null; 
+                            $("#btnSave").css('visibility','hidden');//$("#btnSave").hide();
+                    });
+                    
+                    if(this.originalRectypeID==null){//init flag
+                        this.originalRectypeID = this.options.params.rectypes[0];    
+                    }
                 }
+                
+                
+                $dlg.find('#svs_Title').val(this.options.params.ui_title);
+                $dlg.find('#svs_SearchOnReset').attr('checked', this.options.params.search_on_reset);
 
             }else{ //add new saved search
+                this.originalRectypeID == null;
 
                 svs_id.val('');
                 svs_name.val('');
@@ -549,9 +620,20 @@ $.widget( "heurist.search_faceted_wiz", {
                 svs_ugrid.val(this.options.domain);
                 svs_ugrid.removeAttr('disabled');;
                 //svs_ugrid.parent().show();
+                $dlg.find('#svs_Title').val('');
+                $dlg.find('#svs_SearchOnReset').attr('checked', false);
             }
 
+            if(isEdit && this.options.params.rectypes[0]==this.originalRectypeID)
+            {
+                $("#btnSave").css('visibility','visible');//$("#btnSave").show();
+            }else{
+                $("#btnSave").css('visibility','hidden');//$("#btnSave").hide();
+            }
+        
 
+            
+            
             /* ART20150810
             var svs_id = $dlg.find('#svs_ID');
             var svs_name = $dlg.find('#svs_Name');
@@ -567,7 +649,7 @@ $.widget( "heurist.search_faceted_wiz", {
             var opt_mode_advanced = $dlg.find("#opt_mode_advanced");
 
             if($(opt_rectypes).is(':empty')){
-            window.hWin.HEURIST4.ui.createRectypeSelect( opt_rectypes, null, null);
+            window.hWin.HEURIST4.ui.createRectypeSelect( opt_rectypes, null, null, false);
             }
 
             this._on( opt_mode, {
@@ -620,7 +702,7 @@ $.widget( "heurist.search_faceted_wiz", {
 
             //fill with list of Workgroups in case non bookmark search
             var selObj = svs_ugrid.get(0); //select element
-            window.hWin.HEURIST4.ui.createUserGroupsSelect(selObj, window.hWin.HAPI4.currentUser.usr_GroupsList,
+            window.hWin.HEURIST4.ui.createUserGroupsSelect(selObj, null,
             [{key:'bookmark', title:window.hWin.HR('My Bookmarks')}, {key:'all', title:window.hWin.HR('All Records')}],
             function(){
             svs_ugrid.val(window.hWin.HAPI4.currentUser.ugr_ID);
@@ -679,9 +761,11 @@ $.widget( "heurist.search_faceted_wiz", {
                 if(this.options.params.rectypes){
                     rectype = this.options.params.rectypes.join();
                 }
+                
+                window.hWin.HEURIST4.util.setDisabled($('#btnNext'),true);
 
                 //load definitions for given rectypes
-                window.HAPI4.SystemMgr.get_defs({rectypes: rectype,
+                window.hWin.HAPI4.SystemMgr.get_defs({rectypes: rectype,
                     mode:4, //special node - returns data for treeview
                     fieldtypes:['enum','freetext',"year","date","integer","float","resource","relmarker"]},  //ART20150810 this.options.params.fieldtypes.join() },
 
@@ -799,6 +883,25 @@ $.widget( "heurist.search_faceted_wiz", {
                                     $("#echoSelectionRoots3").text(selRootNodes.join(", "));
                                     */
                                 },
+                                click: function(e, data){
+                                   if($(e.originalEvent.target).is('span') && data.node.children && data.node.children.length>0){
+                                       data.node.setExpanded(!data.node.isExpanded());
+                                       treediv.find('.fancytree-expander').hide();
+                                       
+                                        var showrev = $('#fsw_showreverse').is(":checked");
+                                        var tree = treediv.fancytree("getTree");
+                                        tree.visit(function(node){
+                                            if(node.data.isreverse==1){ 
+                                                if(showrev){
+                                                    $(node.li).show();
+                                                }else{
+                                                    $(node.li).hide();
+                                                }
+                                            }
+                                        });
+                                       
+                                   }
+                                },
                                 dblclick: function(e, data) {
                                     data.node.toggleSelected();
                                 },
@@ -858,7 +961,12 @@ $.widget( "heurist.search_faceted_wiz", {
                             var cb = treediv.find("span.fancytree-checkbox");
                             if(cb.length>0){
                                 $(cb[0]).removeClass("fancytree-checkbox");
+                                var stit = treediv.find("span.fancytree-title"); // :first
+                                $(stit[0]).css({'font-size':'1.2em', 'font-weight':'bold'});
                             }
+                            
+                            //hide all folder triangles
+                            treediv.find('.fancytree-expander').hide();
 
                             that.current_tree_rectype_ids = rectypeIds;
 
@@ -886,6 +994,7 @@ $.widget( "heurist.search_faceted_wiz", {
                         }else{
                             window.hWin.HEURIST4.msg.redirectToError(response.message);
                         }
+                        window.hWin.HEURIST4.util.setDisabled($('#btnNext'), false);
                 });
 
             }
@@ -920,6 +1029,14 @@ $.widget( "heurist.search_faceted_wiz", {
         len = fieldIds.length;
 
         facets = [];
+        
+        function __getRandomInt() {
+            var min = 0;
+            var max =  100000;
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min)) + min; //The maximum is exclusive and the minimum is inclusive
+        }        
 
         if(len>0){
 
@@ -937,25 +1054,34 @@ $.widget( "heurist.search_faceted_wiz", {
                     if(old_facet!=null){
 
                         facets.push( {
-                            'var': facets.length,
+                            'var': __getRandomInt(), //unique identificator
                             code:node.data.code,
                             title: old_facet.title,
                             help: old_facet.help,
                             isfacet: old_facet.isfacet,
-                            type:node.data.type
+                            groupby: old_facet.groupby,
+                            type: node.data.type,
+                            order: old_facet.order>=0?old_facet.order:0
                         } );
 
                     }else{
 
                         facets.push( {
-                            'var': facets.length,
+                            'var': __getRandomInt(),
                             code:node.data.code,
                             title:(node.data.name?node.data.name:node.title),
-                            type:node.data.type
+                            groupby: null,
+                            type:node.data.type,
+                            order: 0
                         } );
                     }
                 }
             }
+            
+            
+            facets.sort(function(a,b){
+                return a.order<=b.order?-1:1;
+            });
 
 
             this.options.params.facets = facets;
@@ -966,71 +1092,262 @@ $.widget( "heurist.search_faceted_wiz", {
             }
 
             //-----------------------------------------------------------
-
+            $(this.step3).find("#cbShowHierarchy").attr('checked', this.options.params.title_hierarchy==true);
+            $(this.step3).find("#selViewportLimit").val(this.options.params.viewport);
+            
             var listdiv = $(this.step3).find("#facets_list");
             listdiv.empty();
+
+            var dispname_idx = window.hWin.HEURIST4.rectypes.typedefs.dtFieldNamesToIndex['rst_DisplayName'];
 
             len = facets.length;
             for (k=0;k<len;k++){
                 //title
                 //help tip (take from rectype structure?)
                 //type of facet (radio group)
-
-                var sContent =
-                '<div>'
-                +'<div class="header_narrow"><label for="facet_Title'+k+'">Facet</label></div>'
-                +'<input type="text" name="facet_Title'+k+'" id="facet_Title'+k+'" '
-                +' style="font-weight:bold" class="text ui-widget-content ui-corner-all" />'
-                +' <label for="facet_Help'+k+'">&nbsp;&nbsp;Rollover (optional)&nbsp;</label>'
-                +'<input name="facet_Help'+k+'" id="facet_Help'+k+'" type="text" '
-                +' style="font-size:smaller" class="text ui-widget-content ui-corner-all"'
-                +' style="margin-top:0.4em;margin-bottom:1.0em;width:300px;"/>';
-                +'</div>';
-
-                var sTypeLabel = '<div class="ent_search_cb" style="font-size:smaller;font-style:italic; margin-bottom:5px;"><div class="header_narrow"><label></label></div>';
-                if(facets[k].type=='freetext'){
-                    sContent = sContent +
-                    sTypeLabel
-                    +'<label><input type="radio" name="facet_Type'+k+'" value="1"/>first char</label>'
-                    +'<label><input type="radio" name="facet_Type'+k+'" value="2"/>list</label>'
-                    +'<label><input type="radio" name="facet_Type'+k+'" value="0"/>search</label>'
-                    +'</div>';
-                }else if(facets[k].type=='float' || facets[k].type=='integer'){
-                    sContent = sContent +
-                    sTypeLabel
-                    +'<label><input type="radio" name="facet_Type'+k+'" value="1"/>slider</label>'
-                    +'<label><input type="radio" name="facet_Type'+k+'" value="2"/>list</label>'
-                    +'<label><input type="radio" name="facet_Type'+k+'" value="0"/>search</label>'
-                    +'</div>';
-                }else if(facets[k].type=='date' || facets[k].type=='year'){
-                    sContent = sContent +
-                    sTypeLabel
-                    +'<label><input type="radio" name="facet_Type'+k+'" value="1"/>slider</label>'
-                    +'<label><input type="radio" name="facet_Type'+k+'" value="0"/>search</label>'
-                    +'</div>';
-                }else if(facets[k].type=='enum' || facets[k].type=='relationtype'){
-                    sContent = sContent +
-                    sTypeLabel
-                    +'<label><input type="radio" name="facet_Type'+k+'" value="1"/>list</label>'
-                    +'<label><input type="radio" name="facet_Type'+k+'" value="2"/>dropdown</label>'
-                    +'<label><input type="radio" name="facet_Type'+k+'" value="0"/>search</label>'
-                    +'</div>';
+                
+                var harchy = [];
+                var codes = facets[k]['code'].split(':');
+                var j = 0;
+                while(j<codes.length){
+                    var rtid = codes[j];
+                    var dtid = codes[j+1];
+                    harchy.push('<b>'+window.hWin.HEURIST4.rectypes.names[ rtid ]+'</b>');
+                    
+                    var linktype = dtid.substr(0,2);                                
+                    if(isNaN(Number(linktype))){
+                        dtid = dtid.substr(2);
+                        
+                        if(dtid>0){
+                        
+                        if(linktype=='lt' || linktype=='rt'){
+                            harchy.push(' . '+window.hWin.HEURIST4.rectypes.typedefs[rtid].dtFields[dtid][dispname_idx]+' &gt ');
+                        }else{
+                            var from_rtid = codes[j+2];
+                            harchy.push(' &lt '+
+                            (window.hWin.HEURIST4.rectypes.typedefs[from_rtid]
+                                ?window.hWin.HEURIST4.rectypes.typedefs[from_rtid].dtFields[dtid][dispname_idx]+' . '
+                                :'') );
+                        }
+                        
+                        }
+                        
+                    }else{
+                        //harchy.push(window.hWin.HEURIST4.detailtypes.names[ dtid ]);    
+                        harchy.push(' . '+window.hWin.HEURIST4.rectypes.typedefs[rtid].dtFields[dtid][dispname_idx]);
+                    }
+                    j = j+2;
                 }
+                
+                
+                /*
+                var j = 0;
+                while (j<codes.length){
+                    if(j % 2 ==0){
+                        harchy.push(window.hWin.HEURIST4.rectypes.names[codes[j]]);
+                    }else{
+                        harchy.push(window.hWin.HEURIST4.detailtypes.names[codes[j]]);    
+                    }
+                    j++;
+                }*/  
+                
+                var idd = facets[k]['var'];
+                
+                var sContent =
+                '<div id="facet'+idd+'" style="border-top:1px lightgray solid; padding-top:4px">'
+                +'<div><span class="ui-icon ui-icon-up-down span_for_radio"></span><label>Facet </label>&nbsp;'
+                +'<label style="font-size:smaller">' + harchy.join('') + '</label></div>'
+                
+                +'<div style="padding:5px 0 5px 29px">'
+                +'<label style="font-size:smaller" for="facet_Title'+idd+'">Label</label>&nbsp;'   //'<div class="header_narrow"></div>'
+                +'<input type="text" name="facet_Title'+idd+'" id="facet_Title'+idd+'" '
+                +' style="font-weight:bold;display:inline-block" class="text ui-widget-content ui-corner-all" />'
+                
+                + '<div class="ent_search_cb" style="float:right;font-style:italic;padding-right:6px">'
+                + '<span id="buttonset'+idd+'">';
+                
+                
+                var sGroupBy = '';
+                if(facets[k].type=='freetext'){
+                    sGroupBy =
+                        '<label><input type="checkbox" name="facet_Group'+idd+'" value="firstchar"/>'
+                        +'Group by first character</label>';
+                   
+                }else if(facets[k].type=='float' || facets[k].type=='integer'){
+                    sContent = sContent 
+                        //+'<input type="radio" data-idx="'+idd+'" id="facetType'+idd+'_1" name="facet_Type'
+                        //+idd+'" value="1" data-type="slider"/><label for="facetType'+idd+'_1">slider</label>';
+                        +'<button label="slider" class="btnset_radio" data-idx="'+idd+'" data-value="1"/>';
+                    
+                }else if(facets[k].type=='date' || facets[k].type=='year'){
+                    sContent = sContent 
+                        //+'<input type="radio" data-idx="'+idd+'" id="facetType'+idd+'_1" name="facet_Type'
+                        //+idd+'" value="1" data-type="slider"/><label for="facetType'+idd+'_1">slider</label>';
+                        +'<button label="slider" class="btnset_radio" data-idx="'+idd+'" data-value="1" data-type="slider"/>';
+                    
+                    sGroupBy = '<span id="facet_DateGroup'+idd+'"><label>Group by '
+                        +'<select id="facet_Group'+idd+'"><option>year</option><option>decade</option><option>century</option></select>'
+                        +'</label></span>';
+                    
+                }else if(facets[k].type=='enum' || facets[k].type=='relationtype'){
+                    sContent = sContent 
+                        //+'<input type="radio" data-idx="'+idd+'" id="facetType'+idd+'_1" name="facet_Type'
+                        //+idd+'" value="1" data-type="dropdown"/><label for="facetType'+idd+'_1">dropdown</label>';
+                        +'<button label="dropdown" class="btnset_radio" data-idx="'+idd+'" data-value="1" data-type="dropdown"/>';
+                    
+                    sGroupBy = '<label>'
+                                            +'<input type="checkbox" name="facet_Group'+idd+'" value="firstlevel"/>Group by first level</label>';
+                    
+                }
+                
+                sContent = sContent
+                        +'<button label="list" class="btnset_radio" data-idx="'+idd+'" data-value="3"/>'
+                        +'<button label="wrapped" class="btnset_radio" data-idx="'+idd+'" data-value="2"/>'
+                        +'<button label="search" class="btnset_radio" data-idx="'+idd+'" data-value="0"/>'
+                //+'<input type="radio" data-idx="'+idd+'" id="facetType'+idd+'_3" name="facet_Type'+idd+'" value="3"/><label for="facetType'+idd+'_3">list</label>'
+                //+'<input type="radio" data-idx="'+idd+'" id="facetType'+idd+'_2" name="facet_Type'+idd+'" value="2"/><label for="facetType'+idd+'_2">wrapped</label>'
+                //+'<input type="radio" data-idx="'+idd+'" id="facetType'+idd+'_0" name="facet_Type'+idd+'" value="0"/><label for="facetType'+idd+'_0">search</label>'
+                + '</span></div></div>' 
+
+                //second/optional line
+                +'<div style="padding:5px 0 0 29px;display:none" class="optional_settings">'
+                +'<div style="display:inline-block">'
+                +'<label style="font-size:smaller" for="facet_Help'+idd+'">Rollover (optional)&nbsp;</label>'
+                +'<input name="facet_Help'+idd+'" id="facet_Help'+idd+'" type="text" '
+                +' class="text ui-widget-content ui-corner-all"'
+                +' style="font-size:smaller;margin-top:0.4em;margin-bottom:1.0em;width:200px;"/>'
+                +'</div>'
+                
+                + '<div style="float:right;font-size:smaller;margin-right:20px;margin-top: 4px;">'
+                + sGroupBy 
+                +'<label><input type="checkbox" id="facet_Order'    // style="float:right;font-size:smaller;"
+                + idd+'" style="vertical-align: middle;margin-left:16px">'
+                + window.hWin.HR("Order by count")+"</label>"
+                + '</div>'
+                + '</div>'
+                + '</div>'; 
+                
 
                 listdiv.append($(sContent));
 
+                //backward capability
                 if(facets[k].isfacet==false){
                     facets[k].isfacet = 0;
-                }else if(facets[k].isfacet!=2){
-                    facets[k].isfacet = 1;
+                }else if(facets[k].isfacet==true || !(Number(facets[k].isfacet)<4 && Number(facets[k].isfacet)>=0)){
+                    //by default column for text and selector/slider for enum/dates
+                    //for text field default is search for others slider/dropdown
+                    facets[k].isfacet = (facets[k].type=='freetext')?0:1;
                 }
 
-                //assign values
-                listdiv.find('#facet_Title'+k).val(facets[k].title);
-                listdiv.find('#facet_Help'+k).val(facets[k].help);
-                listdiv.find('input:radio[name="facet_Type'+k+'"][value="'+facets[k].isfacet+'"]').attr('checked', true);
-            }
 
+                //assign values
+                listdiv.find('#facet_Title'+idd).val(facets[k].title);
+                listdiv.find('#facet_Help'+idd).val(facets[k].help);
+                
+                listdiv.find('input:checkbox[name="facet_Order'+idd+'"]').attr('checked', (facets[k].orderby=='count'));
+
+                //listdiv.find('input:radio[name="facet_Type'+idd+'"][value="'+facets[k].isfacet+'"]').attr('checked', true);
+                listdiv.find('button.btnset_radio[data-idx="'+idd+'"]').removeClass('ui-heurist-btn-header1');
+                var btn =   listdiv.find('button.btnset_radio[data-idx="'+idd+'"][data-value="'+facets[k].isfacet+'"]');
+                btn.addClass('ui-heurist-btn-header1');                
+
+
+                    function __dateGrouping(idd){
+                        
+                            var idx = -1;
+                            for(var m=0; m<facets.length; m++){
+                                if(facets[m]['var']==idd){
+                                    idx = m;
+                                    break;
+                                }
+                            }
+                            if(idx>=0){
+                                if(facets[idx].type=='date' || facets[idx].type=='year'){
+                                    var is_allowed = (listdiv.find('button.ui-heurist-btn-header1[data-idx="'+idd+'"]').attr('data-value')>1);
+                                                    //(listdiv.find('input:radio[name="facet_Type'+idd+'"]:checked').val()>1);
+                                    listdiv.find('#facet_DateGroup'+idd).css({'visibility':is_allowed?'visible':'hidden'});        
+                                    if(is_allowed){
+                                        if(Hul.isempty(facets[idx].groupby)){
+                                                                                facets[idx].groupby = 'year';
+                                        }
+                                        listdiv.find('#facet_Group'+idd).val(facets[idx].groupby);
+                                    }
+                                }
+                            }else{
+                                console.log('facet not found '+idd);
+                            }
+                    }
+
+                
+                this._on( listdiv.find('button.btnset_radio'), {
+                    click: function(event) {
+                        var btn = $(event.target);
+                        if(!btn.is('button')){ btn = btn.parent('button'); }
+                        var view_mode = btn.attr('data-value');
+                        
+                        var idd = btn.attr('data-idx');
+
+                        listdiv.find('button.btnset_radio[data-idx="'+idd+'"]').removeClass('ui-heurist-btn-header1');
+                        var btn =   listdiv.find('button.btnset_radio[data-idx="'+idd+'"][data-value="'+view_mode+'"]');
+                        btn.addClass('ui-heurist-btn-header1');
+                        
+                        __dateGrouping(idd);
+                }});
+                
+                
+                
+                if(facets[k].type=='date' || facets[k].type=='year'){
+                    __dateGrouping(idd);
+                    
+                    /*
+                    listdiv.find('input:radio[name="facet_Type'+idd+'"]').click(
+                        function( event ){
+                            var idd = $(event.target).attr('data-idx');
+                            __dateGrouping(idd);
+                        }                    
+                    )
+                    */
+                }else{
+                    listdiv.find('input:checkbox[name="facet_Group'+idd+'"][value="'+facets[k].groupby+'"]').attr('checked', true);
+                }
+            }//for
+           
+            listdiv.sortable();
+            listdiv.disableSelection();
+
+
+            /*            
+            listdiv.find('input:radio[value="3"]')                                           
+                            .button({icons: { secondary: 'ui-icon-list-column' }});
+            listdiv.find('input:radio[value="2"]')
+                            .button({icons: { secondary: 'ui-icon-list-inline' }});
+            listdiv.find('input:radio[value="0"]')
+                            .button({icons: { secondary: 'ui-icon-search' }});
+            listdiv.find('input:radio[data-type="slider"]')
+                            .button({icons: { secondary: 'ui-icon-input-slider' }});
+            listdiv.find('input:radio[data-type="dropdown"]')
+                            .button({icons: { secondary: 'ui-icon-input-dropdown' }});
+                            
+            listdiv.find('input:radio').button({text:true});
+            listdiv.find('.ui-button-text').css({"min-width":"60px","font-size":'0.9em'});
+            */
+            
+            listdiv.find('button[data-value="3"]').button({icon: "ui-icon-list-column",iconPosition:'end',showLabel:true,label:'list'});
+            listdiv.find('button[data-value="2"]').button({icon: "ui-icon-list-inline",iconPosition:'end',showLabel:true,label:'wrapped'});
+            listdiv.find('button[data-value="0"]').button({icon: "ui-icon-search",iconPosition:'end',showLabel:true,label:'search'});
+            listdiv.find('button[data-type="slider"]').button({icon: "ui-icon-input-slider",iconPosition:'end',showLabel:true,label:'slider'});
+            listdiv.find('button[data-type="dropdown"]').button({icon: "ui-icon-input-dropdown",iconPosition:'end',showLabel:true,label:'dropdown'});
+            listdiv.find('.ui-button-text').css({"min-width":"60px","font-size":'0.9em'});
+            listdiv.find('button.btnset_radio[data-idx="'+idd+'"]').controlgroup();
+                                      
+            $(this.step3).find('#cbShowAdvanced').attr('checked',false).change(function(event){
+                if($(event.target).is(':checked')){
+                     listdiv.find('.optional_settings').show();
+                }else{
+                     listdiv.find('.optional_settings').hide();                    
+                }
+            });
+            
             return true;
         }else{
             return false;
@@ -1040,15 +1357,41 @@ $.widget( "heurist.search_faceted_wiz", {
     , _assignFacetParams: function(){
         if( window.hWin.HEURIST4.util.isArrayNotEmpty(this.options.params.facets)){
 
+            this.options.params.title_hierarchy  = $(this.step3).find("#cbShowHierarchy").is(':checked');
+            this.options.params.viewport  = $(this.step3).find("#selViewportLimit").val();
+            
             var listdiv = $(this.step3).find("#facets_list");
 
             var k, len = this.options.params.facets.length;
             for (k=0;k<len;k++){
-                var title = listdiv.find('#facet_Title'+k).val();
+                var idd = this.options.params.facets[k]['var'];
+                var title = listdiv.find('#facet_Title'+idd).val();
                 if(title!='') this.options.params.facets[k].title = title;
-                this.options.params.facets[k].help = listdiv.find('#facet_Help'+k).val();
-                this.options.params.facets[k].isfacet = listdiv.find('input:radio[name="facet_Type'+k+'"]:checked').val();
+                this.options.params.facets[k].help = listdiv.find('#facet_Help'+idd).val();
+                this.options.params.facets[k].isfacet = listdiv.find('button.ui-heurist-btn-header1[data-idx="'+idd+'"]').attr('data-value');
+                                //was  listdiv.find('input:radio[name="facet_Type'+idd+'"]:checked').val();
+                this.options.params.facets[k].orderby = listdiv.find('input:checkbox[name="facet_Order'+idd+'"]').is(':checked')?'count':null;
+                
+                if(this.options.params.facets[k].type=='date' 
+                  || this.options.params.facets[k].type=='year'){
+                    if(this.options.params.facets[k].isfacet>1){
+                        this.options.params.facets[k].groupby = listdiv.find('#facet_Group'+idd).val();
+                    }else{
+                        this.options.params.facets[k].groupby = null;    
+                    }
+                    
+                }else{
+                    this.options.params.facets[k].groupby = listdiv.find('input:checkbox[name="facet_Group'+idd+'"]:checked').val();    
+                }
+                
+                this.options.params.facets[k]['order'] = $('#facet'+idd).index();
+
             }
+            //sort according to order in UI list
+            
+            this.options.params.facets.sort(function(a,b){
+                return a['order']<b['order']?-1:1;
+            });
         }
         return null;
     }
@@ -1058,7 +1401,6 @@ $.widget( "heurist.search_faceted_wiz", {
     ,_initStep4_FacetsPreview: function(){
 
         this._defineDomain();
-
         var listdiv = $(this.step4).find("#facets_preview");
 
         var noptions= { query_name:"test", params: JSON.parse(JSON.stringify(this.options.params)), ispreview: true}
@@ -1118,6 +1460,8 @@ $.widget( "heurist.search_faceted_wiz", {
             this.options.params.sup_filter = svs_fitler.val();
         }
 
+        this.options.params.ui_title =  $dlg.find('#svs_Title').val();
+        this.options.params.search_on_reset = $dlg.find('#svs_SearchOnReset').is(':checked');
 
         var svs_ugrid = svs_ugrid.val();
         if(parseInt(svs_ugrid)>0){
@@ -1173,10 +1517,12 @@ $.widget( "heurist.search_faceted_wiz", {
 function showSearchFacetedWizard( params ){
 
     if(!$.isFunction($('body').rectype_manager)){ //@todo - replace to new entity/rectypes as soon as it will be implemented
-        $.getScript(window.hWin.HAPI4.baseURL+'hclient/widgets/structure/rectype_manager.js', function(){ showSearchFacetedWizard(params); } );
+        $.getScript(window.hWin.HAPI4.baseURL+'hclient/widgets/structure/rectype_manager.js', 
+                function(){ showSearchFacetedWizard(params); } );
     }else if(!$.isFunction($('body').fancytree)){
 
-        $.getScript(window.hWin.HAPI4.baseURL+'ext/fancytree/jquery.fancytree-all.min.js', function(){ showSearchFacetedWizard(params); } );
+        $.getScript(window.hWin.HAPI4.baseURL+'ext/fancytree/jquery.fancytree-all.min.js', 
+                function(){ showSearchFacetedWizard(params); } );
 
     }else{
 

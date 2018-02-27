@@ -68,16 +68,14 @@
         <!-- for yui simply dialog -->
         <script type="text/javascript" src="../../external/yui/2.8.2r1/build/container/container-min.js"></script>
 
-        <!--
-        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-        <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.min.js"></script>
-        -->
         <link rel="stylesheet" type="text/css" href="../../ext/jquery-ui-iconfont-master/jquery-ui.icon-font.css" />
 
-        <script type="text/javascript" src="../../ext/jquery-ui-1.10.2/jquery-1.9.1.js"></script>
-        <script type="text/javascript" src="../../ext/jquery-ui-1.10.2/ui/jquery-ui.js"></script>
-        <link rel="stylesheet" type="text/css" href="../../ext/jquery-ui-1.10.2/themes/heurist/jquery-ui.css" />
-
+        <link rel="stylesheet" type="text/css" href="../../ext/jquery-ui-themes-1.12.1/themes/heurist/jquery-ui.css" />
+        
+        <script type="text/javascript" src="../../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
+        <script type="text/javascript" src="../../ext/jquery-ui-1.12.1/jquery-ui.js"></script>
+        
+        
         <link rel="stylesheet" type="text/css" href="../../common/css/global.css">
         <link rel="stylesheet" type="text/css" href="../../common/css/report.css">
 
@@ -141,7 +139,7 @@
             }
         </style>
         <script type="text/javascript">
-            var showReps, isEditorVisible=false;
+            var showReps, isEditorVisible=false, isInited=false;
 
             // inserts variable (false,false), repeat loop (true,false, or if test (false,true)
             function insertVar(isloop, isif){
@@ -149,7 +147,18 @@
                     showReps.insertSelectedVars( null, isloop, isif );
                 }
             }
+            function onResize(){
+                if(window.showReps){
+                       window.showReps.onResize(this.innerWidth);
+                }
+            }
 
+            
+/*
+            if(!top.HEURIST.rectypes){
+                top.HEURIST.loadScript(top.HEURIST.baseURL+"common/php/loadCommonInfo.php")
+            }
+*/            
         </script>
     </head>
 
@@ -449,10 +458,12 @@
                     if (oDoc.document) oDoc = oDoc.document;
                     oDoc.write("<head><title></title>");
                     oDoc.write("</head><body onload=\"this.focus(); this.print();\">");
-                    oDoc.write(oContent + "</body>");
+                    oDoc.write(oContent);
+                    oDoc.write('</body>');
                     oDoc.close();
                 }
                 catch(e){
+console.log(e)
                     //self.print();
                 }
             }
@@ -546,7 +557,7 @@
             function onGenerate()
             {
                 if(window.showReps.isNeedSelection()){
-                    alert('You have to select some records');
+                    alert('You must select some records');
                 }else{
                     var name=jQuery.trim(prompt("Please enter template name",""));
                     if (!Hul.isempty(name))
@@ -607,10 +618,6 @@
                 }
             }
 
-            function onResize(){
-                window.showReps.onResize(this.innerWidth);
-            }
-
             //
             //  starts initialization on load completion of this window
             function loadHandler(){
@@ -638,6 +645,7 @@
                 }});
                 */
 
+                isInited = true;
 
             }
 
@@ -706,10 +714,16 @@
             }
 
             if(!top.HEURIST.rectypes){
-                top.HEURIST.loadScript(top.HEURIST.baseURL+"common/php/loadCommonInfo.php")
+                if(top.HEURIST4 && top.HEURIST4.rectypes){
+                    top.HEURIST.rectypes = top.HEURIST4.rectypes;
+                    top.HEURIST.detailTypes = top.HEURIST4.detailtypes;
+                    top.HEURIST.terms = top.HEURIST4.terms;
+                }else{
+                    top.HEURIST.loadScript(top.HEURIST.baseURL+"common/php/loadCommonInfo.php")
+                }
             }
-
             YAHOO.util.Event.addListener(window, "load", loadHandler );
+            
 
             var _db = (top.HEURIST.parameters.db? top.HEURIST.parameters.db : (top.HEURIST.database.name?top.HEURIST.database.name:''));
             $.getScript( top.HEURIST.baseURL+"common/php/loadUserInfo.php?db="+_db, onLoadUserInfoHandler);

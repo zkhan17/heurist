@@ -60,7 +60,7 @@ $.widget( "heurist.app_timemap", {
           
         if(this.options.eventbased){
 
-            this._events = window.hWin.HAPI4.Event.LOGOUT
+            this._events = window.hWin.HAPI4.Event.ON_CREDENTIALS
             + ' ' + window.hWin.HAPI4.Event.ON_REC_SELECT
             + ' ' + window.hWin.HAPI4.Event.ON_SYSTEM_INITED;
 
@@ -72,9 +72,9 @@ $.widget( "heurist.app_timemap", {
 
             $(this.document).on(this._events, function(e, data) {
 
-                if(e.type == window.hWin.HAPI4.Event.LOGOUT)
+                if(e.type == window.hWin.HAPI4.Event.ON_CREDENTIALS)
                 {
-                    if(that.options.recordset != null){
+                    if(that.options.recordset != null && !window.hWin.HAPI4.has_access()){ //logout
                         that.recordset_changed = true;
                         that.option("recordset", null);
                         that._refresh();
@@ -112,7 +112,6 @@ $.widget( "heurist.app_timemap", {
                         that.option("selection",  null);
                     }
                 }else if (e.type == window.hWin.HAPI4.Event.ON_SYSTEM_INITED){
-
                     that._refresh();
 
                 }
@@ -187,11 +186,6 @@ $.widget( "heurist.app_timemap", {
                 return;
             }
 
-            // all this is now done in addRecordsetLayer
-            // var mapdataset = this.options.recordset == null? null: this.options.recordset.toTimemap();
-
-//console.log('init map from app_timemap');
-            
             mapping.load( null, //mapdataset,
                 this.options.selection,  //array of record ids
                 this.options.startup,    //map document on load
@@ -246,7 +240,7 @@ $.widget( "heurist.app_timemap", {
             //this.mapframe.css('cursor', 'progress');
         }else{
             //this.framecontent.css('cursor', 'auto');
-            //this.mapframe.css('background','none');
+            this.mapframe.css('background','none');
         }
     }
 
@@ -292,10 +286,10 @@ $.widget( "heurist.app_timemap", {
         }
     }
     
-    , editLayerProperties: function( dataset_id, callback ){
+    , editLayerProperties: function( dataset_id, legendid, callback ){
         var mapping = this.mapframe[0].contentWindow.mapping;
         if(mapping && mapping.map_control){
-            mapping.map_control.editLayerProperties(dataset_id, callback);
+            mapping.map_control.editLayerProperties(dataset_id, legendid, callback);
         }
     }
 

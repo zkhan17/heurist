@@ -210,8 +210,8 @@ function hLayout(args) {
               spacing_open:6,
               spacing_closed:16,  
               togglerAlign_open:'center',
-              togglerAlign_closed:'top',
-              togglerLength_closed:16,  //makes it square
+              togglerAlign_closed:20,
+              togglerLength_closed:32,  //to makes it square set to 16
               onopen_start : function(){ 
                   var  w = window.hWin.HAPI4.LayoutMgr.cardinalPanel('getSize', ['center','outerWidth'] );
                   var mw = 250; //window.hWin.HAPI4.LayoutMgr.cardinalPanel('getSize', ['west','minWidth'] );
@@ -227,8 +227,8 @@ function hLayout(args) {
               spacing_open:6,
               spacing_closed:16,  
               togglerAlign_open:'center',
-              togglerAlign_closed:'top',
-              togglerLength_closed:16,  //makes it square
+              togglerAlign_closed:20, //'top',
+              togglerLength_closed:32,  //to makes it square set to 16
               onopen_start: function(){ 
                   
                   var  w = window.hWin.HAPI4.LayoutMgr.cardinalPanel('getSize', ['center','outerWidth'] );
@@ -316,8 +316,10 @@ function hLayout(args) {
         function __toogleIcons(pane, closed, opened){
             var tog = $container.find('.ui-layout-toggler-'+pane);
             tog.addClass('ui-heurist-btn-header1')
+            
             var togc = tog.find('.content-closed'); togc.empty();
             $('<div>').addClass('ui-icon ui-icon-triangle-1-'+closed).appendTo(togc);
+            
             togc = tog.find('.content-open'); togc.empty();
             $('<div>').addClass('ui-icon ui-icon-triangle-1-'+opened).appendTo(togc);
         }
@@ -396,9 +398,24 @@ function hLayout(args) {
     */
     function _initLayoutFree(layout, $container){
 
+        //$container.hide();
+
+        if(!Hul.isempty(layout.cssfile)){
+            $("head").append($('<link rel="stylesheet" type="text/css" href="'+layout.cssfile+'?t='+(new Date().getTime())+'">'));
+            layout.cssfile = null;
+        }
+        
         //find main container and load template
         if(layout['template']){
-               $container.load(layout['template'], function(){ layout['template']=null; _initLayoutFree(layout, $container); });    
+               $container.hide();
+               $container.load(layout['template'], function(){ 
+                    layout['template'] = null; 
+                    
+                    _initLayoutFree(layout, $container); 
+                    setTimeout(function(){
+                        $container.show();
+                    },2000);
+               });    
                return;
         }
 
@@ -447,97 +464,9 @@ function hLayout(args) {
         }
 
         initDragDropListener();
+        
+        //setTimeout(function(){$container.show();},1000);
     }
-
-    /**
-    * Init Gridster layout
-    *
-    * @param layout
-    * @param $container
-    */
-    function _initLayoutGridster(layout, $container){
-
-            if(!$.isFunction($('body').gridster)){
-                $.getScript(window.hWin.HAPI4.baseURL+'ext/gridster/jquery.gridster.js', initLayoutGridster );
-                return;
-            }
-
-        //pane - the base container for widgets/applications
-
-        //1. loop trough all layout panes  - create divs or use existing ones
-        var panes = Object.keys(layout);
-        var i, reserved = ['id', 'name', 'theme', 'type', 'options', 'cssfile'];
-
-        if(!layout.options){
-            layout.options = {};
-        }
-        if(!layout.options.widget_margins){
-            layout.options.widget_margins = [10, 10];
-        }
-        if(!layout.options.widget_base_dimensions){
-            layout.options.widget_base_dimensions = [50, 50];
-        }
-        if( Hul.isnull(layout.options.autogrow_cols) ){
-            layout.options.autogrow_cols = true;
-        }
-        if( Hul.isnull(layout.options.resize) ){
-            layout.options.helper = 'clone';
-            layout.options.resize = {enabled: true};
-        }
-
-    //dat-row="1" data-col="3" data-sizex="1" data-sizey="2" data-max-sizex="6" data-max-sizey="2"
-
-        //add UL to main
-        $container.addClass('gridster');
-        var $ul = $('<ul>').css({'background-color': '#EFEFEF', 'list-style-type': 'none', 'position':'absolute'}).appendTo($container);
-        var gridster = $ul.gridster(layout.options).data('gridster');
-        var icol=1, irow=1;
-
-        function __layoutAddPane(pos){
-            if(layout[pos]){
-
-                var lpane = layout[pos];
-
-                var col,row;
-                if(lpane.col>0){
-                    col = lpane.col;
-                }else{
-                    col = icol;
-                    icol++;
-                }
-                if(lpane.row>0){
-                    row = lpane.row;
-                }else{
-                    row = irow;
-                    irow++;
-                }
-
-                gridster.add_widget('<li><div class="ui-layout-'+pos+'"></div></li>',
-                                              lpane.size_x>0?lpane.size_x:1,
-                                              lpane.size_y>0?lpane.size_y:1,
-                                              col, row);
-                /* @todo
-                if(lpane.css){
-                        $pane.css(lpane.css);
-                }*/
-            }
-        }
-
-        var bg_color = $('.ui-widget-content:first').css('background-color');
-        $('body').css('background-color', bg_color);
-
-        for (i=0; i<panes.length; i++){
-            if(reserved.indexOf(panes[i])<0){
-                 __layoutAddPane(panes[i]);
-                 layoutInitPane( layout, $container, panes[i], bg_color );
-            }
-        }
-
-        $('li.gs-w').css({'background-color': '#DDD'});
-
-        initDragDropListener();
-    }
-
 
     /**
     * Adds application/widgets to specified pane
@@ -800,12 +729,13 @@ function hLayout(args) {
                    widget = $content.connections( options );
                    
             }else if(app.widgetname=='dh_search'){
-
                    widget = $content.dh_search( options );
-
             }else if(app.widgetname=='dh_maps'){
-
                    widget = $content.dh_maps( options );
+            }else if(app.widgetname=='boro_place'){
+                   widget = $content.boro_place( options );
+            }else if(app.widgetname=='boro_nav'){
+                   widget = $content.boro_nav( options );
             }else
                     {
                         //this is normal way of widget initialization
@@ -886,8 +816,10 @@ function hLayout(args) {
                     action_id = ' data-logaction="'+_app.options['data-logaction']+'"';
                 }
 
-                $ul.append('<li'+action_id+'><a class="header'+content_id+'" href="#'+content_id+'">'
-                        + (window.hWin.HR(_app.name || app.name)) +'</a></li>')
+
+                var title_html = '<li'+action_id+'><a class="header'+content_id+'" href="#'+content_id+'">'
+                        + (window.hWin.HR(_app.name || app.name)) +'</a></li>';
+                $ul.append($(title_html));
                 
                 if(!_app.content_id){ //already exists
                     appAddContent($tab_ctrl, app, _app);
@@ -1093,10 +1025,6 @@ function hLayout(args) {
 
             _initLayoutCardinal(layout, $container);
 
-        }else if(layout.type=='gridster'){
-
-            _initLayoutGridster(layout, $container);
-
         }else { //}if(layout.type=='free'){
 
             _initLayoutFree(layout, $container);
@@ -1123,12 +1051,12 @@ function hLayout(args) {
                 }});
                 
                 var tabheader = $(tabb).children('ul');
-                tabheader.css({'border':'none', 'background':'#8ea9b9', 'padding-top':'1em'})
+                tabheader.css({'border':'none', 'background':'#8ea9b9'});  //, 'padding-top':'1em'
                 
-                $(tabb).children('.ui-tabs-panel[layout_id!="FAP"]').css({position:'absolute', top:'4.01em',
+                $(tabb).children('.ui-tabs-panel[layout_id!="FAP"]').css({position:'absolute', top:'5.01em',
                         left:0,bottom:'0.2em',right:0, 'min-width':'75em',overflow:'hidden'});
                 
-                tabheader.find('a').css({'width':'100%','outline':0});
+                tabheader.find('a').css({'width':'100%','outline':0}); //, 'color': 'rgb(142, 169, 185)'
                 
                 var lis = tabheader.children('li');
                 var count_lis = lis.length;
@@ -1136,23 +1064,27 @@ function hLayout(args) {
                             'outline':0,
                             'border':'none',
                             'font-weight': 'bold',
-                            //'font-size': '1.2em',
-                            'padding': '10px 20px 0 0',
-                            'margin': '0px 0px 0px -4px',
+                            'font-size': '1.4em',
+                            'padding': '12px 20px 0 1px',
+                            'margin': '12px 0px 0px -4px',
                             'z-index': 3,
                             'background': 'url(hclient/assets/tab_shape.png)',
                             'background-size': 'cover',
                             'background-repeat': 'no-repeat',
                             'text-align': 'center',
-                            'width': '180px',
-                            'height': (navigator.userAgent.indexOf('Firefox')<0)?'25px':'35px' });
+                            'width': '200px',
+                            'height': (navigator.userAgent.indexOf('Firefox')<0)?'33px':'45px' });
                             
                 lis.each(function(idx,item){
-                   $(item).css('z-index', count_lis - idx);
+                    
+                    if(idx==2) $(item).css({width:'300px'});
+                   //$(item).css({width:((idx+1)*100+'px')});
+                   $(item).css({'z-index': count_lis - idx});
                    $(item).attr('data-zkeep', count_lis - idx);
                    $(item).attr('data-zmax', count_lis+1);
                    if(idx>0){
-                       $(item).css({'padding-left':'12px', 'margin-left':'-12px', 'border-left':'none'});
+                       //'padding-left':'12px', 
+                       $(item).css({'margin-left':'-12px', 'border-left':'none'});
                    }
                 });
                 

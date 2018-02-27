@@ -20,25 +20,8 @@
 -->
 <fieldset>
 <input type="hidden" name="svs_ID" id="svs_ID" />
-<div>
-    <div class="header"><label for="svs_Name">Faceted search name</label></div>
-    <input type="text" name="svs_Name" id="svs_Name" class="text ui-widget-content ui-corner-all"
-        maxlength="30" size="30" />
-    <div style="width: 290px; font-size: smaller; margin-top: 0px; margin-bottom: 5px;">
-        Used in navigation tree (limit to ~25 characters).
 
-    </div>
-</div>
-
-<div>
-    <div class="header"  style="margin-bottom: 10px; "><label for="svs_UGrpID">Save in work group</label></div>
-    <select name="svs_UGrpID" id="svs_UGrpID" class="text ui-widget-content ui-corner-all"></select>
-    <div style="width: 420px; font-size: smaller; margin-top: 0px; margin-bottom: 5px;">
-        Use a shared workgroup if you want other people to be able to use your search.
-    </div>
-</div>
-
-<div class="simple-mode"">
+<div class="simple-mode">
 <div class="header"><label for="opt_rectypes">Search for (entity type)</label></div>
 <select name="sa_rectype" id="opt_rectypes" class="text ui-widget-content ui-corner-all" style="min-width:250px"></select>
 <div style="width: 420px; font-size: smaller; margin-top: 0px; margin-bottom: 5px;">
@@ -48,39 +31,91 @@ The facets can, however, be based on attributes of other record types linked fro
 </div>
 
 <div>
-<div class="header" style="vertical-align:top;"><label for="svs_Query">Preliminary filter</label></div>
-<textarea name="svs_Query" id="svs_Query" rows="2" class="text ui-widget-content ui-corner-all"
-style="margin-top:0.4em;width:450px"></textarea>
-<div style="width: 420px; font-size: smaller; margin-top: 5px; margin-bottom: 5px;">
-A Heurist filter string which extracts a subset of the database, to which the faceted search is then applied.
-</div>
+    <div class="header"><label for="svs_Name">Faceted search name</label></div>
+    <input type="text" name="svs_Name" id="svs_Name" class="text ui-widget-content ui-corner-all"
+        maxlength="30" size="30" />
+    <div style="width: 290px; font-size: smaller; margin-top: 0px; margin-bottom: 5px;">
+        Used in navigation tree (limit to ~25 characters).
 
-<div id="svs_btnset2">
-<div id="svs_getCurrentFilter"  style="margin-top:0.4em"></div>
+    </div>
 </div>
+<div>
+    <div class="header"  style="margin-bottom: 10px; "><label for="svs_UGrpID">Save in work group</label></div>
+    <select name="svs_UGrpID" id="svs_UGrpID" class="text ui-widget-content ui-corner-all"></select>
+    <div style="width: 420px; font-size: smaller; margin-top: 0px; margin-bottom: 5px;">
+        Use a shared workgroup if you want other people to be able to use your search.
+    </div>
+</div>
+</fieldset>
+
+<div class="optional_fields"><h4>Advanced</h4>
+<fieldset>
+
+<div>
+<div class="header" style="vertical-align:top;"><label for="svs_Query">Preliminary filter</label></div>
+    <div>
+        <textarea name="svs_Query" id="svs_Query" rows="2" class="text ui-widget-content ui-corner-all"
+                style="margin-top:0.4em;width:450px"></textarea>
+        <div id="svs_btnset2" style="float:right;padding-left:0.4em">
+            <div id="svs_getCurrentFilter"  style="margin-top:0.4em"></div>
+        </div>
+    </div>    
+    <div style="width: 420px; font-size: smaller; margin-top: 5px; margin-bottom: 5px;">
+            A Heurist filter string which extracts a subset of the database, to which the faceted search is then applied.
+    </div>
 </div>
 
 <div>
-<div class="header" style="vertical-align:top"><label for="svs_Rules">Expansion rules</label></div>
-<textarea name="svs_Rules" id="svs_Rules" rows="5" class="text ui-widget-content ui-corner-all"
-style="margin-top:0.4em;width:450px" readonly="readonly"></textarea>
-<div style="width: 420px; font-size: smaller; margin-top: 5px;  margin-bottom: 5px;">
-Rules are applied to the result set after each selection. They expand the results
-to include connected records (entities). This expansion may be restricted
-to specific entity types, connection types or filters.
-Use rules to bring in information such as map location or dates for display on a map or timeline.
-Edit with the pencil icon on the right.
-</div>
+    <div class="header" style="vertical-align:top">
+        <label for="svs_Rules">Expansion rules</label>
+    </div>
+    <div>
+        <textarea name="svs_Rules" id="svs_Rules" rows="5" class="text ui-widget-content ui-corner-all"
+        style="margin-top:0.4em;width:450px" readonly="readonly"></textarea>
+        <div id="svs_btnset" style="float:right;padding-left:0.4em">
+            <div id="svs_Rules_edit"  style="margin-top:0.4em;display:block"></div>
+            <div id="svs_Rules_clear" style="margin-top:0.4em"></div>
+        </div>
+    </div>
+    
+    <div style="width: 420px; font-size: smaller; margin-top: 5px;  margin-bottom: 5px;">
+    Rules are applied to the result set after each selection. They expand the results
+    to include connected records (entities). This expansion may be restricted
+    to specific entity types, connection types or filters.
+    Use rules to bring in information such as map location or dates for display on a map or timeline.
+    Edit with the pencil icon on the right.
+    </div>
 
-
-<div id="svs_btnset">
-<div id="svs_Rules_edit"  style="margin-top:0.4em"></div>
-<div id="svs_Rules_clear" style="margin-top:0.4em"></div>
-</div>
-
-</div>
-
+</div>    
 </fieldset>
+</div>
+
+
+<div class="optional_fields"><h4>Public interface</h4>
+<fieldset style="padding-top:10px">
+
+<div>
+    <div class="header">
+        <label for="svs_SearchOnReset"></label>
+    </div>
+    <input name="svs_SearchOnReset" id="svs_SearchOnReset" class="text ui-widget-content ui-corner-all" type="checkbox"
+            style="display:inline-block;margin:0" title="Perform search on init"/>
+    <div style="width: 420px; padding-left:10px; font-size: smaller; display:inline-block">
+        Display full set of records prior to facet selection
+    </div>
+</div>
+
+<div>
+    <div class="header"><label for="svs_Title">Title in user interface</label></div>
+    <input type="text" name="svs_Title" id="svs_Title" class="text ui-widget-content ui-corner-all"
+        maxlength="30" size="30" />
+    <div style="width: 290px; font-size: smaller; margin-top: 0px; margin-bottom: 5px;">
+        Used in user search interface (limit to ~25 characters).
+
+    </div>
+</div>
+</fieldset>
+</div>
 
 <!-- TODO: If the only function of this class is name length warning, remove it and replace with better methodology -->
 <div class="messages"></div>

@@ -96,10 +96,10 @@ function import() {
 	$importLog = array();
 	if( !$tempDBName || $tempDBName === "" || !$targetDBName || $targetDBName === "" ||
 		!$sourceDBID || !is_numeric($sourceDBID)|| !$importRtyID || !is_numeric($importRtyID)) {
+        $error = true;
 		makeLogEntry("importParameters", -1, "One or more required import parameters not supplied or incorrect form ( ".
 					"importingDBName={name of target DB} sourceDBID={reg number of source DB or 0} ".
 					"importRtyID={numeric ID of record type} tempDBName={temp db name where source DB type data are held}");
-		$error = true;
 	}
    
     
@@ -130,6 +130,43 @@ function import() {
 				$importRty["rty_IDInOriginatingDB"] = $importRtyID;
 				$importRty["rty_NameInOriginatingDB"] = $origRtyName;
 			}
+            
+            $warning = false;
+            
+            
+            if($sourceDBID!=2 &&   //core_definitions
+                (($importRty["rty_OriginatingDBID"]==3 
+                && in_array($importRty["rty_IDInOriginatingDB"],array(1014,1017,1018,1019,1020,1021))) ||  
+                ($importRty["rty_OriginatingDBID"]==2 && $importRty["rty_IDInOriginatingDB"]==11))
+             ){
+                    $warning = true;
+                    makeLogEntry("Record type", $importRtyID,               
+"The structure of spatial and temporal record types is critical to effective operation of mapping and timelines. To ensure consistency and the latest versions, please download this record type from the Heurist_Core_Definitions (#2) template database at the top of the list in Manage > Structure > Browse templates.");               
+                 
+             }else if($sourceDBID!=6 //bibliography
+                && $importRty["rty_OriginatingDBID"]==3
+                && (in_array($importRty["rty_IDInOriginatingDB"],array(102,103,104,108,111,112,113,115,117,1000,1001)) ||
+                    ($importRty["rty_IDInOriginatingDB"]>118 && $importRty["rty_IDInOriginatingDB"]<130))               
+             ){
+                    $warning = true;
+                    makeLogEntry("Record type", $importRtyID,               
+"The structure of bibliographic record types is critical to effective operation of Zotero synchronisation and bibliographic output formats. To ensure consistency and the latest versions, please download this record type from the Heurist_Bibliographic (#6) template database at the top of the list in Manage > Structure > Browse templates."); 
+                 
+             }
+             
+             if($warning){
+                $statusMsg = "Warning:<br/>";
+                foreach($importLog as $logLine) {
+                    $statusMsg .= $logLine[0].(intval($logLine[1])<0?"":" #".$logLine[1]." ").$logLine[2] . "<br/>";
+                }
+                echo $statusMsg;
+                return;
+             }
+        }            
+            
+        if(!$error && $importRty) {
+            
+            
 			//lookup rty in target DB
 			$resRtyExist = mysql_query("select rty_ID from ".$targetDBName.".defRecTypes ".
 							"where rty_OriginatingDBID = ".$importRty["rty_OriginatingDBID"].
@@ -150,7 +187,7 @@ function import() {
 		}
 	}
 	// successful import
-    	if(!$error) {
+    if(!$error) {
 
 		if ($startedTransaction) mysql_query("commit");
 
@@ -185,18 +222,27 @@ function import() {
 	} else {
 		if (isset($startedTransaction) && $startedTransaction) mysql_query("rollback");
 		if (mysql_error()) {
-			$statusMsg = "MySQL error: " . mysql_error() . "<br />";
+			$statusMsg = "MySQL error: " . mysql_error() . "<br/>";
 		} else  {
-			$statusMsg = "Error:<br />";
+			$statusMsg = "Error:<br/>";
 		}
 		if(sizeof($importLog) > 0) {
 			foreach($importLog as $logLine) {
-				$statusMsg .= $logLine[0].(intval($logLine[1])<0?"":" #".$logLine[1]." ").$logLine[2] . "<br />";
+				$statusMsg .= $logLine[0].(intval($logLine[1])<0?"":" #".$logLine[1]." ").$logLine[2] . "<br/>";
 			}
 			$statusMsg .= "Changes rolled back, nothing was imported";
 		}
 		// TODO: Delete all information that has already been imported (retrieve from $importLog)
 		echo $statusMsg;
+        
+        //send error report to buginfo
+        if(checkSmtp()){
+            $email_title = 'Error on import record type';
+            $email_text = 'Rectype: '.$importRty["rty_ID"].' ('.$importRty["rty_OriginatingDBID"].'-'.$importRty["rty_IDInOriginatingDB"].') "'.$importRty["rty_Name"]."\"\n"
+                .'From database #'.$sourceDBID.' "'.$sourceDBName.'" to "'.$targetDBName.'" at '.HEURIST_SERVER_URL."\n"
+                .'Log: '.str_replace('<br/>',"\n",$statusMsg);
+            sendEmail(HEURIST_MAIL_TO_BUG, $email_title, $email_text, null);
+        }
 	}
 }
 
@@ -316,9 +362,10 @@ function translateRtyIDs($strRtyIDs, $contextString, $forDtyID) {
 		if(mysql_num_rows($res) == 0) {
 			makeLogEntry("<b>Warning</b> unrecognized Record-type", $importRtyID,
 			" referenced by $contextString in field type #$forDtyID. value ignored");
-			if ($strictImport){
-				$error = true;
-			}else{
+            
+            if ($strictImport){
+                $error = true;
+            }else{
 				continue;
 			}
 			//IJ req DON't BOMB OUT return null; // missing rectype in importing DB
@@ -384,8 +431,8 @@ function importRectype($importRty, $alreadyImported) {
 
 		$res = mysql_query($query);
 		if(mysql_num_rows($res) == 0) {
+            $error = true;
 			makeLogEntry("<b>Error</b> Creating Record-type Group", -1, " Cannot find group #".$importRty['rty_RecTypeGroupID']);
-			$error = true;
 		}else{
 			$rtyGroup_src = mysql_fetch_assoc($res);
 			//find group by name in target
@@ -629,9 +676,9 @@ function copyRectypeIcon($sourceDBName, $importRtyID, $importedRecTypeID, $thumb
 }
 
 //
+//   OLD - trm_ChildCount is not reliable
 //
-//
-function getCompleteVocabulary($termId){
+function getCompleteVocabulary_OLD($termId){
     global $tempDBName;
 
     $query = "select a.trm_ID as pID, b.trm_ID as cID, b.trm_ChildCount as cCnt
@@ -658,6 +705,29 @@ function getCompleteVocabulary($termId){
     return $terms;
 
 }
+
+function getCompleteVocabulary($termID, $parentlist=null) {
+    global $tempDBName;
+    if(@$parentlist==null) $parentlist = array($termID);
+    $offspring = array($termID);
+    if ($termID) {
+        $res = mysql_query("select * from ".$tempDBName.".defTerms where trm_ParentTermID=$termID");
+        if ($res && mysql_num_rows($res)) { //child nodes exist
+            while ($row = mysql_fetch_assoc($res)) { // for each child node
+                $subTermID = $row['trm_ID'];
+                if(array_search($subTermID, $parentlist)===false){
+                    array_push($offspring, $subTermID);
+                    array_push($parentlist, $subTermID);
+                    $offspring = array_unique(array_merge($offspring, getCompleteVocabulary($subTermID, $parentlist)));
+                }else{
+                    error_log('Database '.$tempDBName.'. Recursion in parent-term hierarchy '.$termID.'  '.$subTermID);
+                }
+            }
+        }
+    }
+    return $offspring;
+}
+
 //
 //
 //

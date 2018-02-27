@@ -24,6 +24,9 @@ showElementAsDialog
 
 createAlertDiv - return error-state html with alert icon 
 
+bringCoverallToFront
+sendCoverallToBack
+
 */
 if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
 
@@ -37,6 +40,7 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
 
     showMsgErr: function(response, needlogin){
         var msg = '';
+        var dlg_title = null;
         if(typeof response === "string"){
             msg = response;
         }else{
@@ -49,6 +53,8 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
             }
             msg = window.hWin.HR(msg);
 
+            dlg_title = response.error_title;
+
             if(response.sysmsg && response.status!=window.hWin.HAPI4.ResponseStatus.REQUEST_DENIED){
                 //sysmsg for REQUEST_DENIED is current user id - it allows to check if session is expired
                 
@@ -60,7 +66,7 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
 
             }
             if(response.status==window.hWin.HAPI4.ResponseStatus.SYSTEM_FATAL
-            || response.status==window.hWin.HAPI4.ResponseStatus.SYSTEM_FATALSYSTEM_CONFIG){
+            || response.status==window.hWin.HAPI4.ResponseStatus.SYSTEM_CONFIG){
 
                 msg = msg + "<br><br>May result from a network outage, or because the system is not properly configured. "
                 +"If the problem persists, please report to your system administrator";
@@ -87,8 +93,13 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
                 +' and describe the circumstances under which it occurs so that we/they can find a solution';
             }
         }
+
+
         if(window.hWin.HEURIST4.util.isempty(msg)){
                 msg = 'Error_Empty_Message';
+        }
+        if(window.hWin.HEURIST4.util.isempty(dlg_title)){
+                dlg_title = 'Error';
         }
 
         var buttons = {};
@@ -97,10 +108,10 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
                     $dlg.dialog( "close" );
                     if(response.status==window.hWin.HAPI4.ResponseStatus.REQUEST_DENIED && needlogin){
                             //window.hWin.HAPI4.setCurrentUser(null);
-                            //$(top.document).trigger(window.hWin.HAPI4.Event.LOGOUT);
+                            //$(top.document).trigger(window.hWin.HAPI4.Event.ON_CREDENTIALS);
                     }
                 }; 
-        window.hWin.HEURIST4.msg.showMsgDlg(msg, buttons, "Error");
+        window.hWin.HEURIST4.msg.showMsgDlg(msg, buttons, dlg_title);
         
     },
 
@@ -373,38 +384,42 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
     //
     // show buttonless dialog with given timeout
     //
-    showMsgFlash: function(message, timeout, title, position_to_element){
+    showMsgFlash: function(message, timeout, options, position_to_element){
 
         if(!$.isFunction(window.hWin.HR)){
             alert(message);
             return;
         }
 
+        if(!$.isPlainObject(options)){
+             options = {title:options};
+        }
+        
         $dlg = window.hWin.HEURIST4.msg.getMsgFlashDlg();
-
-        $dlg.addClass('ui-heurist-border');
 
         var content;
         if(message!=null){
             $dlg.empty();
-            content = $('<span>'+window.hWin.HR(message)+'</span>');
+            content = $('<span>'+window.hWin.HR(message)+'</span>')
+                    .css({'overflow':'hidden','font-weight':'bold','font-size':'1.2em'});
+                    
             $dlg.append(content);
         }else{
             return;
         }
         
-        var hideTitle = (title==null);
+        var hideTitle = (options.title==null);
+        if(options.title){
+            options.title = window.hWin.HR(options.title);
+        }
 
-        if(!title) title = window.hWin.HR(''); // was an unhelpful and inelegant "Info"
-                                                          
-        var options =  {
-            title: window.hWin.HR(title),
+        $.extend(options, {
             resizable: false,
             width: 'auto',
             modal: false,
+            height: 80,
             buttons: {}
-        };
-
+        });
 
         if(position_to_element){
            if($.isPlainObject(position_to_element)){
@@ -425,15 +440,26 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
         
         if(hideTitle)
             $dlg.parent().find('.ui-dialog-titlebar').hide();
+    
+        if(true){
+    //ui-dialog        
+            $dlg.parent().css({background: '#7092BE', 'border-radius': "6px", 'border-color': '#7092BE !important',
+                    'outline-style':'none', outline:'hidden'})
+    //ui-dialog-content         
+            $dlg.css({color:'white', border:'none', overflow:'hidden' });
+            //addClass('ui-heurist-border').
+        }
 
         if (!(timeout>200)) {
             timeout = 1000;
         }
 
+        
         setTimeout(function(){
             $dlg.dialog('close');
             $dlg.parent().find('.ui-dialog-titlebar').show();
         }, timeout);
+        
 
     },
 
@@ -450,7 +476,9 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
         if(message_text!=''){
                                           
                                           //'<div class="ui-state-error" style="padding:10px">XXXX'+        +'</div>'
-            window.hWin.HEURIST4.msg.showMsgFlash('<span class="ui-state-error" style="padding:10px">'+message_text+'</span>', 3000);
+                                          
+                                          //class="ui-state-error" 
+            window.hWin.HEURIST4.msg.showMsgFlash('<span style="padding:10px;border:0;">'+message_text+'</span>', 3000);
             
             /*
             if(message){
@@ -485,7 +513,8 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
                     message_text = message_text + (len-max) + window.hWin.HR(" characters over");
                 }
 
-
+            }else if(min>1){
+               message_text = window.hWin.HR(title)+" "+window.hWin.HR('. At least '+min+' characters required'); 
             }else if(min==1){
                 message_text = window.hWin.HR(title)+" "+window.hWin.HR(" is required field");
             }
@@ -493,6 +522,7 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
             return message_text;
 
         } else {
+            input.removeClass( "ui-state-error" );
             return '';
         }
     },
@@ -509,23 +539,76 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
         }
     },
     
+    //
+    // From jquery.validate.js (by joern), contributed by Scott Gonzalez: http://projects.scottsplayground.com/email_address_validation/
+    //    
+    checkEmail:function ( email_input ) {
+        
+        return window.hWin.HEURIST4.msg.checkRegexp( email_input, /^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?$/i );
+        
+    },
+    
     /**
     * show url in iframe within popup dialog
+    * 
+    * options
+    *   dialogid - unique id to reuse dialog  (in this case dialog will not be removed on close)
     */
     showDialog: function(url, options){
 
-                if(!options) options = {};
+            if(!options) options = {};
 
-                if(!options.title) options.title = ''; // removed 'Information'  which is not a particualrly useful title
+            if(!options.title) options.title = ''; // removed 'Information'  which is not a particualrly useful title
 
-                var opener = options['window']?options['window'] :window;
+            var opener = options['window']?options['window'] :window;
 
-                //.appendTo( that.document.find('body') )
+            //.appendTo( that.document.find('body') )
+            var $dlg = [];
+            
+            if(options['dialogid']){
+                $dlg = $(opener.document).find('body #'+options['dialogid']);
+            }
+                
+           if($dlg.length>0){
+                    //reassign dialog onclose and call new parameters
+                    var $dosframe = $dlg.find('iframe');
+                    var content = $dosframe[0].contentWindow;
+                    
+                    //close dialog from inside of frame
+                    content.close = function() {
+                        var did = $dlg.attr('id');
 
+                        var rval = true;
+                        var closeCallback = options['callback'];
+                        if($.isFunction(closeCallback)){
+                            rval = closeCallback.apply(opener, arguments);
+                        }
+                        if ( rval===false ){ //!rval  &&  rval !== undefined){
+                            return false;
+                        }
+                        $dlg.dialog('close');
+                        return true;
+                    };       
+                    
+                    $dlg.dialog('open');  
+                   
+                    if(options['params']) {
+                        content.assignParameters(options['params']);
+                    }
+                    
+           }else{
+                
                 //create new div for dialogue with $(this).uniqueId();
-                var $dlg = $('<div>')
-                        .addClass('loading')
-                        .appendTo( $(opener.document).find('body') ).uniqueId();
+                $dlg = $('<div>')
+                    .addClass('loading')
+                    .appendTo( $(opener.document).find('body') );
+                    
+                if(options['dialogid']){
+                    $dlg.attr('id', options['dialogid']);
+                }else{
+                    $dlg.uniqueId();
+                }
+                
                         
                 if(options.class){
                     $dlg.addClass(options.class);
@@ -581,7 +664,7 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
                             $dlg.dialog( "option", "title", content.document.title );
                         }      
                         if(options["context_help"]){
-                            window.hWin.HEURIST4.ui.initDialogHintButtons($dlg, options["context_help"], true);
+                            window.hWin.HEURIST4.ui.initDialogHintButtons($dlg, null, options["context_help"], true);
                         }
                         
                         
@@ -611,6 +694,7 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
                         //functions in internal document
                         //content.close = $dosframe[0].close;    // make window.close() do what we expect
                         
+                        //close dialog from inside of frame
                         content.close = function() {
                             var did = $dlg.attr('id');
 
@@ -661,29 +745,34 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
                                 width : options.width,
                                 height: options.height,
                                 modal: (options['modal']!==false),
-                                resizable: (options['no-resize']!=true),
+                                resizable: (options.resizable!==false),
                                 //draggable: false,
                                 title: options["title"],
                                 resizeStop: function( event, ui ) {
                                     $dosframe.css('width','100%');
                                 },
+                                beforeClose: options.beforeClose,
                                 close: function(event, ui){
                                     var closeCallback = options['afterclose'];
                                     if($.isFunction(closeCallback)){
                                         closeCallback.apply();
                                     }
-                                    $dlg.remove();
+                                    if(!options['dialogid']){
+                                        $dlg.remove();
+                                    }
                                 }
                         };
                         $dlg.dialog(opts);
                         
-                        if(options['padding'])
+                        if(!window.hWin.HEURIST4.util.isempty(options['padding'])) //by default 2em
                             $dlg.css('padding', options.padding);
                         
                         //start content loading
                         $dosframe.attr('src', url);
                         
                         return $dosframe;
+                        
+           }
 
     },
     
@@ -699,7 +788,7 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
 
             var element = options['element'];
             var originalParentNode = element.parentNode;
-            element.parentNode.removeChild(element);
+            originalParentNode.removeChild(element);
 
             $(element).show().appendTo($dlg);
 
@@ -713,20 +802,22 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
             var onCloseCalback = (options['close'])?options.close:null;
             
             var opts = {
-                    autoOpen: true,
+                    autoOpen:(options['autoOpen']!==false),
                     width : dim.w,
                     height: dim.h,
                     modal: true,
-                    resizable: (options['no-resize']==true),
+                    resizable: (options.resizable!==false),
                     //draggable: false,
                     title: options["title"],
                     buttons: options["buttons"],
+                    beforeClose: options.beforeClose,
                     close: function(event, ui){
                         
                         if($.isFunction(onCloseCalback)){
                              onCloseCalback.call(this, event, ui);
                         }
-                        //var element = popup.element.parentNode.removeChild(popup.element);
+                        
+                        element.parentNode.removeChild(element);
                         element.style.display = "none";
                         originalParentNode.appendChild(element);
 
@@ -747,6 +838,25 @@ if (! window.hWin.HEURIST4.msg) window.hWin.HEURIST4.msg = {
                                 '<span class="ui-icon ui-icon-alert" style="float: left; margin-right: .3em;"></span>'+
                                 msg+'</div>';
     },
-
     
+    bringCoverallToFront: function(ele) {
+        if (!  window.hWin.HEURIST4.msg.coverall ) {
+            window.hWin.HEURIST4.msg.coverall = 
+                $('<div>').addClass('coverall-div').css('zIndex',9999999999);
+        }
+        
+        if(ele){
+            if($(ele).find('.coverall-div').length==0) window.hWin.HEURIST4.msg.coverall.appendTo($(ele));
+        }else{
+            if($('body').find('.coverall-div').length==0) window.hWin.HEURIST4.msg.coverall.appendTo('body');
+        }
+        
+        $(window.hWin.HEURIST4.msg.coverall).show();
+    },    
+    
+    sendCoverallToBack: function() {
+        $(window.hWin.HEURIST4.msg.coverall).hide();//.style.visibility = "hidden";
+    },
+  
+  
 };

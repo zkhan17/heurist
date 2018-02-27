@@ -41,8 +41,9 @@ var setting_fisheye       = "setting_fisheye";
 var setting_translatex    = "setting_translatex";
 var setting_translatey    = "setting_translatey";
 var setting_scale         = "setting_scale"; 
+var setting_advanced      = "setting_advanced"; 
 
-
+//localStorage.clear();
 /**
 * Returns the current displayed URL
 * 
@@ -58,11 +59,12 @@ function getURL() {
 function getSetting(key, defvalue) {
     var value = localStorage.getItem(getURL()+key);
     
-    if ((isNaN(value) && $.isNumeric(defvalue)) ||   //!isNaN(parseFloat(n)) && isFinite(n)
+    if (   //(isNaN(value) && $.isNumeric(defvalue)) ||   //!isNaN(parseFloat(n)) && isFinite(n)
         (window.hWin.HEURIST4.util.isnull(value) && !window.hWin.HEURIST4.util.isnull(defvalue))){
         value = defvalue;
         putSetting(key, value);
     }
+//console.log(key+'  '+value+'  '+defvalue);    
     return value;
 }
 
@@ -70,6 +72,10 @@ function getSetting(key, defvalue) {
 * Stores a value in the localStorage
 */
 function putSetting(key, value) {
+//    if(key==setting_linecolor){
+//console.log('put '+key+'  '+value);        
+//    }
+
     localStorage.setItem(getURL()+key, value);
 }
 
@@ -96,6 +102,7 @@ function checkStoredSettings() {
     getSetting(   setting_translatex,    settings.translatex  );
     getSetting(   setting_translatey,    settings.translatey  );
     getSetting(   setting_scale,         settings.scale       );
+    getSetting(   setting_advanced,      settings.advanced    );
 }
 
 /**
@@ -106,29 +113,61 @@ function handleSettingsInUI() {
     //add elements on toolbar
     var tBar = $('#toolbar');
     
-    $('#btnSingleSelect').button({icons: { primary: 'ui-icon-cursor' }, text:false})
-        .click( function(){ selectionMode = 'single'; $("#d3svg").css("cursor", "default");});
-    $('#btnMultipleSelect').button({icons: { primary: 'ui-icon-select' }, text:false})
-        .click( function(){ selectionMode = 'multi'; $("#d3svg").css("cursor", "crosshair");});
-    $('#selectMode').buttonset();
-        
-    $('#btnViewModeIcon').button({icons: { primary: 'ui-icon-circle' }, text:false})
-        .click( function(){changeViewMode('icons');} );
-    $('#btnViewModeInfo').button({icons: { primary: 'ui-icon-circle-b-info' }, text:false})
-        .click( function(){changeViewMode('infoboxes');} );
-    $( "#setViewMode" ).buttonset();    
-
-    //
-    if(setting_gravity=='agressive') setting_gravity='touch';
-    $("input[name='gravityMode'][value='" +getSetting(setting_gravity)+ "']").attr("checked", true);
     
-    $('#gravityMode0').button() //{icons: { primary: 'ui-icon-gravity0' }, text:false})
-        .click( function(){ setGravity('off') });
-    $('#gravityMode1').button() //{icons: { primary: 'ui-icon-gravity1' }, text:false})
-        .click( function(){ setGravity('touch') });
-    $('#gravityMode2').button() //{icons: { primary: 'ui-icon-gravity2' }, text:false})
-        .click( function(){ setGravity('aggressive') });
-    $( "#setGravityMode" ).buttonset();    
+    var is_advanced = getSetting(setting_advanced);
+    
+    $('#setAdvancedMode').css({cursor:'hand'}).click(
+        function(){
+              var is_advanced = getSetting(setting_advanced);
+              is_advanced = (is_advanced==='false');
+                if(is_advanced){
+                    $('.advanced').show();
+                    $('#setAdvancedMode').find('a').hide();
+                    if(settings.isDatabaseStructure){
+                        $('#setDivExport').hide();
+                    }
+                }else{
+                    $('.advanced').hide();
+                    $('#setAdvancedMode').find('a').show();
+                }
+              putSetting(setting_advanced, is_advanced); 
+        }
+    );
+    
+    if(is_advanced!=='false'){
+        $('.advanced').show();
+        $('#setAdvancedMode').find('a').hide();
+        if(settings.isDatabaseStructure){
+            $('#setDivExport').hide();
+        }
+    }else{
+        $('.advanced').hide();
+        $('#setAdvancedMode').find('a').show();
+    }
+    
+    //-------------------------------
+    
+    $('#btnSingleSelect').button({icon:'ui-icon-cursor' , showLabel:false})
+        .click( function(){ selectionMode = 'single'; $("#d3svg").css("cursor", "default"); _syncUI();});
+    $('#btnMultipleSelect').button({icon: 'ui-icon-select', showLabel:false})
+        .click( function(){ selectionMode = 'multi'; $("#d3svg").css("cursor", "crosshair"); _syncUI();});
+    $('#selectMode').controlgroup();
+        
+    $('#btnViewModeIcon').button({icon: 'ui-icon-circle' , showLabel:false})
+        .click( function(){changeViewMode('icons');} );
+    $('#btnViewModeInfo').button({icon: 'ui-icon-circle-b-info' , showLabel:false})
+        .click( function(){changeViewMode('infoboxes');} );
+    $('#btnViewModeFull').button({icon: 'ui-icon-circle-info' , showLabel:false})
+        .click( function(){changeViewMode('infoboxes_full');} );
+    $( "#setViewMode" ).controlgroup();    
+
+    $('#gravityMode0').button(/*{icon: 'ui-icon-gravity0' , showLabel:false}*/)
+        .click( function(){setGravity('off');} );
+    $('#gravityMode1').button(/*{icon: 'ui-icon-gravity1' , showLabel:false}*/)
+        .click( function(){setGravity('touch');} );
+    $('#gravityMode2').button(/*{icon: 'ui-icon-gravity2' , showLabel:false}*/)
+        .click( function(){setGravity('aggressive');} );
+    $("#setGravityMode").controlgroup();    
     
     //------------ NODES ----------
     
@@ -142,15 +181,17 @@ function handleSettingsInUI() {
                         return getEntityRadius(d.count);
                     })
     });
-    $("input[name='nodesMode'][value='" +getSetting(setting_formula)+ "']").attr("checked", true);
     
-    $('#nodesMode0').button().css('width','20px')
+    //$("input[name='nodesMode'][value='" +getSetting(setting_formula)+ "']").attr("checked", true);
+    
+    $('#nodesMode0').button().css('width','35px')
         .click( function(){ setFormulaMode('linear'); });
-    $('#nodesMode1').button().css('width','20px')
+    $('#nodesMode1').button().css('width','40px')
         .click( function(){ setFormulaMode('logarithmic'); }); 
-    $('#nodesMode2').button().css('width','20px')
+    $('#nodesMode2').button().css('width','50px')
         .click( function(){ setFormulaMode('unweighted'); });
-    $( "#setNodesMode" ).buttonset();    
+    $( "#setNodesMode" ).controlgroup();    
+
     
     $("#entityColor")
         .addClass('ui-icon ui-icon-bullet')
@@ -171,16 +212,18 @@ function handleSettingsInUI() {
     
     //------------ LINKS ----------
 
-    $("input[name='linksMode'][value='" +getSetting(setting_linetype)+ "']").attr("checked", true);
-    $('#linksMode0').button({icons: { primary: 'ui-icon-link-streight' }, text:false})
-        .click( setLinkMode );
-    $('#linksMode1').button({icons: { primary: 'ui-icon-link-curved' }, text:false})
-        .click( setLinkMode );
-    $('#linksMode2').button({icons: { primary: 'ui-icon-link-stepped' }, text:false})
-        .click( setLinkMode );
-        
-    $( "#setLinksMode" ).buttonset();    
+    //$("input[name='linksMode'][value='" +getSetting(setting_linetype)+ "']").attr("checked", true);
     
+    $('#linksMode0').button({icon: 'ui-icon-link-streight', showLabel:false})
+        .click( function(){ setLinkMode('straight');} );
+    $('#linksMode1').button({icon: 'ui-icon-link-curved', showLabel:false})
+        .click( function(){ setLinkMode('curved');} );
+    $('#linksMode2').button({icon: 'ui-icon-link-stepped', showLabel:false})
+        .click( function(){ setLinkMode('stepped');} );
+        
+    $( "#setLinksMode" ).controlgroup();    
+    
+    _syncUI();
 
     var linksLength = getSetting(setting_linelength, 200);    
     $('#linksLength').val(linksLength).change(function(){
@@ -306,6 +349,7 @@ function handleSettingsInUI() {
         initRecTypeSelector();    
         $('#setDivExport').hide();
     }else{
+        $('#setDivExport').show();
         $('#gephi-export').button();
     }
     
@@ -363,7 +407,8 @@ function initRecTypeSelector(){
     
     $('#showRectypeSelector').button(
         {icons:{secondary:'ui-icon-carat-1-s'}}   //triangle-1-s
-    ).click(
+    ).css({'padding':'4px 2px'})
+    .click(
         function(){
             var ele = $('#list_rectypes');
             if(ele.is(':visible')){
@@ -379,6 +424,23 @@ function initRecTypeSelector(){
     $('#rectypeSelector').css('display','table-cell');     
 }
 
+function _syncUI(){
+    $('#toolbar').find('button').removeClass('ui-heurist-btn-header1');
+    
+    $('#toolbar').find('button[value="'+selectionMode+'"]').addClass('ui-heurist-btn-header1');
+    $('#toolbar').find('button[value="'+currentMode+'"]').addClass('ui-heurist-btn-header1');
+
+    var grv = getSetting(setting_gravity,'off');
+    if(grv=='agressive') grv = 'touch';
+    $('#toolbar').find('button[name="gravityMode"][value="'+grv+'"]').addClass('ui-heurist-btn-header1');
+    
+    var formula = getSetting(setting_formula,'linear')
+    $('#toolbar').find('button[name="nodesMode"][value="'+formula+'"]').addClass('ui-heurist-btn-header1');
+    
+    var linetype = getSetting(setting_linetype,'straight');
+    $('#toolbar').find('button[name="linksMode"][value="'+linetype+'"]').addClass('ui-heurist-btn-header1');
+}
+
 function changeViewMode(mode){
     
     if(mode!=currentMode){
@@ -386,13 +448,32 @@ function changeViewMode(mode){
             currentMode = 'infoboxes';
             //d3.selectAll(".icon-mode").style('display', 'none');
             d3.selectAll(".info-mode").style('display', 'initial');
+            d3.selectAll(".info-mode-full").style('display', 'none');
+            
+            d3.selectAll(".rect-info-full").style('display', 'none');
+            d3.selectAll(".rect-info").style('display', 'initial');
+            
+        }else if(mode=='infoboxes_full'){
+            
+            currentMode = 'infoboxes_full';
+            d3.selectAll(".info-mode").style('display', 'initial');
+            d3.selectAll(".info-mode-full").style('display', 'initial');
+            
+            d3.selectAll(".rect-info-full").style('display', 'initial');
+            d3.selectAll(".rect-info").style('display', 'none');
+            
         }else{
+            
             currentMode = 'icons';
             //d3.selectAll(".icon-mode").style('display', 'initial');
             d3.selectAll(".info-mode").style('display', 'none');
+            d3.selectAll(".info-mode-full").style('display', 'none');
         }
-        var isLabelVisible = (currentMode == 'infoboxes') || (getSetting(setting_labels)=='on');
+        var isLabelVisible = (currentMode != 'icons') || (getSetting(setting_labels)=='on');
         d3.selectAll(".nodelabel").style('display', isLabelVisible?'block':'none');
+        
+        
+        _syncUI();
     }
 }
 
@@ -419,6 +500,8 @@ function setGravity(gravity) {
     if(gravity !== "off") {
         force.resume(); 
     }     
+    
+    _syncUI();
 }
 //
 //
@@ -430,6 +513,7 @@ function setFormulaMode(formula) {
                         return getEntityRadius(d.count);
                     })
     refreshLinesWidth();
+    _syncUI();
 }
 
 //
@@ -460,10 +544,11 @@ function refreshLinesWidth(){
 //
 // straight or curverd links type
 //
-function setLinkMode() {
-    var formula = $(event.target).val();
+function setLinkMode(formula) {
+    //var formula = $(event.target).val();
     putSetting(setting_linetype, formula);
     visualizeData();
+    _syncUI();
 }
 
 //-----------------------

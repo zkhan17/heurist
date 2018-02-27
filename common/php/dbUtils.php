@@ -206,7 +206,7 @@ function db_clean($db_name, $verbose=true){
 * @param mixed $db_target
 * @param mixed $verbose
 */
-function db_clone($db_source, $db_target, $verbose=true){
+function db_clone($db_source, $db_target, $verbose=true, $nodata=false){
 
     $res = true;
 
@@ -221,6 +221,10 @@ function db_clone($db_source, $db_target, $verbose=true){
         }
 
         if($res){
+            
+            $data_tables = array('Records','recDetails','recLinks','recRelationshipsCache',
+            'recSimilarButNotDupes','recThreadedComments','recUploadedFiles','usrBookmarks','usrRecentRecords','usrRecTagLinks',
+            'usrReminders','usrRemindersBlockList','woot_ChunkPermissions','woot_Chunks','woot_RecPermissions','woots');
 
             $tables = $mysqli->query("SHOW TABLES");
             if($tables){
@@ -231,6 +235,12 @@ function db_clone($db_source, $db_target, $verbose=true){
                 echo ("<b>Adding records to tables: </b>");
                 while ($table = $tables->fetch_row()) { //loop for all tables
                     $table = $table[0];
+                    
+                    if($nodata && in_array($table, $data_tables)){
+                        continue;
+                    }
+                    
+                    
                     $mysqli->query("ALTER TABLE `".$table."` DISABLE KEYS");
                     $res = $mysqli->query("INSERT INTO `".$table."` SELECT * FROM ".$db_source.".`".$table."`"  );
 
@@ -518,6 +528,10 @@ function db_delete($db, $verbose=true) {
             // Delete $source folder
             deleteFolder($source);
             if($verbose) echo "<br/>Folder ".$source." has been deleted";
+            
+            // Delete from central index
+            $mysqli->query('DELETE FROM `heurist_index`.`sysIdentifications` WHERE sys_Database="hdb_'.$db.'"');
+            $mysqli->query('DELETE FROM `heurist_index`.`sysUsers` WHERE sus_Database="hdb_'.$db.'"');
             
             return true;
         }else{
@@ -879,6 +893,11 @@ function db_register($db_name, $dbID){
                     "where (trm_IDInOriginatingDB = '0') OR (trm_IDInOriginatingDB IS NULL) ");
                 if (!$res) {$result = 1; }
 
+                
+                if (!$res){
+                    error_log('Error on database registration '.$db_name.'  '.$mysqli->error);
+                }
+                
                 $res = ($result==0);
             }
         }
@@ -915,7 +934,7 @@ function mysql__usedatabase($mysqli, $dbname){
 *
 * @param mixed $mysqli
 * @param mixed $table_name
-* @param mixed $table_prefix
+* @param mixed $table_prefix 
 * @param mixed $record   - array(fieldname=>value) - all values considered as String except when field ended with ID
 *                          fields that don't have specified prefix are ignored
 */
@@ -929,17 +948,17 @@ function mysql__insertupdate($database, $table_name, $table_prefix, $record){
     if (substr($table_prefix, -1) !== '_') {
         $table_prefix = $table_prefix.'_';
     }
-
-    $rec_ID = intval(@$record[$table_prefix.'ID']);
+    $primary_field = $table_prefix.'ID';
+    $rec_ID = intval(@$record[$primary_field]);
     $isinsert = ($rec_ID<1);
-
+    
     if($isinsert){
         $query = "INSERT into $table_name (";
         $query2 = ') VALUES (';
     }else{
         $query = "UPDATE $table_name set ";
     }
-
+ 
     $params = array();
     $params[0] = '';
 
@@ -975,9 +994,6 @@ function mysql__insertupdate($database, $table_name, $table_prefix, $record){
     }else{
         $query = $query." where ".$table_prefix."ID=".$rec_ID;
     }
-
-//error_log($query);        
-//error_log(print_r($params, true));
 
     $stmt = $mysqli->prepare($query);
     if($stmt){

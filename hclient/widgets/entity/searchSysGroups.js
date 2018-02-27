@@ -1,5 +1,5 @@
 /**
-* Search header for sysGroups manager
+* Search header for manageSysGroups manager
 *
 * @package     Heurist academic knowledge management system
 * @link        http://HeuristNetwork.org
@@ -17,29 +17,63 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-
 $.widget( "heurist.searchSysGroups", $.heurist.searchEntity, {
-
-    // the widget's constructor
-    _create: function() {
-        
-        this._super();
-
-        this._htmlContent =  'searchSysGroups.html';
-        this._helpContent = 'sysUGrps.html';
-        this._helpTitle = 'About User and Groups';
-        
-    }, //end _create
 
     //
     _initControls: function() {
         this._super();
         
-        //assign unique name for radio group (to avoid conflicts with other instances of widget)
-        this.element.find('.ent_search_cb input[type="radio"]').prop('name', 'rbg_'+window.hWin.HEURIST4.util.random());
+        var that = this;
         
-        this.startSearch();
+        this.btn_add_record = this.element.find('#btn_add_record');
+
+        if(this.options.edit_mode=='none'){
+            this.btn_add_record.hide();
+        }else{
+            this.btn_add_record.css({'min-width':'9m','z-index':2})
+                    .button({label: window.hWin.HR("Add New Group"), icons: {
+                            primary: "ui-icon-plus"
+                    }})
+                .click(function(e) {
+                    that._trigger( "onadd" );
+                }); 
+                
+            if(this.options.edit_mode=='inline'){
+                this.btn_add_record.css({'float':'left','border-bottom':'1px lightgray solid',
+                'width':'100%', 'min-height': '2.4em', 'margin-bottom': '0.4em'});    
+            }                       
+        }
+        
+        if(this.options.edit_mode=='inline'){
+            this.btn_search_start.css('float','right');   
+        }
+        
+        this.input_search_role = this.element.find('#input_search_type');
+        
+        
+        if(this.options.select_mode=='select_roles'){
+            this.input_search_role.parent().hide(); //always search any group               
+        }else
+        if(this.options.ugl_UserID>0){//select roles for given user
+            //this.options.select_mode=='select_role'){
+            //this.input_search_role.hide(); //always search any group    
+        }else
+        if(!window.hWin.HAPI4.is_admin()){
+            this.input_search_role.find('option[value="any"]').remove();    
+        }
+        
+        this._on(this.input_search_role,  { change:this.startSearch });
+
+        if(this.options.select_mode=='manager'){
+            this.element.find('#input_search_type_div').css('float','left');
+        }
+           
+        this.input_sort_type = this.element.find('#input_sort_type');
+        this._on(this.input_sort_type,  { change:this.startSearch });
+        
+        this.startSearch();            
     },  
+
     
     //
     // public methods
@@ -47,44 +81,60 @@ $.widget( "heurist.searchSysGroups", $.heurist.searchEntity, {
     startSearch: function(){
         
             this._super();
-        
+            
             var request = {}
         
             if(this.input_search.val()!=''){
                 request['ugr_Name'] = this.input_search.val();
             }
-
+        
             // actually we may take list of groups from currentUser['ugr_Groups']
-            var gr_role = this.element.find('.ent_search_cb input[type="radio"]:checked').val();
-            
-            if(gr_role!='anygroup'){
-            
-                request['ugl_UserID'] = window.hWin.HAPI4.currentUser['ugr_ID'];
+            var gr_role = this.input_search_role.val();
+            if(gr_role!='' && gr_role!='any'){
                 
                 if(gr_role=='admin'){
                     request['ugl_Role'] = 'admin';
                 }else
                 if(gr_role=='member'){  
                     request['ugl_Role'] = 'member';
-                }
+                } 
+                
+                //only groups for current user
+                request['ugl_UserID'] = (this.options.ugl_UserID>0)
+                                ?this.options.ugl_UserID
+                                :window.hWin.HAPI4.currentUser['ugr_ID']; 
+            }else 
+            //for group mgm per user search role for any request
+            if(this.options.ugl_UserID>0){
+                request['ugl_UserID'] = this.options.ugl_UserID; 
+                request['ugl_Join'] = true;
+            }
+            //always search for roles for current or given user            
+            
+            this.input_sort_type = this.element.find('#input_sort_type');
+            if(this.input_sort_type.val()=='member'){
+                request['sort:ugr_Members'] = '-1' 
+            }else if(this.input_sort_type.val()=='recent'){
+                request['sort:ugr_ID'] = '-1' 
+            }else{
+                request['sort:ugr_Name'] = '-1';   
             }
             
-            //nothing defined
+            
             if(false && $.isEmptyObject(request)){
                 this._trigger( "onresult", null, {recordset:new hRecordSet()} );
             }else{
                 this._trigger( "onstart" );
         
                 request['a']          = 'search'; //action
-                request['entity']     = 'sysUGrps';
-                request['details']    = 'id';
+                request['entity']     = this.options.entity.entityName;
+                request['details']    = 'id'; //'id';
                 request['request_id'] = window.hWin.HEURIST4.util.random();
-                request['ugr_Type']    = 'workgroup';
                 
                 //request['DBGSESSID'] = '423997564615200001;d=1,p=0,c=0';
 
                 var that = this;                                                
-                //that.loadanimation(true);
+                
                 window.hWin.HAPI4.EntityMgr.doRequest(request, 
                     function(response){
                         if(response.status == window.hWin.HAPI4.ResponseStatus.OK){
@@ -94,8 +144,7 @@ $.widget( "heurist.searchSysGroups", $.heurist.searchEntity, {
                             window.hWin.HEURIST4.msg.showMsgErr(response);
                         }
                     });
-            }
-    },
-    
-
+                    
+            }            
+    }
 });

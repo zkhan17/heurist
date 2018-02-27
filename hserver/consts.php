@@ -25,13 +25,27 @@
 // TODO: Rationalise th duplication of constants across /php/consts.php and /common/connect/initialise.php
 //       in particualr this duplication of HEURIST_MIN_DB_VERSION and any other explicit constants
 
-define('HEURIST_VERSION', $version);
-define('HEURIST_MIN_DBVERSION', "1.1.0");
+define('HEURIST_VERSION', $version);  //code version is defined congigIni.php
+define('HEURIST_MIN_DBVERSION', "1.2.0");
 define('HEURIST_HELP', "http://heurist.sydney.edu.au/help");
+define('HEURIST_INDEX_BASE_URL', "http://heurist.sydney.edu.au/heurist/");
+
+if (@$httpProxy != '') {
+    define('HEURIST_HTTP_PROXY', $httpProxy); //http address:port for proxy request
+    if (@$httpProxyAuth != '') {
+        define('HEURIST_HTTP_PROXY_AUTH', $httpProxyAuth); // "username:password" for proxy authorization
+    }
+}
 
 if (!@$serverName) {
     $serverName = $_SERVER["SERVER_NAME"] . ((is_numeric(@$_SERVER["SERVER_PORT"]) && $_SERVER["SERVER_PORT"] != "80") ? ":" . $_SERVER["SERVER_PORT"] : "");
+    define('HEURIST_DOMAIN', $_SERVER["SERVER_NAME"]);
+}else{
+    $k = strpos($serverName,":");
+    define('HEURIST_DOMAIN', ($k>0)?substr($serverName,0,$k-1):$serverName );
 }
+
+
 
 $isSecure = false;
 if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') {
@@ -100,6 +114,7 @@ define("HEURIST_NOT_FOUND", "notfound");         // The requested object not fou
 define("HEURIST_ERROR", "error");                // General error: wrong data, file i/o
 define("HEURIST_OK", "ok");                      // The response contains a valid Result.
 define("HEURIST_REQUEST_DENIED", "denied");      // The webpage is not allowed to use the service.
+define("HEURIST_ACTION_BLOCKED", "blocked");     // No enough rights or action is blocked by constraints
 define("HEURIST_UNKNOWN_ERROR", "unknown");      // A request could not be processed due to a server error. The request may succeed if you try again.
 define("HEURIST_DB_ERROR", "database");          // A request could not be processed due to a server database error. Most probably this is BUG. Contact developers
 define("HEURIST_SYSTEM_CONFIG", "syscfg");       // System not-fatal configuration error. Contact system admin
@@ -171,9 +186,30 @@ $rtDefines = array(
     'RT_TOOL' => array(2, 19),
 
     // Cleaned up bibliographic record types
-    'RT_JOURNAL_ARTICLE' => array(3, 1012),
-    'RT_BOOK' => array(3, 1002),
-    'RT_JOURNAL_VOLUME' => array(3, 1013),
+    'RT_BOOK' => array(3, 102),
+    'RT_CONFERENCE' => array(3, 103),
+    'RT_PUB_SERIES' => array(3, 104),
+    'RT_BOOK_CHAPTER' => array(3, 108),
+    'RT_JOURNAL' => array(3, 111),
+    'RT_JOURNAL_ARTICLE' => array(3, 112),
+    'RT_JOURNAL_VOLUME' => array(3, 113),
+    'RT_MAP' => array(3, 115),
+    'RT_OTHER_DOC' => array(3, 117),
+    'RT_REPORT' => array(3, 119),
+    'RT_THESIS' => array(3, 120),
+    'RT_PERSONAL_COMMUNICATION' => array(3, 121),
+    'RT_ARTWORK' => array(3, 122),
+    'RT_MAGAZINE_ARTICLE' => array(3, 123),
+    'RT_MAGAZINE' => array(3, 124),
+    'RT_MAGAZINE_VOLUME' => array(3, 125),
+    'RT_NEWSPAPER' => array(3, 126),
+    'RT_NEWSPAPER_VOLUME' => array(3, 127),
+    'RT_NEWSPAPER_ARTICLE' => array(3, 128),
+    'RT_PHOTOGRAPH' => array(3, 129),
+    'RT_ARCHIVAL_RECORD' => array(3, 1000),
+    'RT_ARCHIVAL_SERIES' => array(3, 1001),
+    
+    
 
     'RT_AUTHOR_EDITOR' => array(3, 23), //Deprecated
     'RT_FACTOID' => array(3, 22), // Deprecated
@@ -184,8 +220,10 @@ $rtDefines = array(
     'RT_GEOTIFF_SOURCE' => array(3, 1018),
     'RT_MAP_DOCUMENT' => array(3, 1019), // HeuristReferenceSet DB 3: Map document, layers and queries for new map function Oct 2014
     'RT_MAP_LAYER' => array(3, 1020),
-    'RT_QUERY_SOURCE' => array(3, 1021)  //RT_MAPABLE_QUERY
+    'RT_QUERY_SOURCE' => array(3, 1021),  //RT_MAPABLE_QUERY
 
+    //Web content
+    'RT_WEB_CONTENT' => array(1147, 25)
 );
 
 /** DETAIL TYPE DEFINITIONS */
@@ -242,6 +280,7 @@ $dtDefines = array('DT_NAME' => array(2, 1),
     'DT_FILE_DURATION' => array(2, 66),
     'DT_FILE_SIZE' => array(2, 67),
     'DT_FILE_MD5' => array(2, 68),
+    'DT_PARENT_ENTITY' => array(2, 247),
     'DT_EDITOR' => array(3, 1013),
     'DT_OTHER_FILE' => array(3, 62), //TODO: remove from code
     'DT_LOGO_IMAGE' => array(3, 222), //TODO: remove from code
@@ -253,6 +292,7 @@ $dtDefines = array('DT_NAME' => array(2, 1),
     'DT_JOURNAL_REFERENCE' => array(3, 1034),
     'DT_MEDIA_REFERENCE' => array(3, 508), //*******************ERROR  THIS IS MISSING
     'DT_TEI_DOCUMENT_REFERENCE' => array(3, 1045), //TODO : change DT_XML_DOCUMENT_REFERENCE with new update.
+    'DT_ORDER' => array(1147, 94), //order of web content - origin DH
     // Spatial & mapping
     'DT_KML_FILE' => array(3, 1044),
     'DT_KML' => array(3, 1036),
@@ -270,7 +310,8 @@ $dtDefines = array('DT_NAME' => array(2, 1),
     'DT_MAP_BOOKMARK' => array(3, 1082),
     'DT_MINIMUM_MAP_ZOOM' => array(3, 1077), // from Jan 2017 uses DT_MINIMUM_ZOOM and DT_MAXIMUM_ZOOM for both maps and layers
     'DT_MAXIMUM_MAP_ZOOM' => array(3, 1078), // prior Jan 2017 some databases used one, some used the other. Either now used for setting.
-    // Map layer
+    'DT_SYMBOLOGY_POINTMARKER' => array(3, 1091), 
+    
     'DT_DATA_SOURCE' => array(3, 1083),
     'DT_MINIMUM_ZOOM' => array(3, 1085), // from Jan 2017 uses DT_MINIMUM_ZOOM and DT_MAXIMUM_ZOOM for both maps and layers
     'DT_MAXIMUM_ZOOM' => array(3, 1086), // prior Jan 2017 some databases used one, some used the other. Either now used for setting.

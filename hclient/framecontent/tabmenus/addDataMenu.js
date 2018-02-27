@@ -96,7 +96,7 @@ function haddDataMenu() {
             function(event){
                 window.hWin.HAPI4.SystemMgr.user_log('impDelim');
                 
-                window.hWin.HAPI4.SystemMgr.is_logged(
+                window.hWin.HAPI4.SystemMgr.verify_credentials(
                 function(){
                    var url = window.hWin.HAPI4.baseURL + "hclient/framecontent/import/importRecordsCSV.php?db="+ window.hWin.HAPI4.database;
                    
@@ -120,6 +120,22 @@ function haddDataMenu() {
         
         $('#menulink-add-record').click( //.attr('href', 
             function(event){
+/*                
+                    var url = window.hWin.HAPI4.baseURL + 'hclient/framecontent/recordAction.php?db='
+                            +window.hWin.HAPI4.database
+                            +'&action=add_record';
+
+                    window.hWin.HEURIST4.msg.showDialog(url, {height:500, width:600,
+                        padding: '0px',
+                        resizable:false,
+                        title: window.hWin.HR('ownership'),
+                        callback: function(context){
+
+                            if(context && context.owner && context.access){
+                            }
+                            
+                        } } );                    //, class:'ui-heurist-bg-light'
+*/                
             }
         );
         
@@ -176,20 +192,27 @@ function haddDataMenu() {
 
 
         if(link.attr('id')=='menulink-add-record'){
-                
+            
+            window.hWin.HAPI4.SystemMgr.verify_credentials(function(){    
                 $('.accordion_pnl').find('a').parent().removeClass('item-selected');
                 link.parent().addClass('item-selected');
-                $('#frame_container2').attr('src', url); 
-                event.preventDefault();
-                return false;
+                
+                url = window.hWin.HAPI4.baseURL + 'hclient/framecontent/recordAction.php?db='
+                            +window.hWin.HAPI4.database
+                            +'&action=add_record';
+                __load_frame_content(url);
+            });
+            
+            event.preventDefault();
+            return false;
                 
         }else if(link.hasClass('embed')) {
         
             //check if login
-            window.hWin.HAPI4.SystemMgr.is_logged(function(){
+            window.hWin.HAPI4.SystemMgr.verify_credentials(function(){
                 $('.accordion_pnl').find('a').parent().removeClass('item-selected');
                 link.parent().addClass('item-selected');
-                $('#frame_container2').attr('src', url); 
+                __load_frame_content(url);
                 event.preventDefault();
                 return false;
             });
@@ -197,13 +220,24 @@ function haddDataMenu() {
                 
         }else if(event.target && $(event.target).attr('data-nologin')!='1'){
             //check if login
-            window.hWin.HAPI4.SystemMgr.is_logged(function(){window.hWin.HEURIST4.msg.showDialog(url, options);});
+            window.hWin.HAPI4.SystemMgr.verify_credentials(function(){window.hWin.HEURIST4.msg.showDialog(url, options);});
         }else{
             window.hWin.HEURIST4.msg.showDialog(url, options);
         }        
 
         return false;
     }
+    
+    function __load_frame_content(url){
+        var frm = $('#frame_container2');
+        frm.hide();
+        frm.parent().css('background','url('+window.hWin.HAPI4.baseURL+'hclient/assets/loading-animation-white.gif) no-repeat center center');
+        frm.on('load', function(){
+            frm.show();
+            frm.css('background','none');
+        });
+        frm.attr('src', url)
+    }    
     
     
     //public members
@@ -212,7 +246,9 @@ function haddDataMenu() {
         getClass: function () {return _className;},
         isA: function (strClass) {return (strClass === _className);},
         getVersion: function () {return _version;},
-
+        doAction: function(link_id){
+            $('#'+link_id).click();
+        }
     }
 
     _init();

@@ -72,7 +72,22 @@ require_once(dirname(__FILE__)."/../initPage.php");
                             title="Register this database with the Heurist Master Index - this makes the structure (but not data) available for import by other databases">
                             Register</a>
                     </li>
+
+<!--                    
+                    <li>---- H4 ----</li>                    
                     
+                    <li><a href="#" id="menulink-database-browse"
+                        data-nologin="1" data-logaction="dbOpen"
+                        title="Open and login to another Heurist database - current database remains open">
+                        Open</a>
+                    </li>
+                    
+                    <li><a href="#" id="menulink-database-properties"
+                        data-nologin="1" data-logaction="dbProperties"
+                        title="Edit the internal metadata describing the database and set some global behaviours. Recommended to provide a self-documenting database">
+                        Properties</a>
+                    </li>
+-->                    
                 </ul>
             </div>
         </div>
@@ -87,7 +102,7 @@ require_once(dirname(__FILE__)."/../initPage.php");
                         <a href="admin/structure/rectypes/manageRectypes.php" name="auto-popup" class="verylarge h3link refresh_structure "
                             onClick="{return false;}" id="linkEditRectypes" data-logaction="stManage"
                             title="Add new and modify existing record types - general characteristics, data fields and the rules which compose a record">
-                            Build</a>
+                            Modify</a>
                     </li>
 
                     <li>
@@ -149,7 +164,7 @@ require_once(dirname(__FILE__)."/../initPage.php");
                     </li>
                     
                     <li>
-                        <a href="admin/verification/listDatabaseErrors.php" name="auto-popup" class="verylarge h3link"
+                        <a href="admin/verification/listDatabaseErrorsInit.php" name="auto-popup" class="verylarge h3link"
                             data-logaction="stVerify"
                             onClick="{return false;}"
                             title="Find errors in database structure (invalid record type, field and term codes) and records with incorrect structure or inconsistent values (invalid pointer, missed data etc)">

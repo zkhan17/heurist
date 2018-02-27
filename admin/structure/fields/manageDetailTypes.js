@@ -370,7 +370,14 @@ function DetailTypeManager() {
             YAHOO.widget.DataTable.Formatter.formatterDelete = formatterDelete;*/
 
             var myColumnDefs = [
-                { key: "id", label: "Code", sortable:true, width:20, className:'right',resizeable:false },
+                { key: "id", label: "Code", sortable:true, width:30, className:'right',resizeable:false,
+                    formatter: function(elLiner, oRecord, oColumn, oData) {
+                         var str = oRecord.getData("id");
+                         var tit = oRecord.getData("conceptid");
+                         elLiner.innerHTML = str;//'<label title="'+tit+'">'+str+'</label>';
+                         elLiner.title = tit;
+                    }
+                },
                 // 8/10/12 - removed Ian to make space for more important fields, these should be shown as rollovers
                 { key: "conceptid", label: "Concept", sortable:true, className:'right',resizeable:false, hidden:true },
                 { key: "order", hidden:true },
@@ -1019,12 +1026,12 @@ function DetailTypeManager() {
         grp; //object in HEURIST
 
         if(Hul.isempty(name)){
-            alert('Group name is required. Please specify it');
+            alert('Group name is required');
             Dom.get('edName').focus();
             return;
         }
         if(Hul.isempty(description)){
-            alert('Group description is required. Please specify it');
+            alert('Group description is required');
             Dom.get('edDescription').focus();
             return;
         }
@@ -1166,7 +1173,7 @@ function DetailTypeManager() {
 
         if(!Hul.isnull(grp.types) && grp.types.length>0)
         {
-            alert("This group cannot be deleted as it contains field types - please move them first");
+            alert("This group contains field types. Please move them to another group before deleting.");
         }else{
             var r=confirm("Confirm the deletion of group '"+grp.name+"'");
             if (r) {

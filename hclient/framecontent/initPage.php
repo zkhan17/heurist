@@ -47,7 +47,6 @@ if(@$_REQUEST['db']){
 }
 
 if(!$isSystemInited){
-
     if(defined('IS_INDEX_PAGE')){
         require (ERROR_REDIR);
     }else{
@@ -64,12 +63,12 @@ $login_warning = 'To perform this action you must be logged in';
 // to limit access to particular page
 // define const in the very begining of your php code  just before require_once(dirname(__FILE__)."/initPage.php");
 //
-if(defined('LOGIN_REQUIRED') && !$system->is_logged_in()){
+if(defined('LOGIN_REQUIRED') && !$system->has_access()){
     //header('Location: '.ERROR_REDIR); //'&msg='.rawurlencode($login_warning)); //No Need to show error message when login is required, login page ia already rendered
     exit();
 
 
-}else if(defined('MANAGER_REQUIRED') && !$system->is_admin() & !$system->is_member(0)){ //A member should also be able to creatte and open database
+}else if(defined('MANAGER_REQUIRED') && !$system->is_admin() ){ //A member should also be able to create and open database
     header('Location: '.ERROR_REDIR.'&msg='.rawurlencode($login_warning.' as Administrator of group \'Database Managers\''));
     exit();
 }else if(defined('OWNER_REQUIRED') && !$system->is_dbowner()){
@@ -77,16 +76,18 @@ if(defined('LOGIN_REQUIRED') && !$system->is_logged_in()){
     exit();
 }
 
+//$system->defineConstants(); //init constants for record and field types
+
 $user = $system->getCurrentUser();
 $layout_theme = @$user['ugr_Preferences']['layout_theme'];
 if(!$layout_theme) $layout_theme = 'heurist';
 
 if($layout_theme=="heurist" || $layout_theme=="base"){
     //default BASE or HEURIST theme
-    $cssLink = PDIR.'ext/jquery-ui-1.10.2/themes/'.$layout_theme.'/jquery-ui.css';
+    $cssLink = PDIR.'ext/jquery-ui-themes-1.12.1/themes/'.$layout_theme.'/jquery-ui.css';
 }else{
     //load one of standard themes from jquery web resource
-    $cssLink = 'http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.2/themes/'.$layout_theme.'/jquery-ui.css';
+    $cssLink = 'https://code.jquery.com/ui/1.12.1/themes/'.$layout_theme.'/jquery-ui.css';
 }
 
 // BASE tag is convenient however it does not suit
@@ -147,15 +148,17 @@ if($layout_theme=="heurist" || $layout_theme=="base"){
 <?php
 if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
     ?>
-    <script type="text/javascript" src="<?php echo PDIR;?>ext/jquery-ui-1.10.2/jquery-1.9.1.js"></script>
-    <script type="text/javascript" src="<?php echo PDIR;?>ext/jquery-ui-1.10.2/ui/jquery-ui.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>ext/jquery-ui-1.12.1/jquery-ui.js"></script>
+    
     <script type="text/javascript" src="<?php echo PDIR;?>ext/jquery-file-upload/js/jquery.iframe-transport.js"></script>
     <script type="text/javascript" src="<?php echo PDIR;?>ext/jquery-file-upload/js/jquery.fileupload.js"></script>
     <?php
 }else{
     ?>
     <script src="https://code.jquery.com/jquery-1.12.2.min.js" integrity="sha256-lZFHibXzMHo3GGeehn1hudTAP3Sc0uKXBXAzHX1sjtk=" crossorigin="anonymous"></script>
-    <script type="text/javascript" src="https://code.jquery.com/ui/1.11.4/jquery-ui.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=" crossorigin="anonymous"></script>
+
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-file-upload/9.5.7/jquery.fileupload.min.js"></script>
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-file-upload/9.5.7/jquery.iframe-transport.min.js"></script>
     <?php
@@ -198,6 +201,28 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
         $(this).trigger( 'myOnShowEvent' );
         return this;
     }
+    
+    //
+    // overwrite datepciker method
+    //
+    
+    $.datepicker._gotoToday = function(event){
+        
+        var target = $(event),
+            inst = this._getInst(target[0]);
+        
+        var date = new Date();
+        
+        inst.selectedDay = date.getDate();
+        inst.drawMonth = inst.selectedMonth = date.getMonth();
+        inst.drawYear = inst.selectedYear = date.getFullYear();
+        
+        $.datepicker._selectDate(event,
+            $.datepicker._formatDate(inst, 
+                inst.selectedDay, inst.selectedMonth, inst.selectedYear));
+        
+    }
+    
 
     var onAboutInit, onPageInit;
 
@@ -255,7 +280,7 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
                         window.hWin.HEURIST4.terms = response.data.terms;
                         window.hWin.HEURIST4.detailtypes = response.data.detailtypes;
                     }else{
-                        window.hWin.HEURIST4.msg.showMsgErr('Cannot obtain database definitions in get_defs, possible database corruption, please consult Heurist developers');
+                        window.hWin.HEURIST4.msg.showMsgErr('Cannot obtain database definitions (get_defs function). This is probably due to a network timeout. However, if the problem persists please report to Heurist developers as it could indicate corruption of the database.');
                         success = false;
                     }
 
@@ -297,11 +322,11 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
         So, its better to detecct current theme on server side
         if(prefs['layout_theme'] && !(prefs['layout_theme']=="heurist" || prefs['layout_theme']=="base")){
         //load one of standard themes from jquery web resource
-        cssLink = $('<link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.2/themes/'+
+        cssLink = $('<link rel="stylesheet" type="text/css" href="http:......./themes/'+
         prefs['layout_theme']+'/jquery-ui.css" />');
         }else{
         //default BASE or HEURIST theme
-        cssLink = $('<link rel="stylesheet" type="text/css" href="ext/jquery-ui-1.10.2/themes/'+prefs['layout_theme']+'/jquery-ui.css" />');
+        cssLink = $('<link rel="stylesheet" type="text/css" href="ext/jquery-ui-....../themes/'+prefs['layout_theme']+'/jquery-ui.css" />');
         }
         $("head").append(cssLink);
         $("head").append($('<link rel="stylesheet" type="text/css" href="h4styles.css?t='+(new Date().getTime())+'">'));

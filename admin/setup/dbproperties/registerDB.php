@@ -103,6 +103,18 @@ if($sError){
         function hideRegistrationForm() {
             document.getElementById("registerDBForm").style.display = "none";
         }
+        
+        
+        function onKeyUpDbDescription( event ){
+            var len = event.target.value.length;
+            var btn = document.getElementById('btnSubmit');
+            var lbl = document.getElementById('cntChars');
+            btn.disabled = (len<40); 
+            btn.style.color = (len<40)?'lightgray':'black';
+
+            lbl.innerHTML = len+' characters';            
+            lbl.style.color = (len<40)?'red':'#6A7C99';
+        }
     </script>
 
     <!-- Database registration form -->
@@ -124,11 +136,11 @@ if($sError){
                         <input type="hidden" name="db" value="<?=HEURIST_DBNAME?>">
                         <div style="display:inline-block">
                             <textarea  type="memo" maxlength="1000" cols="80" rows="3" name="dbDescription"
-                                onkeyup="{ var len=event.target.value.length; document.getElementById('btnSubmit').disabled = (len<40); document.getElementById('cntChars').innerHTML = len;}"></textarea>
+                                onkeyup="onKeyUpDbDescription( event )"></textarea>
                         </div>
                         <div  style="display:inline-block">
                             <label id="cntChars" style="text-align:left"></label><br/>
-                            <input id="btnSubmit" type="submit" name="submit" value="Register" style="font-weight: bold;" onClick="hideRegistrationForm()" disabled="disabled" >
+                            <input id="btnSubmit" type="submit" name="submit" value="Register" style="font-weight: bold;color:lightgray" onClick="hideRegistrationForm()" disabled="disabled" >
                         </div>
                         <div>Enter a short but informative description (minimum 40 characters) of this database (displayed in search list)</div>
                         <div  style="margin-top: 15px; margin-bottom: 20px;">
@@ -178,7 +190,7 @@ if($sError){
                 "<div class='input-cell'><b>ID:</b> " . $dbID . " </div></div>";
                 echo "<div class='input-row'><div class='input-header-cell'>Description:</div>".
                 "<div class='input-cell'>". $dbDescription . "</div></div>";
-                $url = HEURIST_INDEX_BASE_URL."records/edit/editRecord.html?recID=".$dbID."&db=Heurist_Master_Index";
+                $url = HEURIST_INDEX_BASE_URL."?fmt=edit&recID=".$dbID."&db=Heurist_Master_Index";
                 echo "<div class='input-row'><div class='input-header-cell'><b>Please edit the collection metadata ".
                 "describing this database:</b></div><div class='input-cell'>".
                 "<a href=$url target=_blank style='color:red;'>Click here to edit</a> (login as person who registered this database - ".
@@ -304,6 +316,8 @@ if($sError){
                     "Database description (updated):</div><div class='input-cell'>". $dbDescription."</div></div>";
                 } else
                 { // We have got a new dbID, set the assigned dbID in sysIdentification
+                    mysql_connection_insert(DATABASE);
+                
                     $res = mysql_query("update sysIdentification set `sys_dbRegisteredID`='$dbID', ".
                         "`sys_dbDescription`='".mysql_real_escape_string($dbDescription)."' where 1");
                     if($res) {
@@ -314,7 +328,7 @@ if($sError){
                         "<div class='input-cell'>" . $dbID . "</div></div>";
                         echo "<div class='input-row'><div class='input-header-cell'></div>".
                         "<div class='input-cell'>Basic description: " . $dbDescription . "</div></div>";
-                        $url = HEURIST_INDEX_BASE_URL."records/edit/editRecord.html?recID=".$dbID."&db=Heurist_Master_Index";
+                        $url = HEURIST_INDEX_BASE_URL."?fmt=edit&recID=".$dbID."&db=Heurist_Master_Index";
                         echo "<div class='input-row'><div class='input-header-cell'>Collection metadata:</div>".
                         "<div class='input-cell'><a href=$url target=_blank>Click here to edit</a> " .
                         "(login - if asked - as yourself) </div></div>";

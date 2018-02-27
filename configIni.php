@@ -62,33 +62,24 @@ of the codebase and rename it to index.html
 
 // *** DO NOT CHANGE VERSION NUMBER, THIS IS SET BY THE HEURIST DEVELOPMENT TEAM ***
 
-$version = "4.2.18"; // sets current program version number, determined by Heurist development lead
+$version = "4.5.7"; // sets current program version number, determined by Heurist development lead
 
-// Vsn 4.2.18 12 Apr 2017  Lots of incremental improvements and bug fixes inclding large query handling, better network vis
-// Vsn 4.2.17 2 Feb 2017  Improvements to structure visualisation, Digital Harlem fixes
-// Vsn 4.2.16 15 Jan 2017  Small menu tweaks, improved structure import & cosmetics, improvements to structure visualisation
-// Vsn 4.2.15 4 Jan 2017  Lots of small fixes, Digital Harlem fixes, rework structure visualisation to become effective structure editor 
-// Vsn 4.2.14 10 Dec 2016  Fixes - Gephi export, exporter, new map record popup, resolver, better structure verify, memory problems etc, 
-// Vsn 4.2.13 31 Nov 2016  Lots of small fixes on new layout
-// Vsn 4.2.11 4 Nov 2016  New layout of search interfacve using tabs with menus for major function groups
-// Vsn 4.2.10 22 Aug 2016  Update distribution on Heurist server
-// Vsn 4.2.9 11 Aug 2016  First fully working draft of new importer
-// Vsn 4.2.8 17 Jun 2016  Further small fixes 
-// Vsn 4.2.7 14 May 2016  Further small fixes 
-// Vsn 4.2.6 26 Apr 2016  Complete revisoon of core definitions, lots of small fixes to mapping and structue management
-// Vsn 4.2.5 19 Mar 2016  Further fixes including serious problem with Win 10 (not saving subsidiary records)
-// Vsn 4.2.4 19 Mar 2016  Further debugging, fix up database archive
-// Vsn 4.2.3 8 Mar 2016  Further testing and fixes, fix up exemplar DB function
-// Vsn 4.2.2 17 Feb 2016 Further testing and fixes, fix up new database functions
-// Vsn 4.2.1 05 Feb 2016 Further testing and fixes
-// Vsn 4.2.0 17 Jan 2016 Testing for beta release
-// Vsn 4.1.4 17 Dec 2015 Restructure, move H3 code back to codebase level
-// Vsn 4.1.3 16 Dec 2015 Distribution as ...alpha
+// 4.5.7 23 Jan 18 A large number of cosmetic changes and bugfixes particularly to editing function, merging recods 
+// 4.5.6 30 Dec 17  Finalise new record edit, lota of bug fixes. Update production version
+// 4.5.4 9 Dec 17  Improvements to new field definition, term list dropdowns, KML import, bug fixes
+// 4.5.3 28 Nov 17  Minor bug fixes
+// 4.5.2 22 Nov 17 Fixed bugs arising from DB format changes, improve digitiser layout, fix errors in biblio structures,
+//                 improve structure visualise, fix up child record functions and new editor glitches, 
+//                 many bug fixes, lots of cosmetic improvements
+// 4.5.1 21 Sep 17 Nips and tucks to database structure, DB version 1.2.0
+// 4.2.23 3 Aug17 Bug fixes and draft of new record edit function (WIP)
+// 4.2.22  Many fixes/improvements for facet searches, file verification, thumbnailing, maps and timelines
+// 4.2.21 19Jun17. Clean up methods for uploaded files, multi-record attachment, increase thumbnail image size, 
+//                 improve vocabulary tree, handling of repeating and missing value matching in CSV import,
+//                 simplify navigation panel 
 
-// 3.2.0 alpha 8th July 2014, beta 21st July 2014
-// 3.3.0 beta 11th Nov 2014
-// 3.3.0 27th Nov 2014 / 3.4.0-beta
-// 3.4.0 22nd Jan 2015
+// 4.2.20 5Jun17. Improved file upload and verifiction, Beyond 1914 website, new ftrs on facet searches, bug fixes
+
 
 // *** DO NOT SET THESE UNLESS YOU KNOW WHAT YOU ARE DOING ***
 //     they override the values set in ../heuristConfigIni.php

@@ -80,6 +80,9 @@ var cfg_widgets = [
 
     // BORO APPS
     {id:'boro_results', name:'Search Result', widgetname:'boro_results', script:'hclient/widgets/boro/boro_results.js'},
+    {id:'boro_nav', name:'Navigation', widgetname:'boro_nav', script:'hclient/widgets/boro/boro_nav.js'},
+    {id:'boro_place', name:'Place', widgetname:'boro_place', script:'hclient/widgets/boro/boro_place.js'},
+     
     
     //fake app - reference to another layout to include
     {id:'include_layout',name:'Inner Layout', widgetname:'include_layout'}
@@ -121,15 +124,21 @@ var cfg_layouts = [
                                 border:'3px solid green'}, //height:'99%',width:'99%'
 
                 apps:[
-                    {appid:'h4_static', name: 'Manage',  dragable:false,
-                        options:{url: 'hclient/framecontent/tabmenus/manageMenu.php?db=[dbname]', isframe:true}}
+                    {appid:'h4_static', 
+                      name: 'Manage<span class="ui-icon ui-icon-gears" style="display:inline-block;font-size:24px;margin-left:14px;margin-top:-0.2em;width:24px;height:24px;vertical-align:middle;"></span>',
+                      dragable:false,
+                      options:{url: 'hclient/framecontent/tabmenus/manageMenu.php?db=[dbname]', isframe:true}}
                         //,css:{position:'absolute', top:'4.5em',left:0,bottom:'0.2em',right:0, 'min-width':'75em'}}             
-                    ,{appid:'h4_static', name: 'Add Data',  dragable:false,
+                    ,{appid:'h4_static', 
+                    name: 'Add Data<span class="ui-icon ui-icon-addtodb-28" style="display:inline-block;margin-left:14px;vertical-align:middle;"></span>',
+                        dragable:false,
                         options:{url: 'hclient/framecontent/tabmenus/addDataMenu.php?db=[dbname]', isframe:true}}
                         //,css:{position:'absolute', top:'4.5em',left:0,bottom:'0.2em',right:0,'min-width':'75em'}}
-                    ,{appid:'include_layout', name: 'Filter-Analyse-Publish', layout_id:'FAP',dragable:false,
+                    ,{appid:'include_layout', 
+                        name: 'Filter-Analyse-Publish<span class="ui-icon ui-icon-filter-28" style="display:inline-block;margin-left:7px;vertical-align:middle;"></span>',
+                        layout_id:'FAP',dragable:false,
                         options:{ref: 'SearchAnalyze'}
-                        ,css:{position:'absolute', top:'4.5em',left:0,bottom:'0.1em',right:0,'font-size':'0.9em'}}
+                        ,css:{position:'absolute', top:'5.5em',left:0,bottom:'0.1em',right:0,'font-size':'0.9em'}}
                      ]
             }]
         }
@@ -139,13 +148,13 @@ var cfg_layouts = [
     {id:'WebSearch', name:'Heurist Embed', theme:'heurist', type:'cardinal',
         west:{size:260, minsize:150, apps:[{appid:'ha_search_tree', hasheader:false,
                 options:{buttons_mode: true},
-                css:{border:'none'} }]},  //saved searches
+                css:{border:'none','font-size':'14px'} }]},  //saved searches
         center:{minsize:300, dropable:false, 
-                apps:[{appid:'h3_resultList', hasheader:false, 
+                apps:[{appid:'h3_resultList', hasheader:false,
                         dockable:false, dragable:false, 
-                            css:{'background-color':'white'}, 
+                            css:{'background-color':'white','font-size':'14px'}, 
                             options:{title:'List', view_mode:'thumbs', recordview_onselect: true, 
-                            showmenu:false, showcounter:true, innerHeader: true} }]}  //search result
+                            show_inner_header: true} }]}  //search result
      },
       
     // original layout with united top dropdown menu - all admin/import/export features are in popup dialogs
@@ -159,8 +168,9 @@ var cfg_layouts = [
         ]},
         west:{size:260, minsize:150, apps:[{appid:'ha_search_tree', hasheader:false, css:{border:'none', 'background':'none'} }]},  //saved searches
         center:{minsize:300, dropable:false, 
-                apps:[{appid:'h3_resultList', hasheader:false, innerHeader:true, dockable:false, dragable:false, 
-                            css:{'background-color':'white'}, options:{innerHeader: true} }]},  //search result
+                apps:[{appid:'h3_resultList', hasheader:false, dockable:false, dragable:false, 
+                            css:{'background-color':'white'}, 
+                            options:{ empty_remark:null, show_menu:true, show_savefilter:true, show_inner_header: true} }]},  //search result
         east:{size:'50%', minsize:300, dropable:false,
             tabs:[{dockable:true, dragable:false, resizable:false,
                 apps:[
@@ -173,18 +183,30 @@ var cfg_layouts = [
 
     // 3 main tabs on top with accodion menu on each one - most of admin/import/export in iframes
     {id:'SearchAnalyze', name:'Search Analyze Publish', theme:'heurist', type:'cardinal',
+    
+        west:{size:260, minsize:150, apps:[{appid:'ha_search_tree', hasheader:false, 
+                css:{border:'none', 'background':'none'},
+                options:{btn_visible_dbstructure:false} }]},  //saved searches
+                
+        center:{minsize:300, dropable:false,
+            apps:[{appid:'include_layout', name: 'AAA', layout_id:'FAP2',dragable:false,
+                        options:{ref: 'SearchAnalyze2'}
+                        ,xcss:{position:'absolute', top:'4.5em',left:0,bottom:'0.1em',right:0,'font-size':'0.9em'}}]
+    
+        }
+    },
+        
+    {id:'SearchAnalyze2', name:'Search Analyze Publish2', theme:'heurist', type:'cardinal',
         north:{size:'7em', resizable:false, overflow:'hidden',
             apps:[
                 {appid:'h4_search', hasheader:false, 
                 css:{position:'absolute', top:0, left:0, right:0,
                 border:'none', 'background':'white', 'min-width':'75em'}, 
-            options:{has_paginator:false, btn_visible_newrecord:false} }, 
+            options:{has_paginator:false, btn_visible_newrecord:true} }, 
         ]},
-        west:{size:260, minsize:150, apps:[{appid:'ha_search_tree', hasheader:false, 
-                css:{border:'none', 'background':'none'},
-                options:{btn_visible_dbstructure:false} }]},  //saved searches
-        center:{minsize:300, dropable:false, apps:[{appid:'h3_resultList', hasheader:false, innerHeader:true,
-                     dockable:false, dragable:false, css:{'background-color':'white'}, options:{innerHeader: true} }]},  //search result
+        center:{minsize:300, dropable:false, apps:[{appid:'h3_resultList', hasheader:false, 
+                     dockable:false, dragable:false, css:{'background-color':'white'}, 
+                     options:{empty_remark:null, show_menu:true, show_savefilter:true, show_inner_header:true} }]},  //search result
         east:{size:'50%', minsize:300, dropable:false,
             tabs:[{dockable:true, dragable:false, resizable:false,
                 apps:[
@@ -228,14 +250,31 @@ var cfg_layouts = [
     */
 
     {id:'boro', name:'Beyond 1914 - Book of Rememberance', theme:'heurist', type:'free', 
-                cssfile:'hclient/widgets/boro/256dd9d.css', template: 'hclient/widgets/boro/boro_main.html'
-       ,search_pane:{dropable:false,css:{},
-                apps:[                           //18
-                {appid:'dh_search', options:{UGrpID:48}, hasheader:false, css:{border:'none', 'background':'none'} }]}  //faceted/forms searches
+                cssfile:'hclient/widgets/boro/beyond1914.css', template: 'hclient/widgets/boro/boro_main.html'
+       //widgets will be loaded into divs with id "result_pane" and "search_pane" in boro_main.html         
+       ,boro_place:{dropable:false,css:{},
+                apps:[                           
+                //creates navigation menu and loads info pages
+                {appid:'boro_place', 
+                    options:{view_mode:'list', show_toolbar: false, select_mode:'select_single', 
+                                multiselect:false, show_menu: false},
+                hasheader:false, css:{border:'none', 'background':'none'} }]}
        ,result_pane:{dropable:false,css:{},
-                apps:[{appid:'boro_results', options:{
-                    view_mode:'list', hide_view_mode: true, select_mode:'select_single', multiselect:false, showmenu: false
-                }, hasheader:true, css:{border:'none', 'background':'none'} }]}
+                apps:[{appid:'boro_results', 
+                    options:{view_mode:'list', show_toolbar: false, select_mode:'select_single', 
+                    multiselect:false, show_menu: false},
+                hasheader:true, css:{border:'none', 'background':'none'} }]}
+       ,search_pane:{dropable:false,css:{},
+                apps:[                           
+                //prod 
+                {appid:'dh_search', options:{UGrpID:48, search_at_init:152}, hasheader:false, css:{border:'none', 'background':'none'} }]}  //faceted/forms searches
+                //dev
+                //{appid:'dh_search', options:{UGrpID:18, Xsearch_at_init:110}, hasheader:false, css:{border:'none', 'background':'none'} }]}  //faceted/forms searches
+       ,boro_nav:{dropable:false,css:{},
+                apps:[                           
+                //creates navigation menu and loads info pages
+                {appid:'boro_nav', options:{menu_div:'bor-navbar-collapse'}, hasheader:false, 
+                            css:{border:'none', 'background':'none'} }]}
 /*       ,search_pane:{dropable:false,apps:[{appid:'boro_search', options:{}, hasheader:false, css:{border:'none', 'background':'none'} }]}
        ,result_pane:{dropable:false,apps:[{appid:'boro_reslist', options:{}, hasheader:false, css:{border:'none', 'background':'none'} }]} */
     },
@@ -256,7 +295,7 @@ var cfg_layouts = [
                 apps:[
                     {appid:'ha51', options:{layout:['map','timeline'], startup:61557, eventbased:false} } //mapping
                     ,{appid:'h3_resultList', hasheader:true, name: 'List', 
-                        options:{title:'List', showmenu:false, eventbased:false} }
+                        options:{empty_remark:null, title:'List', show_viewmode:false, eventbased:false} }
                     //,{appid:'h4_static', hasheader:true, name: 'DH Blog', options:{url: 'http://digitalharlemblog.wordpress.com/'} }
                 ]
             }]
@@ -293,7 +332,8 @@ var cfg_layouts = [
             tabs:[{dockable:false, dragable:false, resizable:false,
                 apps:[
                     {appid:'ha51', options:{layout:['map','timeline'], startup:61557, eventbased:false} } //mapping
-                    ,{appid:'h3_resultList', hasheader:true, name: 'List', options:{title:'List', showmenu:false, eventbased:false} }
+                    ,{appid:'h3_resultList', hasheader:true, name: 'List', 
+                        options:{empty_remark:null, title:'List', show_viewmode:false, eventbased:false} }
                     //,{appid:'h4_static', hasheader:true, name: 'DH Blog', options:{url: 'http://digitalharlemblog.wordpress.com/'} }
                 ]
             }]
@@ -314,21 +354,6 @@ var cfg_layouts = [
                     ,css:{position:'absolute', top:0,left:0,bottom:0,right:0}}
         ]},
     },
-
-    // Alternative (Gridster) layout (like Windows tiles) - not very useful unless a small set of widgets
-    /*   {id:'Gridster', name:'gridster example', theme:'smoothness', type:'gridster',
-    options:{widget_base_dimensions:[50, 50]},
-    mainmenu: { col:1, row:1, size_x:10, size_y:1, apps:[{appid:'h3_mainMenu', hasheader:false, css:{width:'100%', height:'100%', border:'none', 'background':'none'} } ]},
-    search: { col:11, row:1, size_x:10, size_y:1, apps:[{appid:'h4_search', hasheader:false, css:{width:'100%', height:'100%', border:'none', 'background':'none'} } ]},
-    search_nav:{ col:1, row:2, size_x:3, size_y:10, apps:[{appid:'ha_search_tree', hasheader:false, css:{border:'none', 'background':'none'} }]},  //saved searches
-
-    pane1:{col:4, row:2, size_x:7, size_y:7, dockable:true, apps:[{appid:'h3_resultList', name: 'Search result' }]},  //search result
-    pane2:{col:12, row:2, size_x:7, size_y:7, dockable:true, apps:[{appid:'h3_recordListExt', name: 'Record' }]},
-    pane5:{col:20, row:2, size_x:7, size_y:7, dockable:true, apps:[{appid:'h4_connections',   options:{title:'Network', url: 'hclient/framecontent/visualize/springDiagram.php?db=[dbname]'} }]},
-    pane3:{col:4, row:9, size_x:7, size_y:7, dockable:true, apps:[ {appid:'ha51', options:{title:'Map'}} ] },
-    pane4:{col:12, row:9, size_x:7, size_y:7, dockable:true, apps:[{appid:'h3_recordListExt', options:{title:'Report', url: 'viewers/smarty/showReps.html'} }]},
-
-    }, */
 
 
 ];

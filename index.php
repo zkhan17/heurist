@@ -34,6 +34,9 @@ if( @$_REQUEST['recID'] || @$_REQUEST['recid'] ){
     }
     header('Location: redirects/resolver.php?db='.@$_REQUEST['db'].'&recID='.$recid.'&fmt='.$format);
     return;
+}else if (@$_REQUEST['file'] || @$_REQUEST['thumb'] ){
+    header( 'Location: hserver/dbaccess/file_download.php?'.$_SERVER['QUERY_STRING'] );
+    return;
 }
 
 
@@ -57,23 +60,12 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
         <!-- Gridster layout is an alternative similar to Windows tiles, not useful except with small
         number of widgets. Currently it is commented out of the code in layout_default.js -->
 
-        <!-- for gridster layout, development version - remove comments to use
-        <link rel="stylesheet" type="text/css" href="ext/gridster/jquery.gridster.css" />
-        <script type="text/javascript" src="ext/gridster/utils.js"></script>
-        <script type="text/javascript" src="ext/gridster/jquery.collision.js"></script>
-        <script type="text/javascript" src="ext/gridster/jquery.coords.js"></script>
-        <script type="text/javascript" src="ext/gridster/jquery.draggable.js"></script>
-        <script type="text/javascript" src="ext/gridster/jquery.gridster.js"></script>
-        -->
-        <!-- for gridster layout, production (minimised) version - remove comments to use
-        <link rel="stylesheet" type="text/css" href="ext/gridster/jquery.gridster.all.css" />
-        <script type="text/javascript" src="ext/gridster/jquery.gridster.all.js"></script>
-        -->
-
-        <script type="text/javascript" src="ext/js/jquery.ui-contextmenu.min.js"></script>
-        <!-- script type="text/javascript" src="ext/js/moment.min.js"></script -->
+        <script type="text/javascript" src="ext/js/jquery.ui-contextmenu.js"></script>
+        
+        <!-- script type="text/javascript" src="ext/js/moment.min.js"></script
         <script type="text/javascript" src="ext/js/date.format.js"></script>
-
+         -->
+         
         <!-- init layout and loads all apps.widgets -->
         <script type="text/javascript" src="hclient/core/layout.js"></script>
         <!-- array of possible layouts -->
@@ -101,13 +93,14 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
         
         <script type="text/javascript" src="hclient/widgets/digital_harlem/dh_search.js"></script>
         <script type="text/javascript" src="hclient/widgets/digital_harlem/dh_maps.js"></script>
+        <script type="text/javascript" src="hclient/widgets/boro/boro_place.js"></script>
+        <script type="text/javascript" src="hclient/widgets/boro/boro_nav.js"></script>
         <script type="text/javascript" src="hclient/widgets/viewers/connections.js"></script>
 
         <!-- DEBUG -->
 
         <script type="text/javascript" src="hclient/widgets/profile/profile_login.js"></script>
         <script type="text/javascript" src="hclient/widgets/viewers/resultListMenu.js"></script>
-        <script type="text/javascript" src="hclient/widgets/editing/editing_input.js"></script> <!-- move to common js???? -->
         <!-- todo: load dynamically
         <script type="text/javascript" src="hclient/widgets/editing/rec_search.js"></script>
         <script type="text/javascript" src="hclient/widgets/editing/rec_relation.js"></script>
@@ -116,17 +109,35 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
         <!-- move to profile.js dynamic load -->
         <script type="text/javascript" src="ext/js/themeswitchertool.js"></script>
 
+        <!-- edit entity (load dynamically?) -->        
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing_input.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/editing/editing2.js"></script>
+
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageEntity.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchEntity.js"></script>
+
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageRecords.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchRecords.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/manageRecUploadedFiles.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/entity/searchRecUploadedFiles.js"></script>
+        <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/viewers/media_viewer.js"></script>
+        
+
         <!--  media viewer - however it is not used at the moment 
         <script type="text/javascript" src="ext/yoxview/yoxview-init.js"></script>
         -->
-
+        
+        <link rel="stylesheet" type="text/css" href="ext/fancybox/jquery.fancybox.css" />
+        <script type="text/javascript" src="ext/fancybox/jquery.fancybox.js"></script>
+        
+        
         <!-- os, browser detector -->
         <script type="text/javascript" src="ext/js/platform.js"></script>
 
         <script type="text/javascript">
 
            function onPageInit(success){
-
+               
                 if(!success) return;
                 
                 // OLD H3 stuff
@@ -143,7 +154,9 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
                 window.hWin.HAPI4.LayoutMgr.init(cfg_widgets, cfg_layouts);
 
                 
-                $( "#heurist-about" ).dialog("close");
+                if($( "#heurist-about" ).dialog){
+                    $( "#heurist-about" ).dialog("close");
+                }
                 
                 //
                 // init layout
@@ -198,7 +211,13 @@ _time_debug = new Date().getTime() / 1000;
                     if(db_total_records<1){
                         showTipOfTheDay(false);   
                     }else{
+                        
                         window.hWin.HAPI4.LayoutMgr.putAppOnTopById('FAP');
+                        
+                        var active_tab = '<?php echo str_replace("'","\'",@$_REQUEST['tab']);?>';
+                        if(active_tab){
+                            window.hWin.HAPI4.LayoutMgr.putAppOnTop(active_tab);
+                        }
                     }
                     
                 }else if(db_total_records<1){
@@ -206,31 +225,83 @@ _time_debug = new Date().getTime() / 1000;
                 }
                 
                
-                var version_in_cache = window.hWin.HAPI4.get_prefs_def('version_in_cache', null); 
-                
-                //
-                // version to compare with server provided - to avoid caching issue
-                //
-                if(window.hWin.HAPI4.is_logged() && window.hWin.HAPI4.sysinfo['version']){
-                    if(version_in_cache){
-                            var res = window.hWin.HEURIST4.util.versionCompare(version_in_cache, window.hWin.HAPI4.sysinfo['version']);   
-                            if(res<0){ // -1=older code in cache, -2=newer code in cache, +1=same code version in cache
-                                // show lock popup that forces to clear cache
-                                window.hWin.HEURIST4.msg.showMsgDlgUrl(window.hWin.HAPI4.baseURL+'hclient/widgets/dropdownmenus/versionCheckMsg.html',
-                                {}/* no buttons */,null,
-                                {options:{hideTitle:true, closeOnEscape:false,
-                                    open:function( event, ui ) {
-                                        var $dlg = window.hWin.HEURIST4.msg.getMsgDlg();
-                                        $dlg.find('#version_cache').text(version_in_cache);
-                                        $dlg.find('#version_srv').text(window.hWin.HAPI4.sysinfo['version']);
-                                    }}});
+               //@todo define parameter in layout "production=true"
+               if(!(window.hWin.HAPI4.sysinfo['layout']=='boro' ||
+                   window.hWin.HAPI4.sysinfo['layout']=='DigitalHarlem' || 
+                   window.hWin.HAPI4.sysinfo['layout']=='WebSearch' ||
+                   window.hWin.HAPI4.sysinfo['layout']=='DigitalHarlem1935')){
 
-                            }
-                    }
-                    window.hWin.HAPI4.save_pref('version_in_cache', window.hWin.HAPI4.sysinfo['version']); 
-                }
-                
-                
+                   var version_in_cache = window.hWin.HAPI4.get_prefs_def('version_in_cache', null); 
+
+                   //
+                   // version to compare with server provided - to avoid caching issue
+                   //
+                   if(window.hWin.HAPI4.has_access() && window.hWin.HAPI4.sysinfo['version']){
+                       if(version_in_cache){
+                           var res = window.hWin.HEURIST4.util.versionCompare(version_in_cache, 
+                                                                              window.hWin.HAPI4.sysinfo['version']);   
+                           if(res<0){ // -1=older code in cache, -2=newer code in cache, +1=same code version in cache
+                               // show lock popup that forces to clear cache
+                               window.hWin.HEURIST4.msg.showMsgDlgUrl(window.hWin.HAPI4.baseURL+'hclient/widgets/dropdownmenus/versionCheckMsg.html',
+                                   {}/* no buttons */,null,
+                                   {options:{hideTitle:true, closeOnEscape:false,
+                                       open:function( event, ui ) {
+                                           var $dlg = window.hWin.HEURIST4.msg.getMsgDlg();
+                                           $dlg.find('#version_cache').text(version_in_cache);
+                                           $dlg.find('#version_srv').text(window.hWin.HAPI4.sysinfo['version']);
+                               }}});
+
+                           }
+                       }
+                       window.hWin.HAPI4.save_pref('version_in_cache', window.hWin.HAPI4.sysinfo['version']); 
+                       
+                       var res = window.hWin.HEURIST4.util.versionCompare(window.hWin.HAPI4.sysinfo.db_version_req, 
+                                                                          window.hWin.HAPI4.sysinfo.db_version);   
+                       if(res==-2){ //-2= db_version_req newer
+                           // show lock popup that forces to upgrade database
+                           window.hWin.HEURIST4.msg.showMsgDlgUrl(window.hWin.HAPI4.baseURL+'hclient/widgets/dropdownmenus/versionDbCheckMsg.html',
+                               {'Upgrade':function(){
+//console.log(window.hWin.HAPI4.baseURL+'admin/setup/dbupgrade/upgradeDatabase.php?db='+window.hWin.HAPI4.database);                                   
+top.location.href = (window.hWin.HAPI4.baseURL+'admin/setup/dbupgrade/upgradeDatabase.php?db='+window.hWin.HAPI4.database);
+                               }},null,
+                               {options:{hideTitle:false, closeOnEscape:false,
+                                   open:function( event, ui ) {
+                                       var $dlg = window.hWin.HEURIST4.msg.getMsgDlg();
+                                       $dlg.find('#version_db').text(window.hWin.HAPI4.sysinfo.db_version);
+                                       $dlg.find('#version_min_db').text(window.hWin.HAPI4.sysinfo.db_version_req);
+                                       $dlg.find('#version_srv').text(window.hWin.HAPI4.sysinfo['version']);
+                           }}});
+
+                       }
+                       
+                   }
+                   
+                   
+                   var editRecID = window.hWin.HEURIST4.util.getUrlParameter('edit_id', window.location.search);
+                   if(editRecID>0){
+                       //edit record
+                       window.hWin.HEURIST4.ui.openRecordEdit(editRecID, null);
+                   }else
+                   if(window.hWin.HEURIST4.util.getUrlParameter('rec_rectype', window.location.search) ||
+                        (window.hWin.HEURIST4.util.getUrlParameter('t', window.location.search) && 
+                         window.hWin.HEURIST4.util.getUrlParameter('u', window.location.search)))
+                   {
+                       
+                       var new_record_params = {
+                            rt: window.hWin.HEURIST4.util.getUrlParameter('rec_rectype', window.location.search)
+                                                    || window.hWin.HEURIST4.util.getUrlParameter('t', window.location.search),
+                            ro: window.hWin.HEURIST4.util.getUrlParameter('rec_owner', window.location.search),
+                            rv: window.hWin.HEURIST4.util.getUrlParameter('rec_visibility', window.location.search),
+                            tag: window.hWin.HEURIST4.util.getUrlParameter('tag', window.location.search)
+                                ||window.hWin.HEURIST4.util.getUrlParameter('k', window.location.search),
+                            url:  window.hWin.HEURIST4.util.getUrlParameter('u', window.location.search),
+                            desc:  window.hWin.HEURIST4.util.getUrlParameter('d', window.location.search)
+                       };
+                       
+                       //add new record
+                       window.hWin.HEURIST4.ui.openRecordEdit(-1, null, {new_record_params:new_record_params});
+                   }
+               }
                 
                 
                 //perform search in the case that parameter "q" is defined
@@ -244,7 +315,8 @@ _time_debug = new Date().getTime() / 1000;
                     setTimeout(function(){
                             window.hWin.HAPI4.SearchMgr.doSearch(document, request);
                     }, 3000);
-                }else if(!(window.hWin.HAPI4.sysinfo['layout']=='DigitalHarlem' 
+                }
+                else if(!(window.hWin.HAPI4.sysinfo['layout']=='DigitalHarlem' 
                         || window.hWin.HAPI4.sysinfo['layout']=='DigitalHarlem1935')){
                             
                     var init_search = window.hWin.HEURIST?window.hWin.HEURIST.displayPreferences['defaultSearch']:'';
@@ -277,7 +349,7 @@ var fin_time = new Date().getTime() / 1000;
                          title: 'Welcome',
                         buttons:{'Close':function(){ $(this).dialog( 'close' )} } });                                  }
 
-            }
+            } //onInitCompleted_PerformSearch
 
         </script>
 
@@ -326,6 +398,6 @@ var fin_time = new Date().getTime() / 1000;
 
         <div id="heurist-dialog">
         </div>
-        
+
     </body>
 </html>

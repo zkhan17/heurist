@@ -52,7 +52,7 @@
         <script type="text/javascript" src="../../../external/yui/2.8.2r1/build/datatable/datatable-min.js"></script>
         <script type="text/javascript" src="../../../external/yui/2.8.2r1/build/paginator/paginator-min.js"></script>
 
-        <script type="text/javascript" src="../../../external/jquery/jquery-ui-1.10.2/jquery-1.9.1.js"></script>
+        <script type="text/javascript" src="../../../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
 
 
         <link rel=stylesheet href="../../../common/css/global.css">
@@ -82,7 +82,9 @@
 
         // request for server side
         var baseurl = "<?=HEURIST_BASE_URL?>admin/setup/dbproperties/getRegisteredDBs.php";
+        
         var params = "db="+top.HEURIST.database.name+"&public=1&named=1&exclude="+top.HEURIST.database.id; //HEURIST_DBNAME, HEURIST_DBID
+
         top.HEURIST.util.getJsonData(baseurl,
             // fillRegisteredDatabasesTable
             function(responce){
@@ -96,7 +98,7 @@
 
                         var regDB = responce[idx];
 
-                        if( !regDB['version'] || regDB['version']<top.HEURIST.database.version)
+                        if(!regDB['version'])  // || regDB['version']<top.HEURIST.database.version)
                         {
                             continue;
                         }

@@ -48,13 +48,21 @@ if (@$_SESSION[HEURIST_SESSION_DB_PREFIX.'heurist']["display-preferences"]["reco
         <link rel=stylesheet href="<?=HEURIST_BASE_URL?>common/css/admin.css">
         <title>Add new record</title>
 
-        <script type="text/javascript" src="<?=HEURIST_BASE_URL?>ext/jquery-ui-1.10.2/jquery-1.9.1.js"></script>
+        <script type="text/javascript" src="<?=HEURIST_BASE_URL?>ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
         <script type="text/javascript" src="<?=HEURIST_BASE_URL?>common/js/utilsUI.js"></script>
 
         <script>
             //		rt, wg_id,vis, kwd, tags, restrict Access;
             var defaults = <?php echo json_format($addRecDefaults);?>;
             var usrID = <?php echo get_user_id();?>;
+            
+            if(hasH4()){
+                var prefs = window.hWin.HAPI4.get_prefs('record-add-defaults');
+                if(prefs[0]>0) {
+                    defaults[0] = prefs[0];
+                }
+            }
+
             
             $(document).ready(function() {
                 $("#show-adv-link").click(function() {
@@ -85,7 +93,7 @@ if (@$_SESSION[HEURIST_SESSION_DB_PREFIX.'heurist']["display-preferences"]["reco
                 
                 window.hWin = detectHeurist(window);
                 if(hasH4()){
-                    console.log('>>> init handler');
+                    
                         $(window.hWin.document).on(window.hWin.HAPI4.Event.ON_STRUCTURE_CHANGE,
                         function(e, data) { 
                             console.log('update selector');
@@ -178,7 +186,7 @@ if (@$_SESSION[HEURIST_SESSION_DB_PREFIX.'heurist']["display-preferences"]["reco
                 return '';
             }
 
-            function addRecord(e) {
+            function addRecord(e, is_new_editor) {
                 if (! e) e = window.event;
 
                 var extra_parms = '',
@@ -212,7 +220,7 @@ if (@$_SESSION[HEURIST_SESSION_DB_PREFIX.'heurist']["display-preferences"]["reco
                         sError2 = ' and '+sError2;
                     }
                     alert('Please select '+sError1+sError2);
-                    cbShowAccessRights.checked = true;
+                    cbShowAccessRights = true;
                     showHideAccessSettings(cbShowAccessRights);
                     //document.getElementById('rec_OwnerUGrpID').focus();
                     //document.getElementById('rec_NonOwnerVisibility').focus();
@@ -228,11 +236,11 @@ if (@$_SESSION[HEURIST_SESSION_DB_PREFIX.'heurist']["display-preferences"]["reco
                     return;
                 }
 
-
                 if (tags) {
                     extra_parms += (extra_parms.match(/&tag=/))  ?  "," + tags  :  "&tag=" + encodeURIComponent(tags) ;
                     // warning! code assumes that &tag= is at the end of string
                 }
+                
                 if ( <?= @$_REQUEST['related'] ? '1' : '0' ?> ) {
                     extra_parms += '&related=<?= @$_REQUEST['related'] ?>';
                     if (<?= @$_REQUEST['reltype'] ? '1' : '0' ?>) {
@@ -247,14 +255,29 @@ if (@$_SESSION[HEURIST_SESSION_DB_PREFIX.'heurist']["display-preferences"]["reco
                     defaults = [ rt, wg_id, vis , kwdList.options[kwdList.selectedIndex].value,
                         $("#add-link-tags").val().replace(/,/g,'|'), 1];
 
+                    if(hasH4()){
+                        window.hWin.HAPI4.save_pref('record-add-defaults', defaults);    
+                    }
                     top.HEURIST.util.setDisplayPreference('record-add-defaults', defaults);
-                    top.HEURIST.util.setDisplayPreference('record-add-showaccess', cbShowAccessRights.checked?"true":"false" );
+                    top.HEURIST.util.setDisplayPreference('record-add-showaccess', cbShowAccessRights?"true":"false" );
                 }else{
                     top.HEURIST.util.setDisplayPreference('record-add-defaults', "");
                 }
 
 
-                window.open('<?= HEURIST_BASE_URL?>records/add/addRecord.php?addref=1&db=<?=HEURIST_DBNAME?>&rec_rectype='+rt + extra_parms);
+                if(is_new_editor && window.hWin && window.hWin.HEURIST4){
+                    
+                    var new_record_params = {};
+                    new_record_params['rt'] = rt;
+                    new_record_params['ro'] = wg_id;
+                    new_record_params['rv'] = vis;
+                    if(tags) new_record_params['tag'] = tags;
+                                        
+                    window.hWin.HEURIST4.ui.openRecordEdit(-1, null, {new_record_params:new_record_params});
+                }else{
+                    window.open('<?= HEURIST_BASE_URL?>records/add/addRecord.php?addref=1&ver=h3&db=<?=HEURIST_DBNAME?>&rec_rectype='
+                            +rt + extra_parms);
+                }
 
             }
 
@@ -309,21 +332,23 @@ if (@$_SESSION[HEURIST_SESSION_DB_PREFIX.'heurist']["display-preferences"]["reco
                     //style="float:right; margin-left:30px;" 
                     // class="actionButtons"
                     ?>
+                    <span style="display: none; float:right; margin:3 0 0 30" >
+                        <button type="button" class="add" style="height:22px !important" value="Add Record" onClick="addRecord(event, false);">Add Record in new window</button>
+                    </span>
                     <span style="float:right; margin:3 0 0 30" >
-                        <button type="button" class="add" style="height:22px !important" value="Add Record" onClick="addRecord(event);">Add Record</button>
+                        <button type="button" class="add" style="height:22px !important" value="Add Record" onClick="addRecord(event, true);">Add Record</button>
                     </span>
                 </div>
             </div>
 
 
-            <div class="input-row" style="text-align: center;<?= (@$_REQUEST['wg_id']>0 || $showAccessRights) ? "display:none" : ""?>" id="currSettings">
+            <div class="input-row" style="text-align: center;<?= (@$_REQUEST['wg_id']>0 || $showAccessRights) ? "display:none" : ""?>">
+                <div class="input-header-cell" style="vertical-align:inherit;"><b>Access settings</b></div>
+                <div class="input-cell" id="currSettings">
+                </div>
             </div>
 
             <div class="input-row">
-
-                <div class="input-header-cell" style="padding-top: 20px;"><b>Access settings</b>
-                </div>
-
                 <div class="resource workgroup" style="margin:10px 0">
                     <div class="input-row workgroup">
                         <div class="input-header-cell">Record owner (group or individual)

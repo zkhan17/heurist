@@ -48,7 +48,7 @@ define('_ERR_REP_WARN', 0); // returns general message that titlemask is invalid
 define('_ERR_REP_MSG', 1);  // returns detailed error message
 define('_ERR_REP_SILENT', 2); // returns empty string
 
-define('_ERROR_MSG', "Invalid title constructor: please define the title mask for this record type via link at top of record structure editor");
+define('_ERROR_MSG', "AAA Invalid title constructor: please define the title mask for this record type via link at top of record structure editor");
 define('_EMPTY_MSG', "**** No data in title fields for this record ****");
 
 /**
@@ -279,6 +279,7 @@ function _titlemask__get_detail_types() {
 
             $row['dty_ConceptCode'] = $dt_cc;
 
+            //two indexes - by id and by name
             $rdt[$row['dty_ID']] = $row;
             $rdt[$row['dty_Name']] = $row;
             $rdt[$dt_cc] = $row;
@@ -307,10 +308,10 @@ function _titlemask__get_rec_detail_types($rt) {
         $query ='select rst_RecTypeID, '
         .' lower(rst_DisplayName) as rst_DisplayName, rst_DisplayName as originalName, '   //lower(dty_Name) as dty_Name,
         .' dty_Type, if(rst_PtrFilteredIDs,rst_PtrFilteredIDs, dty_PtrTargetRectypeIDs) as rst_PtrFilteredIDs,'
-        .' dty_OriginatingDBID, dty_IDInOriginatingDB, dty_ID '
+        .' dty_OriginatingDBID, dty_IDInOriginatingDB, dty_ID, rst_RequirementType '
         .' from defRecStructure left join defDetailTypes on rst_DetailTypeID=dty_ID '
-        .' where rst_RequirementType in ("required", "recommended", "optional") '
-        .' and rst_RecTypeID='.$rt
+        .' where ' //since 2017-11-25 'rst_RequirementType in ("required", "recommended", "optional") and '
+        .' rst_RecTypeID='.$rt
         .' order by rst_DisplayOrder';
 
         $res = mysql_query($query);
@@ -331,6 +332,7 @@ function _titlemask__get_rec_detail_types($rt) {
 
                 $row['dty_ConceptCode'] = $dt_cc;
 
+                //keep 3 indexes by id, name and concept code
                 $rdr[$rt][$row['dty_ID']] = $row;
                 $rdr[$rt][$row['rst_DisplayName']] = $row;
                 $rdr[$rt][$dt_cc] = $row;
@@ -369,10 +371,16 @@ function _titlemask__get_record_value($rec_id, $reset=false) {
                 $ret = $row;
                 $ret['rec_Details'] = array();
 
-                $query = 'SELECT dtl_DetailTypeID, dtl_Value FROM recDetails where dtl_RecID='.$rec_id." order by dtl_DetailTypeID";
+                $query = 'SELECT dtl_DetailTypeID, dtl_Value, rst_RequirementType '
+                .'FROM recDetails LEFT JOIN defRecStructure ON rst_RecTypeID='.$ret['rec_RecTypeID']
+                   .' AND rst_DetailTypeID=dtl_DetailTypeID '
+                .'where dtl_RecID='.$rec_id." order by dtl_DetailTypeID";
+                
                 $res = mysql_query($query);
                 while ($row = mysql_fetch_array($res)) {
-                    array_push($ret['rec_Details'], $row);
+                    if($row[2]!='forbidden'){
+                        array_push($ret['rec_Details'], $row);
+                    }
                 }
             }
         }
@@ -502,6 +510,21 @@ function _titlemask__get_dt_field($rt, $search_fieldname, $mode, $result_fieldna
     $search_fieldname = mb_strtolower($search_fieldname, 'UTF-8');
     //$search_fieldname = strtolower($search_fieldname);
 
+    if(strpos($search_fieldname, 'parent entity')===0 
+        || strpos($search_fieldname, 'record parent')===0
+        || (defined('DT_PARENT_ENTITY') && $search_fieldname==DT_PARENT_ENTITY) 
+        || $search_fieldname=='2-247'){ 
+            
+        if(defined('DT_PARENT_ENTITY')){    
+            $rdt = _titlemask__get_detail_types();
+            if(@$rdt[DT_PARENT_ENTITY]){
+                return $rdt[DT_PARENT_ENTITY][$result_fieldname];
+            }
+        }else{
+            return '';
+        }
+        
+    }else
     //search in record type structure
     if(@$rdr[$search_fieldname]){  //search by dty_ID, rst_DisplayName, dty_ConceptCode
         return $rdr[$search_fieldname][$result_fieldname];
@@ -565,7 +588,7 @@ function _titlemask__fill_field($field_name, $rt, $mode, $rec_id=null) {
         $rdt_id = _titlemask__get_dt_field($rt, $field_name, $mode);  //get concept code
         if(!$rdt_id){
             //ERROR
-            return array("Field name '$field_name' not recognised");
+            return array("Rectype# $rt. Field name '$field_name' not recognised");
         }else {
             return _titlemask__get_field_value( $rdt_id, $rt, $mode, $rec_id );
         }
@@ -648,8 +671,8 @@ function _titlemask__fill_field($field_name, $rt, $mode, $rec_id=null) {
                 if($rec_value){
                     $rt = $rec_value['rec_RecTypeID'];
                     $fld_value = _titlemask__fill_field($inner_field_name, $rt, $mode, $rec_id);
-                    if(is_array($fld_value)){
-                        return $fld_value; //ERROR
+                    if(is_array($fld_value)){   //for multiconstraint it may return error since field may belong to different rt
+                        return '';//$fld_value; //ERROR
                     }else if($fld_value) {
                         array_push($res, $fld_value);
                     }
@@ -662,23 +685,30 @@ function _titlemask__fill_field($field_name, $rt, $mode, $rec_id=null) {
 
             $inner_rec_type = _titlemask__get_dt_field($rt, $rdt_id, $mode, 'rst_PtrFilteredIDs'); //$rdr[$rt][$rdt_id]['rst_PtrFilteredIDs'];
             $inner_rec_type = explode(",",$inner_rec_type);
-            foreach ($inner_rec_type as $rtID){
-                $rtid = intval($rtID);
-                if (!$rtid) continue;
-                $inner_rdt = _titlemask__fill_field($inner_field_name, $rtid, $mode);
-                if(is_array($inner_rdt)){
-                    return $inner_rdt; //ERROR
-                }else if ($inner_rdt) {
+            if(count($inner_rec_type)>0){ //constrained
+                $field_not_found = null;
+                foreach ($inner_rec_type as $rtID){
+                    $rtid = intval($rtID);
+                    if (!$rtid) continue;
+                    $inner_rdt = _titlemask__fill_field($inner_field_name, $rtid, $mode);
+                    if(is_array($inner_rdt)){
+                        //it may be found in another record type for multiconstaints
+                        $field_not_found = $inner_rdt; //ERROR
+                    }else if ($inner_rdt) {
 
-                    if($mode==1){
-                        $s1 = $rdt_id;
-                    }else{
-                        $s1 = _titlemask__get_dt_field($rt, $rdt_id, $mode, 'originalName');
+                        if($mode==1){
+                            $s1 = $rdt_id;
+                        }else{
+                            $s1 = _titlemask__get_dt_field($rt, $rdt_id, $mode, 'originalName');
+                        }
+                        return $s1. "." .$inner_rdt;
                     }
-                    return $s1. "." .$inner_rdt;
+                }
+                if($field_not_found){
+                    return $field_not_found;
                 }
             }
-
+            
             if($mode==1){
                 $s1 = $rdt_id;
             }else{

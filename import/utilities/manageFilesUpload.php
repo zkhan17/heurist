@@ -60,7 +60,8 @@
 
         <!-- jQuery UI styles
         <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/themes/base/jquery-ui.css" id="theme"> -->
-        <link rel="stylesheet" href="../../external/jquery/jquery-ui-1.10.2/themes/base/jquery-ui.css" id="theme">
+        <link rel="stylesheet" type="text/css" href="../../ext/jquery-ui-themes-1.12.1/themes/base/jquery-ui.css" id="theme"/>
+        
         <!-- Demo styles -->
         <link rel="stylesheet" href="../../external/jquery-file-upload/css/demo.css">
         <!--[if lte IE 8]>
@@ -73,6 +74,10 @@
             }
         </style>
         <!-- blueimp Gallery styles -->
+<!--        
+        <script type="text/javascript" src="../../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
+        <script type="text/javascript" src="../../ext/jquery-ui-1.12.1/jquery-ui.js"></script>
+-->
         <link rel="stylesheet" href="http://blueimp.github.io/Gallery/css/blueimp-gallery.min.css">
         <!-- CSS to style the file input field as button and adjust the Bootstrap progress bars -->
         <link rel="stylesheet" href="../../external/jquery-file-upload/css/jquery.fileupload.css">
@@ -81,7 +86,7 @@
     </head>
 
 
-    <body class="popup" style="margin:0 !important">
+    <body class="popup" style="margin:0 !important; color:black;">
 
         <?php
 
@@ -102,7 +107,7 @@
 
 
             // ----Visit #1 - CHECK MEDIA FOLDERS --------------------------------------------------------------------------------
-
+            
             if(!array_key_exists('mode', $_REQUEST)) {
 
                 // Find out which folders are allowable - the default scratch space plus any
@@ -134,7 +139,7 @@
                 $mediaFolders = $row1[0];
                 $dirs = explode(';', $mediaFolders); // get an array of folders
                 $dirs2 = array();
-                
+
                 // MEDIA FOLDERS ALWAYS RELATIVE TO HEURIST_FILESTORE_DIR
                 foreach ($dirs as $dir){
                     if( $dir && $dir!="*") {
@@ -143,6 +148,7 @@
                             $dir .= "/";
                         }
 
+                        
                         /* changed to check that folder is in HEURIST_FILESTORE_DIR 
                         if(!file_exists($dir) ){ //probable this is relative
                             $orig = $dir;
@@ -151,27 +157,58 @@
                         }
                         */
                         $dir = str_replace('\\','/',$dir);     
+                        
                         if(!( substr($dir, 0, strlen(HEURIST_FILESTORE_DIR)) === HEURIST_FILESTORE_DIR )){
                             chdir(HEURIST_FILESTORE_DIR);
-                            $dir = realpath($dir);
+                            $resdir = realpath($dir);   //realpath returns false if folder does not exist
+                            if($resdir===false){
+                                $dir = HEURIST_FILESTORE_DIR.'/'.$dir;
+                                $dir = str_replace('//','/',$dir);     
+                            }else{
+                                $dir = $resdir;    
+                            }
+
+                            //realpath gives real path on remote file server
+                            if(strpos($dir, '/srv/HEURIST_FILESTORE/')===0){
+                                $dir = str_replace('/srv/HEURIST_FILESTORE/', HEURIST_UPLOAD_ROOT, $dir);
+                            }else
+                            if(strpos($dir, '/misc/heur-filestore/')===0){
+                                $dir = str_replace('/misc/heur-filestore/', HEURIST_UPLOAD_ROOT, $dir);
+                            }
                             $dir = str_replace('\\','/',$dir);     
                             if(!( substr($dir, 0, strlen(HEURIST_FILESTORE_DIR)) === HEURIST_FILESTORE_DIR )){
                                 // Folder must be in heurist filestore directory
+                                
+                                print 'Folder "'.$dir.'" is not in heurist filestore directory<br>';
+                                
                                 continue;
                             }
                         }
                         
                         if(file_exists($dir) && is_dir($dir) && !in_array($dir, $system_folders)){
-                             array_push($dirs2, $dir);
+                            array_push($dirs2, $dir);
+                        }else{
+                            if(in_array($dir, $system_folders)){
+                                print 'Folder "'.$dir.'" is system one and can not be used for file upload<br>';    
+                            }else{
+                                print 'Folder "'.$dir.'" does not exist<br>';
+                                if (!mkdir($dir, 0777, true)) {
+                                    print 'Unable to create or wtite into folder '.$dir;    
+                                }else{
+                                    print 'Created successfully<br>';    
+                                    array_push($dirs2, $dir);
+                                }
+                                
+                            }
+                            
                         }
                     }
                 }
                 $dirs = $dirs2;
 
-
                 // add the scratch directory, which will be the default for upload of material for import
-                array_push($dirs, HEURIST_FILESTORE_DIR.'scratch/');
-                array_push($dirs, HEURIST_FILES_DIR);
+                //array_push($dirs, HEURIST_FILESTORE_DIR.'scratch/');
+                //array_push($dirs, HEURIST_FILES_DIR);
 //error_log('3.'.print_r($dirs,true));                            
 
                 // The defined list of file extensions for FieldHelper indexing.
@@ -203,12 +240,17 @@
 
         <!-- The file upload form used as target for the file upload widget -->
         <form id="fileupload" action="//jquery-file-upload.appspot.com/" method="POST" enctype="multipart/form-data">
-
+            <input type="hidden" name="upload_thumb_dir" value="<?php echo HEURIST_THUMB_DIR; ?>"/>
+            <input type="hidden" name="upload_thumb_url" value="<?php echo HEURIST_THUMB_URL; ?>"/>
             <div><label for="upload_folder" style="color:black;">Select target folder:</label>
                 <select name="folder" id="upload_folder">
                     <?php
+                        $is_dir_found = false;
                         foreach($dirs as $upload_dir) {
-                            print '<option value="'.$upload_dir.'">'.$upload_dir.'</option>';
+                            if(file_exists($upload_dir)){
+                                print '<option value="'.$upload_dir.'">'.$upload_dir.'</option>';
+                                $is_dir_found = true;
+                            }
                         }
                     ?>
                 </select>
@@ -216,7 +258,7 @@
             </div>
 
             <!-- The fileupload-buttonbar contains buttons to add/delete files and start/cancel the upload -->
-            <div class="fileupload-buttonbar">
+            <div class="fileupload-buttonbar" style="display:<?php print $is_dir_found?'block':'none';?>">
                 <div class="fileupload-buttons">
                     <!-- The fileinput-button span is used to style the file input field as button -->
                     <span class="fileinput-button">
@@ -247,10 +289,14 @@
 
 
             <!-- The table listing the files available for upload/download -->
-            <table role="presentation">
+            <table role="presentation" style="display:<?php print $is_dir_found?'block':'none';?>">
             <tbody class="files"></tbody>
             </table>
 
+            
+            <div id="msgWarnDir" style="color:red;display:<?php print $is_dir_found?'none':'block';?>">
+                You must set folders before uploading files
+            </div>
         </form>
 
 
@@ -319,8 +365,9 @@
         </script>
 
 
-        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-        <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.min.js"></script>
+        <script src="../../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
+        <script type="text/javascript" src="../../ext/jquery-ui-1.12.1/jquery-ui.js"></script>
+        
         <!-- The Templates plugin is included to render the upload/download listings -->
         <script src="http://blueimp.github.io/JavaScript-Templates/js/tmpl.min.js"></script>
         <!-- The Load Image plugin is included for the preview images and image resizing functionality -->
@@ -356,6 +403,7 @@
                 $('#fileupload').fileupload({
                     // Uncomment the following to send cross-domain cookies:
                     //xhrFields: {withCredentials: true},
+                    upload_thumb_dir: '<?=HEURIST_THUMB_DIR?>', 
                     url: '<?=HEURIST_BASE_URL?>external/jquery-file-upload/server/php/'
                 });
                 
@@ -398,6 +446,20 @@
                     $(this).fileupload('option', 'done')
                     .call(this, $.Event('done'), {result: result});
                 });
+                
+                
+                /*
+                $('#upload_folder').change(function(){
+                    if($('#upload_folder').val()==''){
+                        $('.fileupload-buttonbar').hide();
+                        $('#presentation').hide();
+                    }else{
+                        $('.fileupload-buttonbar').show();
+                        $('#presentation').show();
+                    }    
+                });
+                */
+                
             });
         </script>
 

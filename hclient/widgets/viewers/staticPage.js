@@ -1,8 +1,8 @@
 /**
-* Integration with existing Vsn 3 applications - mapping and smarty reports
-* Working with current result set and selection
-* External application are loaded in iframe
-*
+* Content of options.url to be loaded either in iframe or in widget element
+* Url may have [layout] and [dbname] parameters
+* 
+* 
 * @package     Heurist academic knowledge management system
 * @link        http://HeuristNetwork.org
 * @copyright   (C) 2005-2016 University of Sydney
@@ -25,7 +25,8 @@ $.widget( "heurist.staticPage", {
     // default options
     options: {
         title: '',
-        url:null
+        url:null,
+        isframe: false
     },
 
     _loaded_url:null,
@@ -48,7 +49,7 @@ $.widget( "heurist.staticPage", {
         });
 
         
-        $(this.document).on(window.hWin.HAPI4.Event.LOGIN+' '+window.hWin.HAPI4.Event.LOGOUT, function(e, data) {
+        $(this.document).on(window.hWin.HAPI4.Event.ON_CREDENTIALS, function(e, data) {
             that._loaded_url = null; //reload on login-logout
             that._refresh();
         });
@@ -102,8 +103,13 @@ $.widget( "heurist.staticPage", {
             
             if(this.options.isframe){
                 if(!this.dosframe){
+                    var that = this;
                     this.dosframe = $( "<iframe>" ).css({overflow: 'none !important', width:'100% !important'}).appendTo( this.div_content );
+                    this.dosframe.on('load', function(){
+                        that.loadanimation(false);
+                    })
                 }
+                this.loadanimation(true);
                 this.dosframe.attr('src', this.options.url);
             }else{
                 //var that=this;

@@ -1,5 +1,5 @@
 <?php
-
+//MOVE TO H4
 /**
 * createNewDB.php: Create a new database by applying blankDBStructure.sql and coreDefinitions.txt
 *
@@ -33,6 +33,8 @@ require_once(dirname(__FILE__).'/../../../common/connect/applyCredentials.php');
 require_once(dirname(__FILE__).'/../../../common/php/dbUtils.php');
 require_once(dirname(__FILE__).'/../../../common/php/utilsMail.php');
 require_once(dirname(__FILE__).'/../../../records/files/fileUtils.php');
+require_once(dirname(__FILE__).'/../../../records/index/elasticSearchHelper.php');
+
 
 $blankServer = (HEURIST_DBNAME==''); //@todo check exxistense of other databases
 
@@ -101,7 +103,7 @@ function user_EmailAboutNewDatabase($ugr_Name, $ugr_FullName, $ugr_Organisation,
         if($blankServer){
             ?>
             <link rel=icon href="../../../favicon.ico" type="image/x-icon">
-            <link rel="stylesheet" href="../../../ext/jquery-ui-1.10.2/themes/base/jquery-ui.css" />
+            <link rel="stylesheet" href="../../../ext/jquery-ui-themes-1.12.1/themes/base/jquery-ui.css" />
             <link rel="stylesheet" type="text/css" href="../../../h4styles.css">
 
             <!-- TODO: These all climb laboriously out to codebase then into /ext, /js etc...
@@ -110,8 +112,8 @@ function user_EmailAboutNewDatabase($ugr_Name, $ugr_FullName, $ugr_Organisation,
                 window.hWin = window;
             </script>
             
-            <script type="text/javascript" src="../../../ext/jquery-ui-1.10.2/jquery-1.9.1.js"></script>
-            <script type="text/javascript" src="../../../ext/jquery-ui-1.10.2/ui/jquery-ui.js"></script>
+            <script type="text/javascript" src="../../../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
+            <script type="text/javascript" src="../../../ext/jquery-ui-1.12.1/jquery-ui.js"></script>
             <script type="text/javascript" src="../../../hclient/core/localization.js"></script>
             <script type="text/javascript" src="../../../hclient/core/utils.js"></script>
             <script type="text/javascript" src="../../../hclient/core/utils_msg.js"></script>
@@ -245,7 +247,7 @@ function user_EmailAboutNewDatabase($ugr_Name, $ugr_FullName, $ugr_Organisation,
             <link rel="stylesheet" type="text/css" href="../../../common/css/admin.css">
             <link rel="stylesheet" type="text/css" href="../../../common/css/edit.css">
             <!-- already referenced above <link rel="stylesheet" type="text/css" href="../../../h4styles.css"> -->
-            <script type="text/javascript" src="../../../ext/jquery-ui-1.10.2/jquery-1.9.1.js"></script>
+            <script type="text/javascript" src="../../../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
 
             <script type="text/javascript">
                 $(document).ready(function() {
@@ -378,7 +380,7 @@ function user_EmailAboutNewDatabase($ugr_Name, $ugr_FullName, $ugr_Organisation,
 
                         var bd_reg_idx = document.forms[0].elements['dbreg'].value;
                         if(!bd_reg_idx){
-                            alert('Select database you wish use as a template');
+                            alert('Select database you wish to use as a template');
                             return false;
                         }else{
                             var reginfo = registeredDBs[bd_reg_idx];
@@ -387,7 +389,7 @@ function user_EmailAboutNewDatabase($ugr_Name, $ugr_FullName, $ugr_Organisation,
                             // Backwards compatibility for dbs originally registered with h3
                             if(regurl=='http://heurist.sydney.edu.au/h3/'){
                                 regurl = 'http://heurist.sydney.edu.au/heurist/';
-                            }
+                            } 
 
                             ele.value = regurl + 'admin/describe/getDBStructureAsSQL.php?plain=1&db='+reginfo[2];
                         }
@@ -610,7 +612,7 @@ function user_EmailAboutNewDatabase($ugr_Name, $ugr_FullName, $ugr_Organisation,
                                 style="padding-left: 38px; wdith:620px;display:none">
                                 <div><b>Suggested next steps</b></div>
                                 <div>
-                                    <br />After the database is created, we suggest visiting Database &gt; Acquire from databases and Database > Acquire from templates
+                                    <br />After the database is created, we suggest visiting Manage &gt; Structure &gt; Browse templates
                                     to download pre-configured templates or individual record types and fields from databases registered with the Heurist Network.
                                     <br />New databases are created on the current server. You will become the owner and administrator of the new database.
                                 </div>
@@ -1001,6 +1003,7 @@ function user_EmailAboutNewDatabase($ugr_Name, $ugr_FullName, $ugr_Organisation,
 
 
                         createDatabaseFolders($newDBName);
+                        createElasticIndex($newname); // All Elastic methods use the database prefix.
 
                         if(file_exists($templateFoldersContent) && filesize($templateFoldersContent)>0){ //override content of setting folders with template database files - rectype icons, smarty templates etc
                             unzip($templateFoldersContent, HEURIST_UPLOAD_ROOT.$newDBName."/");    
@@ -1023,13 +1026,13 @@ function user_EmailAboutNewDatabase($ugr_Name, $ugr_FullName, $ugr_Organisation,
                             <?php print(mysql_error());
                         }
 
-                        // Add the default navigation tree for the DATABASE MANAGERS group (user #1). This is copied from the Heurist_Core_Definitions database}
-                        $navTree = '{"expanded":true,"key":"root_3","title":"root","children":[{"expanded":true,"folder":true,"key":"_6","title":"Recent changes","children":[{"folder":false,"key":"19","title":"Recent changes (last week)","data":{"isfaceted":false}},{"folder":false,"key":"20","title":"Recent changes (last month)","data":{"isfaceted":false}},{"folder":false,"key":"21","title":"Recent changes (last year)","data":{"isfaceted":false}},{"folder":false,"key":"14","title":"All (most recent first)","data":{"isfaceted":false}}]},{"expanded":true,"folder":true,"key":"_1","title":"Specific types","children":[{"key":"27","title":"Bibliographic records","data":{"isfaceted":false}},{"key":"28","title":"Organisations","data":{"isfaceted":false}},{"key":"29","title":"People","data":{"isfaceted":false}},{"key":"30","title":"Media items","data":{"isfaceted":false}},{"expanded":true,"folder":true,"key":"_5","title":"Facet searches","children":[{"key":"25","title":"Persons","data":{"isfaceted":true}},{"key":"26","title":"Organisations","data":{"isfaceted":true}},{"expanded":true,"folder":true,"key":"_1","title":"Facet searches with rules","children":[{"key":"31","title":"Persons with related recs","data":{"isfaceted":true}}]}]}]},{"expanded":true,"folder":true,"key":"_5","title":"Experiments","children":[{"key":"24","title":"Mapping (layers, data sources)","data":{"isfaceted":false}}]}]}';
+                        // Add the default navigation tree for the DATABASE OWNERS group (user #1). This is copied from sysUGrps.ugr_NavigationTree in the Heurist_Core_Definitions database for ugr_ID=1}
+                        $navTree = '{"expanded":true,"key":"root_3","title":"root","children":[{"expanded":true,"folder":true,"key":"_1","title":"Right-click for new folder, filter, ...","children":[{"key":"28","title":"Organisations","data":{"isfaceted":false}},{"key":"29","title":"Persons","data":{"isfaceted":false}},{"key":"30","title":"Media items","data":{"isfaceted":false}}]}]}';
+                        
                         $res = mysql__insertupdate($newname, 'sysUGrps', 'ugr', array('ugr_ID'=>1, 'ugr_NavigationTree'=>$navTree ));
                         if(!is_int($res)){
                             print '<b>Warning: Failed to copy navigation tree for user (group) 1 (DB Managers) to new database, error:</b>'.$res;
                         }                        
-                        
                                                 
                         // Add the default navigation tree for the DATABASE OWNER (user #2). This is copied from the Heurist_Core_Definitions database}
                         $navTree = '"bookmark":{"expanded":true,"key":"root_1","title":"root","children":[{"folder":false,"key":"_1","title":"Recent changes","data":{"url":"?w=bookmark&q=sortby:-m after:\"1 week ago\"&label=Recent changes"}},{"folder":false,"key":"_2","title":"All (date order)","data":{"url":"?w=bookmark&q=sortby:-m&label=All records"}}]},"all":{"expanded":true,"key":"root_2","title":"root","children":[{"folder":false,"key":"_3","title":"Recent changes","data":{"url":"?w=all&q=sortby:-m after:\"1 week ago\"&label=Recent changes"}},{"folder":false,"key":"_4","title":"All (date order)","data":{"url":"?w=all&q=sortby:-m&label=All records"}},{"folder":true,"key":"_5","title":"Rules","children":[{"folder":false,"key":"12","title":"Person > anything they created","data":{"isfaceted":false}},{"folder":false,"key":"13","title":"Organisation > Assoc. places","data":{"isfaceted":false}}]}]}';
@@ -1037,6 +1040,12 @@ function user_EmailAboutNewDatabase($ugr_Name, $ugr_FullName, $ugr_Organisation,
                         if(!is_int($res)){
                             print '<b>Warning: Failed to copy navigation tree for user 2 (DB Owner) to new database, error:</b>'.$res;
                         }
+                        
+                        //register in cetral index
+                        mysql_query('insert into `heurist_index`.`sysIdentifications` select "'
+                                .$newname.'" as dbName, s.* from `sysIdentification` as s');
+                        mysql_query("insert into `heurist_index`.`sysUsers` (sus_Email, sus_Database, sus_Role) "
+                                .'values("'.$eMail.'","'.$newname.'","owner")');
                         
                         // email the system administrator to tell them a new database has been created
                         user_EmailAboutNewDatabase($name, $firstName.' '.$lastName, $organisation, $eMail, $newDBName, $interests);
@@ -1069,7 +1078,7 @@ function user_EmailAboutNewDatabase($ugr_Name, $ugr_FullName, $ugr_Organisation,
                         <p style="padding-left:6em">
                             After logging in to your new database, we suggest you import some additional entity types from one of the<br />
                             curated Heurist databases, or from one of the other databases listed in the central database catalogue,<br />
-                            using Database &gt; Structure &gt; Acquire from Databases 
+                            using Manage &gt; Structure &gt; Browse templates 
                             <!--or Database &gt; Structure &gt; Acquire from Templates -->
                         </p>
                     </div>

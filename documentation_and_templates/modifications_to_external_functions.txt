@@ -41,6 +41,38 @@ ext/js/themeswitchcontrol.js - reimplementation of appearance (css)
 external/php/phpZotero.php (114-121) support proxy settings
                            (598) new property totalCount
 
+2017-04-03 MarkerClusterer
+		ext/timemap.js/2.0.1/lib/mxn/mxn.googlev3.core.js  
+		ext/timemap.js/2.0.1/lib/mxn/mxn.core.js 
+						   
+2017-06-20 external\jquery-file-upload\server\php\UploadHandler.php	
+			- specification of thumbnail upload folder via url parameters upload_thumb_dir, upload_thumb_url
+2017-06-21 ext/fancytree/skin-themeroller/icons.gif 
+			- add 2 arrow icons
+
+2017-07-01
+           external/js/simple_js_viewer/script/core/Simple_Viewer_beta_1.1.js 
+           - hide image util load is completed
+
+2017-08-09  ext/layout/jquery.layout-latest.js remark forceful set background to #FFF  line 180
+
+2017-09-21 in order avoid abstract class not found error
+            replace include_once to require_once in external/geoPHP/geoPHP.inc
+            remove ext/geoPHP
+            
+            Added explicite “require” for most common abstract classes into Smarty.class.php
+            require_once(SMARTY_SYSPLUGINS_DIR.'smarty_internal_data.php');
+            require_once(SMARTY_SYSPLUGINS_DIR.'smarty_internal_compilebase.php');
+
+2017-12-04  jquery.layout-latest.js
+         fix cssWidth, cssHeight and sizePane function in case pane is not defined
+            
+
+2018-01-02  geoPHP and Smarty/libs/sysplugins
+
+        Including the reference to base abstract class file in code  explicitly. Since v5.4 php autoloader 
+        can't find file if class name is not the same as file name. (for example Geometry and Geometry.class.php)
+            
 -----------------------------------------------------------------------------------------------------------------------------------
 
 /**

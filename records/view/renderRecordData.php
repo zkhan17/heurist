@@ -46,7 +46,6 @@ require_once(dirname(__FILE__).'/../../records/woot/woot.php');
 
 require_once(dirname(__FILE__).'/../../records/files/uploadFile.php');
 
-
 $noclutter = array_key_exists('noclutter', $_REQUEST);
 $is_map_popup = array_key_exists('mapPopup', $_REQUEST) && ($_REQUEST['mapPopup']==1);
 $is_reloadPopup = array_key_exists('reloadPopup', $_REQUEST) && ($_REQUEST['reloadPopup']==1);
@@ -84,13 +83,15 @@ if(!$is_map_popup){
     <head>
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
         <link rel="stylesheet" type="text/css" href="<?=HEURIST_BASE_URL?>common/css/global.css">
-        <script type="text/javascript" src="../../external/jquery/jquery-ui-1.10.2/jquery-1.9.1.js"></script>
+        <script type="text/javascript" src="../../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
         <!-- <script src="../../external/jquery/jquery-1.6.min.js"></script> -->
 
         <!-- script type="text/javascript" src="../../external/js/simple_js_viewer/script/core/Simple_Viewer_beta_1.1.js"></script>
         <script type="text/javascript" src="../../records/files/initViewer.js"></script -->
         <script type="text/javascript" src="../../common/js/hintDiv.js"></script> <!-- for mapviewer roolover -->
-
+<!--
+        <script type="text/javascript" src="../../ext/yoxview/yoxview-init.js"></script>
+-->        
         <script type="text/javascript">
 
             //find heurist object in parent windows or init new one if current window is a top most
@@ -122,7 +123,11 @@ if(!$is_map_popup){
                 var url = url;
                 var currentImg = obj;
                 if (currentImg.parentNode.className != "fullSize"){
+                    $(currentImg).hide();                    
                     currentImg.src = url;
+                    currentImg.onload=function(){
+                        $(currentImg).fadeIn(500);
+                    }                    
                     currentImg.parentNode.className = "fullSize";
 
                 }else{
@@ -140,6 +145,7 @@ if(!$is_map_popup){
                 if (currentImg.parentNode.className != "fullSize"){  //thumb to player
                     currentImg.style.display = 'none';
                     currentImg.parentNode.className = "fullSize";
+                    
                     //add content to player div
         $.ajax({
             url: url,
@@ -151,7 +157,6 @@ if(!$is_map_popup){
             },
             success: function( response, textStatus, jqXHR ){
                         var obj = jqXHR.responseText;
-                        //console.log('!!!!'+obj);
                         if (obj){
                             var  elem = document.getElementById('player'+id);
                             elem.innerHTML = obj;
@@ -253,6 +258,10 @@ if(!$is_map_popup){
                 }
                 }catch(e){
                 }
+                
+                //init image viewer
+                //$('.mediacontent').yoxview({ skin: "top_menu", allowedUrls: /\?db=(?:\w+)&id=(?:\w+)$/i});
+                
             }
 
         </script>
@@ -332,7 +341,7 @@ function print_header_line($bib) {
 
         <div id=recID>ID:<?= htmlspecialchars($rec_id) ?><span class="link"><a id=edit-link class="normal"
             onClick="return sane_link_opener(this);"
-            target=_new href="<?php echo ($is_map_popup)?'../../records/':'../'?>edit/editRecord.html?db=<?=HEURIST_DBNAME?>&recID=<?= $rec_id ?>"><img src="../../common/images/edit-pencil.png" title="Edit record"></a></span>
+            target=_new href="<?php echo HEURIST_BASE_URL?>?fmt=edit&db=<?=HEURIST_DBNAME?>&recID=<?= $rec_id ?>"><img src="../../common/images/edit-pencil.png" title="Edit record"></a></span>
         </div>
 
         <?php
@@ -346,10 +355,12 @@ function print_header_line($bib) {
                 <?= $bib['rec_Title'] ?>
             </h2>
     <div id=footer>
-    <?php if(!$is_map_popup){ ?>
+    <?php 
+    if(!$is_map_popup){ 
+    ?>
         <h3>
             <div <?="style='padding-left:20px;height:16px;background-repeat: no-repeat;background-image:url(".HEURIST_ICON_URL.$bib['rty_ID'].".png)'"?> >
-                <?= htmlspecialchars($bib['rty_Name'])." [".$bib['rty_ID']."]" ?>
+                <?= htmlspecialchars($bib['rty_Name'])." [".$bib['rty_ID']."] " ?>
             </div>
         </h3>
         <br>
@@ -359,8 +370,8 @@ function print_header_line($bib) {
                 <a target="_new" class="external-link" href="<?=htmlspecialchars($url)?>"><?= output_chunker($url) ?></a>
                 <?php if ($webIcon) print "<img id=website-icon src='" . $webIcon . "'>"; ?>
             </span>
-            <?php } ?>
-    <?php }else{
+        <?php } 
+    }else{
         print '&nbsp;';
     } 
     print '</div>'; //footer
@@ -492,7 +503,7 @@ function print_private_details($bib) {
 
             global $terms, $is_map_popup;
 
-            $bds_res = mysql_query('select dty_ID,
+            $bds_res = mysql_query('select rst_DisplayOrder, dtl_ID, dty_ID,
                 IF(rdr.rst_DisplayName is NULL OR rdr.rst_DisplayName=\'\', dty_Name, rdr.rst_DisplayName) as name,
                 dtl_Value as val,
                 dtl_UploadedFileID,
@@ -507,7 +518,7 @@ function print_private_details($bib) {
                 order by rdr.rst_DisplayOrder is null,
                 rdr.rst_DisplayOrder,
                 dty_ID,
-            dtl_ID');
+            dtl_ID');      //show null last
 
             $bds = array();
             $thumbs = array();
@@ -548,11 +559,29 @@ function print_private_details($bib) {
                         $bd['val'] = output_chunker($bd['val']);
                     }
 
+                }else if ($bd['dty_Type'] == 'blocktext') {
+                    
+                        $bd['val'] = nl2br(str_replace('  ', '&nbsp; ', output_chunker($bd['val'])));
+                    
                 }else if ($bd['dty_Type'] == 'resource') {
 
-                    $res = mysql_query('select rec_Title from Records where rec_ID='.intval($bd['val']));
+                    $rec_id = intval($bd['val']);
+                    $res = mysql_query('select rec_Title from Records where rec_ID='.$rec_id);
                     $row = mysql_fetch_row($res);
-                    $bd['val'] = '<a target="_new" href="'.HEURIST_BASE_URL.'records/view/renderRecordData.php?db='.HEURIST_DBNAME.'&recID='.$bd['val'].(defined('use_alt_db')? '&alt' : '').'" onclick="return link_open(this);">'.htmlspecialchars($row[0]).'</a>';
+                    $bd['val'] = '<a target="_new" href="'.HEURIST_BASE_URL.'records/view/renderRecordData.php?db='.HEURIST_DBNAME.'&recID='.$rec_id.(defined('use_alt_db')? '&alt' : '').'" onclick="return link_open(this);">'.htmlspecialchars($row[0]).'</a>';
+
+                    //find dates
+                    $res = mysql_query('select cast(getTemporalDateString(dtl_Value) as DATETIME), dtl_Value from recDetails where dtl_DetailTypeID in ('
+                            .DT_DATE.','.DT_START_DATE.') and dtl_RecID='.$rec_id);
+                    if($res){
+                        $row = mysql_fetch_row($res); //get first date only
+                        if($row[0]==null){//year
+                            $bd['order_by_date'] = $row[1];
+                        }else{
+                            $bd['order_by_date'] = $row[0];    
+                        }
+                    }
+                    
                 }
                 else if ($bd['dty_Type'] == 'file'  &&  $bd['dtl_UploadedFileID']) {
 
@@ -563,20 +592,46 @@ function print_private_details($bib) {
 
                         $filedata = $filedata['file'];
                         $remoteSrc = $filedata['remoteSource'];
+                        
+                        if(strpos($filedata['mimeType'],'audio/')===0 || 
+                           strpos($filedata['mimeType'],'image/')===0 || 
+                           strpos($filedata['mimeType'],'video/')===0){
+                               
+                            //$filedata['URL'] = ;
+                            $filedata['playerURL'] = HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&file='.$filedata['nonce'].'&mode=tag';
+                        }
 
                         //add to thumbnail list
                         $isplayer = (array_key_exists('playerURL', $filedata) && $filedata['playerURL']);
                         if (is_image($filedata) || $isplayer)
                         {
+                            /*
                             if($isplayer && is_image($filedata) && is_logged_in()){
                                 $filedata['playerURL'] .= "&annedit=yes";
                             }
-
+                            */
+                            
+                            //$filedata standart thumb with 200px image
+                            if(!$is_map_popup && $filedata['URL']!=$filedata['remoteURL']){
+                                $filedata["thumbURL"] =
+                                HEURIST_BASE_URL."common/php/resizeImage.php?maxw=200&maxh=200&".
+                                (defined('HEURIST_DBNAME') ? "db=".HEURIST_DBNAME."&" : "" )."ulf_ID=".$filedata['nonce'];
+                                $thumb_size = 200;
+                            }else{
+                                $thumb_size = 100;
+                            }
+                            
                             array_push($thumbs, array(
                                 'id' => $filedata['id'],
                                 'url' => $filedata['URL'],   //download
+                                'mediaType'=>$filedata['mediaType'], 
+                                'mimeType'=>$filedata['mimeType'], 
+                                'thumb_size'=>$thumb_size,
                                 'thumb' => $filedata['thumbURL'],
-                                'player' => $isplayer?$filedata['playerURL'].(($remoteSrc=='youtube' || $remoteSrc=='gdrive')?"":"&height=60%"):null  //link to generate player html
+                                'player' => $filedata['playerURL'],
+                                'nonce' => $filedata['nonce']
+                                //link to generate player html
+                                //$isplayer?$filedata['playerURL'].(($remoteSrc=='youtube' || $remoteSrc=='gdrive')?"":"&height=60%"):null  
                             ));
                         }
 
@@ -633,21 +688,79 @@ function print_private_details($bib) {
                 }
 
                 array_push($bds, $bd);
-            }
+            }//for
+            
+            
+            //sort array by order_by_date for resource (pointer) details
+            function cmp($a, $b)
+            {
+                if($a['rst_DisplayOrder'] == $b['rst_DisplayOrder']){
+                    
+                    if($a['dty_ID'] == $b['dty_ID']){
+                        
+                        if(@$a['order_by_date']==null ||  @$b['order_by_date']==null){
+                             return ($a['dtl_ID'] < $b['dtl_ID'])?-1:1;    
+                        }else{
+                             return ($a['order_by_date'] < $b['order_by_date']) ? -1 : 1;
+                        }
+                        
+                        
+                    }else{
+                        return ($a['dty_ID'] < $b['dty_ID'])?-1:1;    
+                    }
+                    
+                }else {
+                    return (@$a['rst_DisplayOrder']==null || $a['rst_DisplayOrder'] > $b['rst_DisplayOrder'])?1:-1;
+                }
+            }            
+            usort($bds, "cmp");
 
 if($is_map_popup){
     echo '<div>';  
 }else{  
+    
+            //print info about parent record
+            foreach ($bds as $bd) {
+                if(defined('DT_PARENT_ENTITY') && $bd['dty_ID']==DT_PARENT_ENTITY){
+                    print '<div class="detailRow" style="width:100%;border:none 1px #00ff00;">'
+                        .'<div class=detailType>Parent record</div><div class="detail">'
+                        .' '.$bd['val'].'</div></div>';
+                    break;
+                }
+            }
+    
     echo '<div class=detailRowHeader>Shared';
 }
 ?>
-            <div  class=thumbnail>
+            <div class=thumbnail>
                 <?php
                 foreach ($thumbs as $thumb) {
+                    
+                    
+                    
                     print '<div class=thumb_image>';
+                    /*
+                    if($thumb["mediaType"]=='image' && !$is_map_popup){
+                        //NEW WAY                        
+                        print '<div id="mediarec"'.$thumb['id'].'" style="width:100%,text-align:center,height:auto" class="mediacontent thumbnails">';
+                        print '<div style="height:auto;display:inline-block"><a target="yoxview" href="'
+                        .HEURIST_BASE_URL.'?db='.HEURIST_DBNAME.'&file='.$thumb['id'].'">';
+                        print '<img src="'.htmlspecialchars($thumb['thumb']).'"/>';
+                        print '</a></div></div>';
+                    }else
+                    */
+                    
                     if($thumb['player'] && !$is_map_popup){
-                        print '<img id="img'.$thumb['id'].'" src="'.htmlspecialchars($thumb['thumb']).'" onClick="showPlayer(this,'.$thumb['id'].',\''. htmlspecialchars($thumb['player']) .'\')">';
-                        print '<div id="player'.$thumb['id'].'" style="min-height:240px;min-width:320px;display:none;"></div>';
+                        
+                        if(strpos($thumb['mimeType'],'audio/')===0 || strpos($thumb['mimeType'],'video/')===0){
+                            print '<div id="player'.$thumb['id'].'" style="min-height:100px;min-width:200px;">';
+
+                            print getPlayerTag($thumb['nonce'], $thumb['mimeType'], $thumb['url'], null); 
+                            print '</div>';    
+                        }else{
+                            print '<img id="img'.$thumb['id'].'" style="width:'.$thumb['thumb_size'].'px" src="'.htmlspecialchars($thumb['thumb']).'" onClick="showPlayer(this,'.$thumb['id'].',\''. htmlspecialchars($thumb['player'].'&origin=recview') .'\')">';
+                            print '<div id="player'.$thumb['id'].'" style="min-height:240px;min-width:320px;display:none;"></div>';
+                        }
                     }else{  //for usual image
                         print '<img src="'.htmlspecialchars($thumb['thumb']).'" onClick="zoomInOut(this,\''. htmlspecialchars($thumb['thumb']) .'\',\''. htmlspecialchars($thumb['url']) .'\')">';
                     }
@@ -655,7 +768,8 @@ if($is_map_popup){
                     if($thumb['player'] && !$is_map_popup){
                         print '<a id="lnk'.$thumb['id'].'" href="#" style="display:none;" onclick="hidePlayer('.$thumb['id'].')">CLOSE</a>&nbsp;';
                     }
-                    print '<a href="' . htmlspecialchars($thumb['url']) . '" target=_surf class="image_tool">DOWNLOAD</a></div>';
+
+                    print '<a href="' . htmlspecialchars($thumb['url']) . '" class="external-link" target=_surf class="image_tool">DOWNLOAD</a></div>';
                     print '</div>';
                     if($is_map_popup){
                         print '<br>';
@@ -673,11 +787,18 @@ if($is_map_popup){
             
             $prevLbl = null;
             foreach ($bds as $bd) {
+                if(defined('DT_PARENT_ENTITY') && $bd['dty_ID']==DT_PARENT_ENTITY) continue;
                 print '<div class="detailRow" style="width:100%;border:none 1px #00ff00;'
                     .($is_map_popup && !in_array($bd['dty_ID'], $always_visible_dt)?'display:none':'')
                     .'"><div class=detailType>'.($prevLbl==$bd['name']?'':htmlspecialchars($bd['name']))
                     .'</div><div class="detail'
-                    .($is_map_popup && ($bd['dty_ID']!=DT_SHORT_SUMMARY)?' truncate':'').'">'.$bd['val'].'</div></div>';
+                    .($is_map_popup && ($bd['dty_ID']!=DT_SHORT_SUMMARY)?' truncate':'').'">'
+                     /* debug
+                    .$bd['rst_DisplayOrder']
+                    .' '.@$bd['order_by_date']
+                    .' '.$bd['dtl_ID']
+                    .' '.$bd['dty_ID']  */
+                    .' '.$bd['val'].'</div></div>';
                 $prevLbl = $bd['name'];
             }
             ?>
@@ -686,9 +807,12 @@ if($is_map_popup){
                     <div class=detailType>Updated</div><div class=detail><?= $bib['rec_Modified'] ?></div>
             </div>
             <div class=detailRow <?php echo $is_map_popup?'style="display:none"':''?>>
-                    <div class=detailType>Cite as</div><div class="detail<?php echo ($is_map_popup?' truncate':'');?>"><a target=_blank class="external-link"
-                href="<?= HEURIST_BASE_URL ?>?recID=<?= $bib['rec_ID']."&db=".HEURIST_DBNAME ?>">
-                <?= HEURIST_BASE_URL ?>?recID=<?= $bib['rec_ID']."&db=".HEURIST_DBNAME ?></a></div>
+                    <div class=detailType>Cite as</div><div class="detail<?php echo ($is_map_popup?' truncate':'');?>">
+                    <a target=_blank class="external-link" 
+                            href="<?= HEURIST_BASE_URL ?>?recID=<?= $bib['rec_ID']."&db=".HEURIST_DBNAME ?>">XML</a>
+                            &nbsp;&nbsp;
+                    <a target=_blank class="external-link" 
+                            href="<?= HEURIST_BASE_URL ?>?recID=<?= $bib['rec_ID']."&fmt=html&db=".HEURIST_DBNAME ?>">HTML</a><?php echo ($is_map_popup?'':'<span class="prompt" style="padding-left:10px">Right click to copy URL</span>');?></div>    
             </div>
                 
            
@@ -837,8 +961,8 @@ function print_linked_details($bib) {
     ?>
         <div class=detailRow>
             <div class=detailType>Referencing records</div>
-            <div class="detail"><a href="<?=HEURIST_BASE_URL?>?db=<?=HEURIST_DBNAME?>&w=all&q=linkto:<?=$bib['rec_ID']?>" onClick="top.location.href = this.href; return false;"><b>Show list below as search results</b></a>
-                <!--  <br> <i>Search = linkto:<?=$bib['rec_ID']?> <br>(returns records pointing TO this record)</i> -->
+            <div class="detail"><a href="<?=HEURIST_BASE_URL?>?db=<?=HEURIST_DBNAME?>&w=all&q=linkedto:<?=$bib['rec_ID']?>" onClick="top.location.href = this.href; return false;"><b>Show list below as search results</b></a>
+                <!--  <br> <i>Search = linkedto:<?=$bib['rec_ID']?> <br>(returns records pointing TO this record)</i> -->
             </div>
         </div>
     <?php
@@ -865,7 +989,8 @@ function print_linked_details($bib) {
         if (! $result["success"] && count($cmts) == 0) return;
         
         $content = "";
-        $woot = $result["woot"];
+        $woot = @$result["woot"];
+        if(is_array($woot) && is_array($woot["chunks"]))
         foreach ($woot["chunks"] as $chunk) {
             $content .= $chunk["text"] . " ";
         }

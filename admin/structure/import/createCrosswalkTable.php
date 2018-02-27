@@ -63,7 +63,7 @@
         <script type="text/javascript" src="../../../external/yui/2.8.2r1/build/datatable/datatable-min.js"></script>
         <script type="text/javascript" src="../../../external/yui/2.8.2r1/build/paginator/paginator-min.js"></script>
         <script type="text/javascript" src="../../../external/yui/2.8.2r1/samples/yui-dt-expandable.js"></script>
-        <script type="text/javascript" src="../../../external/jquery/jquery.js"></script>
+        <script type="text/javascript" src="../../../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
         <style type="text/css">
             .yui-skin-sam .yui-dt-liner {
                 white-space:nowrap;
@@ -400,9 +400,9 @@
                     //myDataSource = new YAHOO.util.DataSource();
                     var index, grpID;
                     for (index in rectypeGroups) {
-                        if(index>0 && tableDataByGrp[rectypeGroups[index].id]){
+                        if(index>=0 && tableDataByGrp[rectypeGroups[index].id]){
                             grpID = rectypeGroups[index].id;
-                            
+
                             var tableData = tableDataByGrp[grpID];
                             
                             myDataSource = new YAHOO.util.LocalDataSource(tableData, {
@@ -894,6 +894,16 @@
                             // Handle the response, and give feedback
                             if(response.substring(0,6) == "prompt") {
                                 changeDuplicateEntryName(rtyID, rectypeName);
+                            } else if(response.substring(0,7) == "Warning"){
+                                response = response.substring(8);
+                                
+                                if(window.hWin.HEURIST4 && window.hWin.HEURIST4.msg){
+                                    //window.hWin
+                                    window.hWin.HEURIST4.msg.showMsgDlg(response, null, 'Importing record type');
+                                }else{
+                                    alert(response);
+                                }                                
+                                
                             } else if(response.substring(0,5) == "Error") {
 
                                 response = response.substring(6);
@@ -925,7 +935,7 @@
                                     //window.hWin
                                     window.hWin.HEURIST4.msg.showMsgDlg(sMsg, null, 'Importing record type: '+logHeader2);
                                 }else{
-                                    alert(sMasg);
+                                    alert(sMsg);
                                 }
                                 
 

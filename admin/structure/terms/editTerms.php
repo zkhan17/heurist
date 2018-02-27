@@ -37,30 +37,11 @@ if(isForAdminOnly("to modify database structure")){
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
         <title>Manage terms for term list fields and relationship type</title>
 
-        <!-- YUI -->
-        <link rel="stylesheet" type="text/css" href="../../../external/yui/2.8.2r1/build/fonts/fonts-min.css" />
-        <link rel="stylesheet" type="text/css" href="../../../external/yui/2.8.2r1/build/tabview/assets/skins/sam/tabview.css" />
-        <script type="text/javascript" src="../../../external/yui/2.8.2r1/build/yahoo-dom-event/yahoo-dom-event.js"></script>
-        <script type="text/javascript" src="../../../external/yui/2.8.2r1/build/element/element-min.js"></script>
-        <script type="text/javascript" src="../../../external/yui/2.8.2r1/build/tabview/tabview-min.js"></script>
-        <!--script type="text/javascript" src="../../external/yui/2.8.2r1/build/history/history-min.js"></script!-->
-
         <link rel="stylesheet" type="text/css" href="../../../ext/jquery-ui-iconfont-master/jquery-ui.icon-font.css" />
-        <link rel="stylesheet" type="text/css" href="../../../ext/jquery-ui-1.10.2/themes/heurist/jquery-ui.css" />
+        <link rel="stylesheet" type="text/css" href="../../../ext/jquery-ui-themes-1.12.1/themes/base/jquery-ui.css" />
         
-        <!-- TREEVIEW DEFS -->
-        <!-- Required CSS -->
-        <link type="text/css" rel="stylesheet" href="../../../external/yui/2.8.2r1/build/treeview/assets/skins/sam/treeview.css">
-        <!-- Optional dependency source file -->
-        <script type="text/javascript" src="../../../external/yui/2.8.2r1/build/animation/animation-min.js"></script>
-        <!-- Optional dependency source file to decode contents of yuiConfig markup attribute-->
-        <script type="text/javascript" src="../../../external/yui/2.8.2r1/build/json/json-min.js" ></script>
-        <!-- TreeView source file -->
-        <script type="text/javascript" src="../../../external/yui/2.8.2r1/build/treeview/treeview-min.js" ></script>
-        <!-- END TREEVIEW DEFS-->
-
-        <script type="text/javascript" src="../../../ext/jquery-ui-1.10.2/jquery-1.9.1.js"></script>
-        <script type="text/javascript" src="../../../ext/jquery-ui-1.10.2/ui/jquery-ui.js"></script>
+        <script type="text/javascript" src="../../../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
+        <script type="text/javascript" src="../../../ext/jquery-ui-1.12.1/jquery-ui.js"></script>
         <script type="text/javascript" src="../../../ext/jquery-file-upload/js/jquery.iframe-transport.js"></script>
         <script type="text/javascript" src="../../../ext/jquery-file-upload/js/jquery.fileupload.js"></script>
 
@@ -77,6 +58,7 @@ if(isForAdminOnly("to modify database structure")){
                 padding-bottom: 3px;
                 padding-top: 3px;
                 display: inline-block;
+                vertical-align: top;
             }
             .dtyLabel {
                 display: inline-block;
@@ -88,6 +70,12 @@ if(isForAdminOnly("to modify database structure")){
                 color:lightgray !important;
             }
 
+            /* it allows scroll on DnD */
+            ul.fancytree-container {
+                position: relative;
+                height: 99%;
+                overflow-y: auto !important;
+            }            
             ul.fancytree-container li {
                 width:100%;
             }
@@ -104,12 +92,20 @@ if(isForAdminOnly("to modify database structure")){
             }
             div.svs-contextmenu3{
                 cursor:pointer;
-                float:right;
-                min-width: 80px;
-                /*color: white !important;*/
+                position:absolute;
+                right:5px;
+                /*min-width: 80px;*/
+                /*
+                color: white !important;
                 visibility: hidden;
+                float:right;
                 padding-left:10px;
-                padding-top: 3px;
+                */
+                padding:3px;
+                display:none;
+                background:white;
+                color:#95A7B7;
+                border-radius:2px;
             }
             span.fancytree-node{
                 min-width: 300px;
@@ -117,6 +113,7 @@ if(isForAdminOnly("to modify database structure")){
             }
             #term_tree{
                  background:none;
+                 border:none;
             }
             span.fancytree-node {
                 border: none !important;
@@ -155,49 +152,42 @@ if(isForAdminOnly("to modify database structure")){
 
         <script type="text/javascript" src="editTerms.js"></script>
 
-        <div id="divBanner" class="banner">
-            <h2>$nbsp</h2>
-        </div>
+        <div class="ent_wrapper"> <!-- style="top:0px"-->
+            <div class="ent_header" id="divBanner" style="height:3em;border:none;">
+                <h2></h2>
+                <label style="padding:14px 0px;font-size:14px;font-weight:bold">Vocabularies</label>
+            </div>
+            <div class="ent_content_full" style="overflow:hidden;top:5em">
+            
+            <div id="termTree" style="width:350;max-width:350;top:0;bottom:0;padding-right:5px;overflow:hidden;position:absolute;border:1px gray solid;">
+            </div>
 
-        <div id="page-inner" style="top:0px">
-            <div id="pnlLeft" style="position:absolute; top:25;bottom:0;width:350; max-width:350; padding-right:5px; overflow: hidden;">
-
-                <div style="margin-left:10px; margin-top:15px; xpadding-top:35px;">
+            <div id="formContainer"style="top:0;bottom:0;left:350;right:0;padding-left:10px;position:absolute;vertical-align:top;overflow-y:auto;border:1px gray solid;">
+            
+               <div style="margin-left:2px; margin-top:15px;">
+                    <span class="ui-icon ui-icon-arrowthick-1-w" style="font-size:18px;color:gray"></span>
                     <input id="btnAddRoot1" type="button"
                         value="Add Vocabulary" onClick="{editTerms.doAddChild(true)}"/>
-                    <span style="margin-top:5px; margin-left:10px;"> (adds a new root to the tree)</span>
+                    <span style="margin-left:10px;"> (adds a new root to the tree)</span>
                 </div>
-
-            
-                <!-- Container for tab control component, each tab contains tree view, one for enums, one for relationship types-->
-                <div id="tabContainer"
-                    class="yui-navset yui-navset-top" 
-                    style="position:absolute;bottom:120; top:50; width:350; max-width:350; overflow:hidden;">
-                </div><br/>
-
                 <!-- Navigation: Search form to do partial match search on terms in the tree -->
-                <div id="formSearch" style="position:absolute;bottom:0;display:block;width:300; max-width:300;height:120px;">
+                <div id="formSearch" style="padding-top:15px">
                     <div class="dtyField"><label class="dtyLabel" style="width:30px;">Find:</label>
                         <input id="edSearch" style="width:70px"  onkeyup="{doSearch(event)}"/>
-                        <label>type 3 or more letters</label>
+                        <br><label style="padding-left:37px">&gt;2 characters</label>
                     </div>
                     <div class="dtyField">
                         <select id="resSearch" size="5" style="width:300px" onclick="{editTerms.doEdit()}"></select>
                     </div>
                 </div>
 
-            </div>
-
-            <div id="formContainer" style="position:absolute;left:353px;top:0;bottom:0;right:0; padding-bottom:5px; padding-left: 10px;">
-                <h2 id="formMessage" style="margin-left:10px; margin-top:90px; border-style:none;display:block;text-align:left;width:400px;">
+             
+                <h2 id="formMessage" style="margin-left:10px; border-style:none;display:block;text-align:left;width:400px;">
                     Rollover terms in the tree to show available actions<br>
                     Drag terms to reposition or merge <br/> Select term to edit label and description
                 </h2>
-                <h3 id="formMessage" style="margin-left:10px; border-style:none;display:none;text-align:left;width:300px;">
-                    Select a term in the tree to edit or add child terms
-                </h3>
 
-                <div style="margin-left:10px; padding-top:35px;display:none">
+                <div style="margin-left:10px;display:none">
                     <input id="btnAddRoot2" type="button"
                         value="Add Vocabulary" onClick="{editTerms.doAddChild(true)}"/>
                     <span style="margin-top:5px; margin-left:10px; display:none" > (add a new root to the tree)</span>
@@ -208,13 +198,13 @@ if(isForAdminOnly("to modify database structure")){
                 </div>
 
                 <!-- Edit form for modifying characteristics of terms, including insertion of child terms and deletion -->
-                <div id="formEditor" class="form_editor" style="display:none;width:600px;margin-top:80px;">
-                    <h2 style="margin-left:10px; margin-top:0px; margin-bottom:10px;border-style:none;display:inline-block">Edit selected term / vocabulary</h2>
+                <div id="formEditor" class="form_editor" style="display:none;width:600px;padding-top:5px">
+                    <h2 style="margin-left:5px; margin-top:0px; margin-bottom:10px;border-style:none;display:inline-block">Edit selected term / vocabulary</h2>
                     <div id="div_SaveMessage" style="text-align: center; display:none;color:#0000ff;width:140px;">
                         <b>term saved successfully!</b>
                     </div>
 
-                    <div style="margin-left:10px; border: black; border-style: solid; border-width:thin; padding:10px;">
+                    <div style="margin-left:5px; border: black; border-style: solid; border-width:thin; padding:10px;">
 
                         <div class="dtyField">
                             <label class="dtyLabel">ID:</label>
@@ -433,6 +423,8 @@ if(isForAdminOnly("to modify database structure")){
 
             </div>
 
+            
+            </div> <!-- ent_content_full -->
         </div>
 
         <div id="divMessage" style="display:none;height:80px;text-align: center; ">
@@ -441,11 +433,33 @@ if(isForAdminOnly("to modify database structure")){
         </div>
 
 
-        <div id="divTermMergeConfirm" style="display:none;width:500px;padding:20px">
-            <h2>Merge</h2>
-            <br/>
-            <table border="0" cellpadding="2px;">
+        <div id="divTermMergeConfirm" style="display:none;width:100%;padding:5px">
 
+            <div id="divInsertAsChild" style="border-bottom: dotted 1px;">
+                <br/>
+                <h2 style="width: 300px;display: inline-block;">Insert as child</h2>
+                <div style="float:right;margin-right:30px">
+                    <input id="moveBtn" type="button" value="Move"
+                        title=""  style="width:70px"/>
+                </div>
+                <div>
+                    <br/>
+                    <span id ="moveText"></span>
+                    <span>&nbsp;&nbsp;</span>
+                </div>
+                <br/>
+            </div>
+            
+            <br/>
+            <h2 style="width: 200px;display: inline-block;">Merge</h2>
+            <div style="margin-right:30px;float:right;">
+                <input id="btnMergeOK" type="button" value="Merge"
+                    title=""  style="width:70px"/>
+            </div>
+            <br/><br/>
+            <table border="0" cellpadding="2px;">
+            
+            
                 <!--<tr>
                 <td><h2>Insert as child</h2></td>
                 <td></td>
@@ -475,8 +489,8 @@ if(isForAdminOnly("to modify database structure")){
                 </tr>
 
                 <tr>
-                    <td><br/>Standard Code:</td>
-                    <td><br/>
+                    <td><br>Standard Code:</td>
+                    <td><br>
                         <input id="rbMergeCode1" type="checkbox" name="rbMergeCode"/> <!-- initially was checked="checked"-->
                         <label for="rbMergeCode1" id="lblMergeCode1"></label>
                     </td>
@@ -490,9 +504,8 @@ if(isForAdminOnly("to modify database structure")){
                 </tr>
 
                 <tr>
-                    <td><br/>Description:</td>
-                    <td><br/>
-                        <input id="rbMergeDescr1" type="checkbox" name="rbMergeDescr"/> <!-- initially was checked="checked"-->
+                    <td>Description:</td>
+                    <td><input id="rbMergeDescr1" type="checkbox" name="rbMergeDescr"/> <!-- initially was checked="checked"-->
                         <label for="rbMergeDescr1" id="lblMergeDescr1"></label>
                     </td>
                 </tr>
@@ -555,25 +568,17 @@ if(isForAdminOnly("to modify database structure")){
             </div>
             </div>
             -->
-            <div style="margin-top:30px;width:100%;text-align:center;">
-                <input id="btnMergeOK" type="button" value="Merge"
-                    title=""  style="width:70px"/>
-                <input id="btnMergeCancel" type="button" value="Cancel"
-                    title=""  style="width:70px; padding-left:10px"/>
-            </div>
-
-            <div id="divInsertAsChild">
-                <br/> <br/><hr style="border-top: dotted 1px;"/>
-                <h2>Insert as child</h2>
-                <div>
-                    <br/>
-                    <span id ="moveText"></span>
-                    <span>&nbsp;&nbsp;</span>
-                    <input id="moveBtn" type="button" value="Move"
-                        title=""  style="width:70px"/>
-                </div>
+            
+            <div style="margin-right:30px;float:right;">
+                    <input id="btnMergeCancel" type="button" value="Cancel"
+                        title=""  style="width:70px; padding-left:10px"/>
+                    <!-- input id="moveBtnCancel" type="button" value="Cancel"
+                                title=""  style="width:70px; padding-left:10px"/ -->
             </div>
         </div>
+
+        
+        
 
         <div id=move_mergeTerms style="display:none ">
             <div id="mergeText" style="font-weight:bold;">Are you sure you want to Merge terms?</div>
@@ -583,9 +588,7 @@ if(isForAdminOnly("to modify database structure")){
         <input type="file" id="new_term_image" style="display:none"/>
 
         <script  type="text/javascript">
-
-            YAHOO.util.Event.addListener(window, "load", function(){ editTerms = new EditTerms();} );
-            //YAHOO.util.Event.onDOMReady(EditTerms.init);
+            $( document ).ready( function(){ editTerms = new EditTerms();} );
         </script>
 
     </body>

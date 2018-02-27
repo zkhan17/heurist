@@ -27,8 +27,21 @@ $dtyIDDefs = array();  //list of allowed terms for particular detail type ID
 $dtyID_term_label = array();
 $dtyID_term_codes = array();
 
+
+//
+// clear all global variables
+// it is required in case database switch
+//
+function resetGlobalTermsArrays(){
+    global $dtyIDDefs, $dtyID_term_label, $dtyID_term_codes;
+    
+    $dtyIDDefs = array();  //list of allowed terms for particular detail type ID
+    $dtyID_term_label = array();
+    $dtyID_term_codes = array();
+}
+
 /**
-* put your comment there...
+* 
 *
 * @param mixed $defs
 * @param mixed $defs_nonsel
@@ -49,11 +62,13 @@ function getAllowedTerms($defs, $defs_nonsel, $dtyID){
         } else {
 
             $terms = getTermsFromFormat($defs);
+            
             if (($cntTrm = count($terms)) > 0) {
 
                 if ($cntTrm == 1) {  //vocabulary
+                
                     $terms = getTermOffspringList($terms[0]);
-
+                    
                 }else{
                     $nonTerms = getTermsFromFormat($defs_nonsel);
                     if (count($nonTerms) > 0) {
@@ -73,6 +88,7 @@ function getAllowedTerms($defs, $defs_nonsel, $dtyID){
             }
         }
     }else{
+        
         $allowed_terms = $dtyIDDefs[$dtyID];
     }
     return $allowed_terms;
@@ -125,11 +141,11 @@ function isValidTermLabel($defs, $defs_nonsel, $label, $dtyID, $isStripAccents=f
         $allowed_terms = $dtyID_term_label[$dtyID];
     }
 
-    if($isStripAccents){
+    if($isStripAccents && is_array($allowed_terms)){
         array_walk($allowed_terms, 'trim_lower_accent2');
     }
     
-    $label = mb_strtolower($label);
+    $label = trim(mb_strtolower($label));
 
     if(is_array($allowed_terms)){
         $term_ID = array_search($label, $allowed_terms, true);
@@ -232,6 +248,7 @@ function isInvalidTerm($defs, $defs_nonsel, $id, $dtyID){
 }
 
 //
+// parse terms string
 // similar functions are in saveRecordDetail and importRectype
 // @todo - use this library!
 //

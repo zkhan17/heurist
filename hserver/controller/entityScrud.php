@@ -24,13 +24,30 @@
     */
 
     require_once (dirname(__FILE__).'/../System.php');
+    /*
     require_once (dirname(__FILE__).'/../dbaccess/dbSysUGrps.php');
     require_once (dirname(__FILE__).'/../dbaccess/dbDefRecTypes.php');
     require_once (dirname(__FILE__).'/../dbaccess/dbDefRecTypeGroups.php');
     require_once (dirname(__FILE__).'/../dbaccess/dbDefDetailTypes.php');
     require_once (dirname(__FILE__).'/../dbaccess/dbDefDetailTypeGroups.php');
+    */
+    require_once (dirname(__FILE__).'/../dbaccess/dbUsrTags.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbSysDatabases.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbSysIdentification.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbSysGroups.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbSysUsers.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbDefDetailTypeGroups.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbDefFileExtToMimetype.php');
     require_once (dirname(__FILE__).'/../dbaccess/dbDefTerms.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbDefRecTypeGroups.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbDefRecTypes.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbSysBugreport.php');
     require_once (dirname(__FILE__).'/../dbaccess/dbSysImportFiles.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbRecThreadedComments.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbRecUploadedFiles.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbRecords.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbUsrBookmarks.php');
+    require_once (dirname(__FILE__).'/../dbaccess/dbUsrReminders.php');
     require_once (dirname(__FILE__).'/../dbaccess/utils_db.php');
 
     $response = array();
@@ -51,20 +68,27 @@
         if(!$entity){
             $this->system->addError(HEURIST_INVALID_REQUEST, "Wrong entity parameter: $entity_name");
         }
-    }
 
-    if($entity && $entity->isvalid()){
-        if(@$_REQUEST['a'] == 'search'){
-            $res = $entity->search();
-        }else if(@$_REQUEST['a'] == 'save'){
-            $res = $entity->save();
-        }else if(@$_REQUEST['a'] == 'delete'){
-            $res = $entity->delete();
-        }else if(@$_REQUEST['a'] == 'config'){
-            $res = $entity->config();
-        }else {
-            $system->addError(HEURIST_INVALID_REQUEST, "Type of request not defined or not allowed");
+        if($entity && $entity->isvalid()){
+            if(@$_REQUEST['a'] == 'search'){
+                $res = $entity->search();
+            }else  if(@$_REQUEST['a'] == 'title'){ //search for entity title by id
+                $res = $entity->search_title();
+            }else if(@$_REQUEST['a'] == 'save'){
+                $res = $entity->save();
+            }else if(@$_REQUEST['a'] == 'delete'){
+                $res = $entity->delete();
+            }else if(@$_REQUEST['a'] == 'config'){
+                $res = $entity->config();
+            }else if(@$_REQUEST['a'] == 'counts'){  //various counts(aggregations) request - implementation depends on entity
+                $res = $entity->counts();
+            }else if(@$_REQUEST['a'] == 'action'){ //batch action. see details of operaion for method of particular class
+                $res = $entity->batch_action();
+            }else {
+                $system->addError(HEURIST_INVALID_REQUEST, "Type of request not defined or not allowed");
+            }
         }
+        
     }
     
     if( is_bool($res) && !$res ){

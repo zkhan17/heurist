@@ -37,7 +37,8 @@ var rectype,
     titleMaskIsOk = true,
     _keepTitleMask,
     _keepStatus,
-    _rectype_icon = '';
+    _rectype_icon = '',
+    _selected_fields = null;
 
 var _openEditStrucutreAfterClose = false,
     _isIconWasUpdated = false;
@@ -52,7 +53,9 @@ function init() {
 
     var typesDropdown;
     var groupDropdown;
-    var newRectypeCode = 0; // 0: rectype with rectypeID exists - 1: no rectypeID given, create new - 2: rectype with given ID not found, error
+    var newRectypeCode = 0; // 0: rectype with rectypeID exists 
+                            // 1: no rectypeID given, create new 
+                            // 2: rectype with given ID not found, error
     if(rectypeID) { // Existing rectype, so load with values
         try {
             rectype = top.HEURIST.rectypes.typedefs[rectypeID].commonFields; // If succeeds, rectype with ID from URL exists, fill form with values
@@ -68,6 +71,8 @@ function init() {
         document.getElementById("rty_TitleMask_row").style.display = "none";
         if(newRectypeCode == 1){
             _upload_icon(3);
+            
+            //_select_fields();
         }
         
     }else{
@@ -83,11 +88,41 @@ function init() {
     }
 
     setTimeout(function(){document.getElementById("rty_Name").focus();},1000);
+    
+}
 
+/**
+* select minimum set of fields for new record type
+*/
+function _select_fields(continue_save){
+
+    var sURL = top.HEURIST.baseURL + "admin/structure/rectypes/editRectypeSelFields.php?db=" + db;
+
+    var that = this;
+    
+    Hul.popupURL(top, sURL, {
+            "close-on-blur": false,
+            "no-resize": false,
+            height: 500, //(mode==0?200:250),
+            width: 700,
+            title:' Select fields for new record type',
+            afterclose:function(){
+                if($.isFunction(continue_save)){
+                    continue_save.call(that);
+                }
+            },
+            callback:function(context){
+                _selected_fields = context;
+            } 
+    });
+    
 }
 
 /**
  * invokes popup to change icon or thumbnail
+ *  0 icon
+ *  1 thumb
+ *  3 select from lib
  */
 function _upload_icon(mode) {
 
@@ -425,23 +460,35 @@ function updateRectypeOnServer_continue()
     }
     if(_rectype_icon==''){
         $('#btnSave').removeAttr('disabled');
-        alert("Please select Icon for new record type");
+        alert("Please select icon for new record type");
         return;
     }
 
     var str = getUpdatedFields();
 
     if(str=="mandatory"){
+        $('#btnSave').removeAttr('disabled');
         //do not close the window
 
     }else if(str != null) {
+        
+        if( !(rectypeID > 0) && _selected_fields==null) {
+            _select_fields( updateRectypeOnServer_continue );
+            return;
+        }
 
+console.log(_selected_fields);        
+        
         // TODO: Change base URL
         var baseurl = top.HEURIST.baseURL + "admin/structure/saveStructure.php";
         var callback = updateResult;
         var params = "method=saveRT&db="+db+"&definit="+
         (document.getElementById("definit").checked?1:0)+
         "&data=" + encodeURIComponent(str);
+        
+        if(_selected_fields!=null){
+            params = params + '&newfields='+encodeURIComponent(JSON.stringify(_selected_fields));
+        }
 
         if(!(rectypeID>0)){   //assign for new                                          
             params = params + '&icon='+ encodeURIComponent(_rectype_icon);

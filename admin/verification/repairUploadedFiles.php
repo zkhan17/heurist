@@ -43,7 +43,7 @@
         print json_format($rv);
         return;
     }
-
+    
     $data = null;
     if(@$_REQUEST['data']){
         $data = json_decode(urldecode(@$_REQUEST['data']), true);
@@ -53,33 +53,57 @@
         return;
     }
 
-    
-    //1. to remove from recUploadedFiles and delete file
-    $files = $data['orphaned'];
-    $ids = array();
-    foreach ($files as $file) {
+    //------------------------------------------------------
+    //Remove non-registred files
+    $files_to_remove = @$data['files_notreg'];
+    if(is_array($files_to_remove)){
+        
+        $res = array();
+        foreach ($files_to_remove as $file) {
 
+            if(file_exists($file)){
+                if(unlink($file)) array_push($res, $file);
+            }
+        }
+        $rv['result'] = $res;
+        print json_format($rv);   
+        exit;
+    }
+    
+    //------------------------------------------------------
+    // remove registration for nonused entries in ulf
+    $regs_to_remove = @$data['unused_file_local'];
+    if(!is_array($regs_to_remove)){
+        $regs_to_remove = @$data['unused_file_remote'];        
+    }
+    if(is_array($regs_to_remove) && count($regs_to_remove)>0){
+
+        mysql_query('delete from recUploadedFiles where ulf_ID in ('.implode(',',$regs_to_remove).')');
+        if (mysql_error()) {
+            $rv['error'] = "Cannot delete entries from recUploadedFiles. mySQL error: " . mysql_error();
+            print json_format($rv);
+        }else{
+            $rv['result'] = $regs_to_remove;
+            print json_format($rv);
+        }
+        exit;
+    }    
+    
+    /*
+    foreach ($files as $file) {
         $ulf_ID = $file[0];
         $isfound = $file[1]; //if true - find and delete file if in db root or uploaded files
-        
         if($isfound==1){
             deleteUploadedFiles($ulf_ID);
         }
         $ids[] = $ulf_ID;
     }
+    */
     
-    if(count($ids)>0){
-        mysql_query('delete from recUploadedFiles where ulf_ID in ('.implode(',',$ids).')');
-        if (mysql_error()) {
-            $rv['error'] = "Cannot delete entries from recUploadedFiles. mySQL error: " . mysql_error();
-            print json_format($rv);
-            return;
-        }
-    }
-    
-    //2. to remove from recUploadedFiles, recDetails
-    $file_ids = $data['notfound'];
-    if(count($file_ids)>0){
+    //------------------------------------------------------
+    // remove missed files
+    $file_ids = @$data['files_notfound'];
+    if(is_array($file_ids) && count($file_ids)>0){
         mysql_query('delete from recDetails where dtl_UploadedFileID in ('.implode(',',$file_ids).')');
         if (mysql_error()) {
             $rv['error'] = "Cannot delete entries from recDetails. mySQL error: " . mysql_error();
@@ -92,35 +116,11 @@
             print json_format($rv);
             return;
         }
+        $rv['result'] = $file_ids;
+        print json_format($rv);
+        exit;
     }
-        
-    //3. correct path
-    $file_ids = $data['fixpath'];
-    foreach ($file_ids as $ulf_ID) {
-        
-        $filedata = get_uploaded_file_info_internal($ulf_ID, false);
-        if($filedata!=null){
-
-            $filename = $filedata['fullpath'];
-            
-            chdir(HEURIST_FILESTORE_DIR);  // relatively db root
-            $fpath = realpath($filename);
-            if(!$fpath || !file_exists($fpath)){
-                chdir(HEURIST_FILES_DIR);  // relatively db root
-                $fpath = realpath($filename);
-            }
-            $path_parts = pathinfo($fpath);
-            $dirname = $path_parts['dirname'].'/';
-            
-            $relative_path = getRelativePath(HEURIST_FILESTORE_DIR, $dirname);   //db root folder
-            
-            mysql_query('update recUploadedFiles set ulf_FilePath="'
-                            .mysql_real_escape_string($relative_path)
-                            .'"where ulf_ID = '.$ulf_ID);
-        }
-    }
-        
-        
-    $rv['result'] = "Uploaded files have been repaired.";
+    
+    $rv['error'] = "Wrong parameters. No data defined";
     print json_format($rv);
 ?>

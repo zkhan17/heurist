@@ -33,6 +33,13 @@
     * dbs_GetTerms
     * dbs_GetDetailTypes
     * dbs_GetDtLookups
+    * 
+    * TERMS RELATED FUNCTION - to be public methods, 
+    * they work with global $terms array - need to be defined by dbs_GetTerms before call these methods
+    * getTermChildren
+    * getTermInTree    
+    * getTermByLabel    
+    * getTermById
     *
     * INTERNAL FUNCTIONS
     * __getRectypeColNames
@@ -84,7 +91,7 @@
 
         $mysqli = $system->get_mysqli();
         $dbID = $system->get_system('sys_dbRegisteredID');
-
+        
         /*ARTEM $cacheKey = DATABASE . ":AllRecTypeInfo";
         if ($useCachedData) {
         $rtStructs = getCachedData($cacheKey);
@@ -100,7 +107,7 @@
             "if(rst_DisplayHelpText is not null and (dty_Type='separator' OR CHAR_LENGTH(rst_DisplayHelpText)>0),rst_DisplayHelpText,dty_HelpText) as rst_DisplayHelpText",
             //here we check for an override in the recTypeStrucutre for ExtendedDescription which is a rectype specific ExtendedDescription, use detailType ExtendedDescription as default
             "if(rst_DisplayExtendedDescription is not null and CHAR_LENGTH(rst_DisplayExtendedDescription)>0,rst_DisplayExtendedDescription,dty_ExtendedDescription) as rst_DisplayExtendedDescription",
-            "rst_DisplayOrder", "rst_DisplayWidth", "rst_DefaultValue", "rst_RecordMatchOrder", "rst_CalcFunctionID", "rst_RequirementType",
+            "rst_DisplayOrder", "rst_DisplayWidth", "rst_DisplayHeight", "rst_DefaultValue", "rst_RecordMatchOrder", "rst_CalcFunctionID", "rst_RequirementType",
             "rst_NonOwnerVisibility", "rst_Status", "rst_OriginatingDBID", "rst_MaxValues", "rst_MinValues",
             //here we check for an override in the recTypeStrucutre for displayGroup
             "if(rst_DisplayDetailTypeGroupID is not null,rst_DisplayDetailTypeGroupID,dty_DetailTypeGroupID) as rst_DisplayDetailTypeGroupID",
@@ -108,6 +115,7 @@
             "if(rst_FilteredJsonTermIDTree is not null and CHAR_LENGTH(rst_FilteredJsonTermIDTree)>0,rst_FilteredJsonTermIDTree,dty_JsonTermIDTree) as rst_FilteredJsonTermIDTree",
             //here we check for an override in the recTypeStrucutre for Pointer types which is a subset of the detailType dty_PtrTargetRectypeIDs
             "if(rst_PtrFilteredIDs is not null and CHAR_LENGTH(rst_PtrFilteredIDs)>0,rst_PtrFilteredIDs,dty_PtrTargetRectypeIDs) as rst_PtrFilteredIDs",
+            "rst_CreateChildIfRecPtr",
             "rst_OrderForThumbnailGeneration", "rst_TermIDTreeNonSelectableIDs", "rst_Modified", "rst_LocallyModified",
             "dty_TermIDTreeNonSelectableIDs",
             "dty_FieldSetRectypeID",
@@ -184,21 +192,35 @@
 
 
         $res = $mysqli->query($query);
-        while ($row = $res->fetch_row()) {
-            if($imode!=1){
-                array_push($rtStructs['groups'][$rtStructs['groups']['groupIDToIndex'][$row[1]]]['allTypes'], $row[0]);
-                if ($row[14]) { //rty_ShowInList
-                    array_push($rtStructs['groups'][$rtStructs['groups']['groupIDToIndex'][$row[1]]]['showTypes'], $row[0]);
+        if($res){
+            while ($row = $res->fetch_row()) {
+                if($imode!=1){
+                    $rtg_ID = $row[1];
+                    if(!@$rtStructs['groups']['groupIDToIndex'][$rtg_ID]){
+                        if($rtg_ID>0){
+                            //error_log('Database '.HEURIST_DBNAME.' Definitions error: wrong group id '.$rtg_ID.' for record type '.$row[0]);
+                        }
+                        
+                        $idxs = array_keys($rtStructs['groups']['groupIDToIndex']);
+                        $rtg_ID = $idxs[0];
+                    }
+                    
+                    array_push($rtStructs['groups'][$rtStructs['groups']['groupIDToIndex'][$rtg_ID]]['allTypes'], $row[0]);
+                    if ($row[14]) { //rty_ShowInList
+                        array_push($rtStructs['groups'][$rtStructs['groups']['groupIDToIndex'][$rtg_ID]]['showTypes'], $row[0]);
+                    }
                 }
+                if($imode>0){
+                    $commonFields = array_slice($row, 3);
+                    $rtStructs['typedefs'][$row[0]]['commonFields'] = $commonFields;
+                }
+                $rtStructs['names'][$row[0]] = $row[3];
+                $rtStructs['pluralNames'][$row[0]] = $row[8];
             }
-            if($imode>0){
-                $commonFields = array_slice($row, 3);
-                $rtStructs['typedefs'][$row[0]]['commonFields'] = $commonFields;
-            }
-            $rtStructs['names'][$row[0]] = $row[3];
-            $rtStructs['pluralNames'][$row[0]] = $row[8];
+            $res->close();
+        }else{
+            error_log('DATABASE: '.HEURIST_DBNAME.'. Error retrieving rectype structure '.$mysqli->error);
         }
-        $res->close();
 
 
         //ARTEM setCachedData($cacheKey, $rtStructs);
@@ -301,10 +323,19 @@
             'enum' => array()),
             'commonFieldNames' => array_slice(__getTermColNames(), 1),
             'fieldNamesToIndex' => __getColumnNameToIndex(array_slice(__getTermColNames(), 1)));
+            
+        $terms['fieldNamesToIndex']['trm_HasImage'] = count($terms['commonFieldNames']);
+        array_push($terms['commonFieldNames'],'trm_HasImage');        
+            
         if($res){
+            $lib_dir = HEURIST_FILESTORE_DIR . 'term-images/';
+            
             while ($row = $res->fetch_row()) {
                 $terms['termsByDomainLookup'][$row[9]][$row[0]] = array_slice($row, 1);
+                $hasImage = file_exists($lib_dir.$row[0].'.png');
+                array_push($terms['termsByDomainLookup'][$row[9]][$row[0]], $hasImage);
             }
+            
             $res->close();
         }else{
             error_log('DATABASE: '.HEURIST_DBNAME.'. Error retrieving terms '.$mysqli->error);
@@ -316,9 +347,34 @@
         return $terms;
     }
 
+    // to public method ------>
     
+    /**
+    * return all term children as plain array
+    * 
+    * @param mixed $system
+    */
+    function getTermChildren($parentID, $system, $firstlevel_only){
+        
+        $mysqli = $system->get_mysqli();
+        $children = array();
+    
+        $query = 'select trm_ID from defTerms where trm_ParentTermID = ' . $parentID;
+        $res = $mysqli->query($query);
+        if ($res) {
+            while ($row = $res->fetch_row()) {
+                array_push($children, $row[0]);
+                if(!$firstlevel_only){
+                    $children = array_merge($children, getTermChildren($row[0], $system, $firstlevel_only));
+                }
+            }
+        }
+        
+        return $children;
+        
+    }
+
     //
-    // to public method
     // find tree in term tree
     // return branch with childs
     //
@@ -361,7 +417,6 @@
         return null;
     }
 
-    
     //
     // to public method
     //
@@ -435,10 +490,11 @@
         return $columnsNameIndexMap;
     }
     function __getRectypeStructureFieldColNames() {
-        return array("rst_DisplayName", "rst_DisplayHelpText", "rst_DisplayExtendedDescription", "rst_DisplayOrder", "rst_DisplayWidth",
+        return array("rst_DisplayName", "rst_DisplayHelpText", "rst_DisplayExtendedDescription", "rst_DisplayOrder", 
+            "rst_DisplayWidth", "rst_DisplayHeight",
             "rst_DefaultValue", "rst_RecordMatchOrder", "rst_CalcFunctionID", "rst_RequirementType", "rst_NonOwnerVisibility",
             "rst_Status", "rst_OriginatingDBID", "rst_MaxValues", "rst_MinValues", "rst_DisplayDetailTypeGroupID",
-            "rst_FilteredJsonTermIDTree", "rst_PtrFilteredIDs", "rst_OrderForThumbnailGeneration", "rst_TermIDTreeNonSelectableIDs",
+            "rst_FilteredJsonTermIDTree", "rst_PtrFilteredIDs", "rst_CreateChildIfRecPtr", "rst_OrderForThumbnailGeneration", "rst_TermIDTreeNonSelectableIDs",
             "rst_Modified", "rst_LocallyModified", "dty_TermIDTreeNonSelectableIDs", "dty_FieldSetRectypeID", "dty_Type");
     }
 
@@ -447,18 +503,32 @@
     * @param     int $parentIndex id of parent term to attach child branch to
     * @param     int $childIndex id of child branch in current array
     * @param     mixed $terms the array of branches to build the tree
+    * @param     array $parents of current branch to avoid recursion
     * @return    object $terms
     */
-    function __attachChild($parentIndex, $childIndex, $terms) {
-        if (!@count($terms[$childIndex]) || $parentIndex == $childIndex) {//recursion termination
+    function __attachChild($parentIndex, $childIndex, $terms, $parents) {
+        
+        /*if (!@count($terms[$childIndex]) || $parentIndex == $childIndex) {//recursion termination
             return $terms;
-        }
-        if (array_key_exists($childIndex, $terms)) {//check for
-            if (count($terms[$childIndex])) {
-                foreach ($terms[$childIndex] as $gChildID => $n) {
+        }*/
+        
+        if (array_key_exists($childIndex, $terms)) {//check if this child is parent itself
+            if (count($terms[$childIndex])) { //has children
+            
+                if($parents==null){
+                    $parents = array($childIndex);
+                }else{
+                    array_push($parents, $childIndex);
+                }
+            
+                foreach ($terms[$childIndex] as $gChildID => $n) { //loop for his children
                     if ($gChildID != null) {
-//error_log($gChildID);                        
-                        $terms = __attachChild($childIndex, $gChildID, $terms);//depth first recursion
+                        if(array_search($gChildID, $parents)===false){
+                            $terms = __attachChild($childIndex, $gChildID, $terms, $parents);//depth first recursion
+                        }else{
+                            error_log('Recursion in '.HEURIST_DBNAME.'.defTerms!!! Tree '.implode('>',$parents)
+                                    .'. Can\'t add term '.$gChildID);
+                        }
                     }
                 }
             }
@@ -497,12 +567,13 @@
             }
         }//we have all the branches, now lets build a tree
         $res->close();
+        
         foreach ($terms as $parentID => $childIDs) {
             foreach ($childIDs as $childID => $n) {
                 //check that we have a child branch
                 if ($childID != null && array_key_exists($childID, $terms)) {
                     if (count($terms[$childID])) {//yes then attach it and it's children's branches
-                        $terms = __attachChild($parentID, $childID, $terms);
+                        $terms = __attachChild($parentID, $childID, $terms, null);
                     } else {//no then it's a leaf in a branch, remove this redundant node.
                         unset($terms[$childID]);
                     }
@@ -518,7 +589,8 @@
     function __getTermColNames() {
         return array("trm_ID", "trm_Label", "trm_InverseTermID", "trm_Description", "trm_Status", "trm_OriginatingDBID",
             //                    "trm_NameInOriginatingDB",
-            "trm_IDInOriginatingDB", "trm_AddedByImport", "trm_IsLocalExtension", "trm_Domain", "trm_OntID", "trm_ChildCount", "trm_ParentTermID", "trm_Depth", "trm_Modified", "trm_LocallyModified", "trm_Code", "trm_ConceptID");
+            "trm_IDInOriginatingDB", "trm_AddedByImport", "trm_IsLocalExtension", "trm_Domain", "trm_OntID", "trm_ChildCount", 
+            "trm_ParentTermID", "trm_Depth", "trm_Modified", "trm_LocallyModified", "trm_Code", "trm_ConceptID");
     }
 
     //
@@ -692,11 +764,13 @@
         }
         
         //SPECIAL CASE for relation type #6
-        if($imode>0 && @$dtStructs['typedefs'][DT_RELATION_TYPE]){
-            $idx = $dtStructs['typedefs']['fieldNamesToIndex']['dty_JsonTermIDTree'];
-            $dtStructs['typedefs'][DT_RELATION_TYPE]['commonFields'][$idx] = 0;
-            $idx = $dtStructs['typedefs']['fieldNamesToIndex']['dty_TermIDTreeNonSelectableIDs'];
-            $dtStructs['typedefs'][DT_RELATION_TYPE]['commonFields'][$idx] = '';
+        if($imode>0){
+            if($system->defineConstant('DT_RELATION_TYPE') && @$dtStructs['typedefs'][DT_RELATION_TYPE]){
+                $idx = $dtStructs['typedefs']['fieldNamesToIndex']['dty_JsonTermIDTree'];
+                $dtStructs['typedefs'][DT_RELATION_TYPE]['commonFields'][$idx] = 0;
+                $idx = $dtStructs['typedefs']['fieldNamesToIndex']['dty_TermIDTreeNonSelectableIDs'];
+                $dtStructs['typedefs'][DT_RELATION_TYPE]['commonFields'][$idx] = '';
+            }
         }
         
         //ARTEM setCachedData($cacheKey, $dtStructs);

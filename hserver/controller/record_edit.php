@@ -36,12 +36,12 @@
 
         $mysqli = $system->get_mysqli();
 
-        if ( $system->get_user_id()<1 ) {
-
+        if ( $system->get_user_id()<1 && !(@$_REQUEST['a']=='s'&&@$_REQUEST['Captcha']) ) {
+            
             $response = $system->addError(HEURIST_REQUEST_DENIED);
 
         }else{
-
+            
             $action = @$_REQUEST['a'];// || @$_REQUEST['action'];
 
             // call function from db_record library
@@ -54,6 +54,7 @@
                 $record['RecTypeID'] = @$_REQUEST['rt'];
                 $record['OwnerUGrpID'] = @$_REQUEST['ro'];
                 $record['NonOwnerVisibility'] =  @$_REQUEST['rv'];
+                $record['FlagTemporary'] = @$_REQUEST['temp'];
 
                 $response = recordAdd($system, $record);
 
@@ -65,8 +66,26 @@
 
                 $response = recordDelete($system, $_REQUEST['ids']);
 
-            } else {
+            } else if ($action=="duplicate" && @$_REQUEST['id']) {
 
+                
+                $mysqli = $system->get_mysqli();
+                $keep_autocommit = mysql__select_value($mysqli, 'SELECT @@autocommit');
+                if($keep_autocommit===true) $mysqli->autocommit(FALSE);
+                if (strnatcmp(phpversion(), '5.5') >= 0) {
+                    $mysqli->begin_transaction(MYSQLI_TRANS_START_READ_WRITE);
+                }
+
+                $response = recordDuplicate($system, $_REQUEST['id']);
+
+                if( $response && @$response['status']==HEURIST_OK ){
+                    $mysqli->commit();
+                }else{
+                    $mysqli->rollback();
+                }
+                if($keep_autocommit===true) $mysqli->autocommit(TRUE);                
+
+            } else {
                 $response = $system->addError(HEURIST_INVALID_REQUEST);
             }
         }

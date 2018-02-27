@@ -23,13 +23,24 @@
 if(!defined('PDIR')) define('PDIR','../../../');
 require_once(dirname(__FILE__)."/../initPage.php");
 ?>
-<link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>common/css/global.css">
+<!--link rel="stylesheet" type="text/css" href="<?php echo PDIR;?>common/css/global.css"-->
         <style>
+        
+A:visited {
+    color: #6A7C99;
+    text-decoration: none;
+}
+A:link {
+    color: #6A7C99;
+    text-decoration: none;
+}        
+
             #rectypes {
                 height: 100%;
             }
 
             table {
+                font-size: 11px;
                 table-layout: auto;
                 border-color: black;
                 border-collapse: collapse;
@@ -145,7 +156,7 @@ require_once(dirname(__FILE__)."/../initPage.php");
         </script>
     </head>
 
-    <body class="popup">
+    <body class="popup" style="background-color: #FFF;">
     
         <div class="ent_wrapper">
                 <div id="list_rectypes" class="ent_wrapper" style="width:350px;display:none">
@@ -476,8 +487,13 @@ defRecTypeGroups rg where rg.rtg_ID=d.rty_RecTypeGroupID
                 
                     var width = $(window).width();
               
-                    var supw = (width<890)?4:0; //1120
-
+                    var is_advanced = getSetting('setting_advanced');
+                    
+                    var supw = 0;
+                    if(width<645 || (is_advanced && width<1055)){
+                         supw = 2;
+                    }
+                    
                     var dbkey = 'db'+window.hWin.HAPI4.database;
 
                 // For the moment - Jan 2017 - it is useful to show the hint at all times.
@@ -485,7 +501,7 @@ defRecTypeGroups rg where rg.rtg_ID=d.rty_RecTypeGroupID
                 // intention                           
                 //if(getSetting(dbkey)==null){ //new databse - show hint
                     putSetting(dbkey, '1');
-                    $('#divSvg').css('top', 9+supw+'em');
+                    $('#divSvg').css('top', 8+supw+'em');
                     $('#divHint').show();
                     /*}else{
                         $('#divSvg').css('top', 5+supw+'em');

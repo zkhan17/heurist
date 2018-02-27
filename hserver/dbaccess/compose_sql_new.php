@@ -52,6 +52,7 @@ tag, keyword, kwd:   tag
 id, ids:  id
 t, type:  record type id
 f, field:   field id
+cnt:field id  search for number of field instances
 
 latitude, lat:
 longitude, long, lng:
@@ -85,7 +86,8 @@ VALUE
 4)  Query     "linked_to:15": [{ t:4 }, {"f:1":"Alex" } ]
 "f:10": {"any":[ {t:4}, {} ] }
 
-
+5) Find all records without field  "f:5":"NULL"
+6) Find all records with any value in field  "f:5":""
 
 */
 
@@ -116,8 +118,9 @@ $top_query;
 */
 // $params need for
 // q - json query array
-// w - domain all or bookmarked
+// w - domain all or bookmarked or e(everything)
 // limit and offset
+// nested = false - to avoid nested queries - it allows performs correct count for distinct target record type (see faceted search)
 // @todo s - sort
 // @todo publiconly
 //
@@ -198,7 +201,7 @@ function get_sql_query_clauses_NEW($db, $params, $currentUser=null){
 
 // [{"t":3},{"f:1":"?"},{"linked_to:15":[{"t":"10"},{"f:1":"?"}   ] } ]
 
-
+                                                                  
 class HQuery {
 
     var $from_clause = '';
@@ -235,9 +238,9 @@ class HQuery {
 
     function makeSQL(){
 
-        global $publicOnly, $wg_ids;
+        global $publicOnly, $wg_ids, $params_global;
 
-        $res = $this->top_limb->makeSQL();
+        $res = $this->top_limb->makeSQL(); //it creates where_clause and fill tables array
 
         if($this->search_domain!=null){
 
@@ -259,7 +262,7 @@ class HQuery {
                 $this->where_clause = " (r".$this->level.".rec_ID=rd".$this->level.".dtl_RecID) AND ";
             }
         }
-        $this->where_clause = $this->where_clause.$this->top_limb->where_clause." ";
+        $this->where_clause = $this->where_clause . $this->top_limb->where_clause." ";
 
         //add owner access restriction @todo look at parmeter owner
         if($this->level=='0'){ //apply this restriction for top level only
@@ -282,7 +285,11 @@ class HQuery {
             }
             $where2 = '(not r0.rec_FlagTemporary) and '.$where2;
 
-            $this->where_clause = $this->where_clause. ' and ' . $where2;
+            if(trim($this->where_clause)!=''){
+                $this->where_clause = $this->where_clause. ' and ' . $where2;
+            }else{
+                $this->where_clause = $where2;
+            }
             
             //apply sort clause for top level only
             $this->createSortClause();
@@ -351,58 +358,58 @@ class HQuery {
                         break;
                     }
                 case 'p': case 'popularity':
-                    if(!in_array('rec_Popularity', $sort_fields)) {
-                        $sort_fields[] = 'rec_Popularity';   
-                        $sort_expr[] = 'rec_Popularity'.$scending;   
+                    if(!in_array('r0.rec_Popularity', $sort_fields)) {
+                        $sort_fields[] = 'r0.rec_Popularity';   
+                        $sort_expr[] = 'r0.rec_Popularity'.$scending;   
                     }
-                    if(!in_array('rec_ID', $sort_fields)) {
-                        $sort_fields[] = 'rec_ID';   
-                        $sort_expr[] = 'rec_ID'.$scending;   
+                    if(!in_array('r0.rec_ID', $sort_fields)) {
+                        $sort_fields[] = 'r0.rec_ID';   
+                        $sort_expr[] = 'r0.rec_ID'.$scending;   
                     }
                     break;
                 case 'u': case 'url':
-                    if(!in_array('rec_URL', $sort_fields)) {
-                        $sort_fields[] = 'rec_URL';   
-                        $sort_expr[] = 'rec_URL'.$scending;   
+                    if(!in_array('r0.rec_URL', $sort_fields)) {
+                        $sort_fields[] = 'r0.rec_URL';   
+                        $sort_expr[] = 'r0.rec_URL'.$scending;   
                     }
                     break;
                 case 'm': case 'modified':
-                    $fld = ($this->search_domain == BOOKMARK)?'bkm_Modified':'rec_Modified';
+                    $fld = ($this->search_domain == BOOKMARK)?'bkm_Modified':'r0.rec_Modified';
                     if(!in_array($fld, $sort_fields)) {
                         $sort_fields[] = $fld;   
                         $sort_expr[] = $fld.$scending;   
                     }
                     break;
                 case 'a': case 'added':
-                    $fld = ($this->search_domain == BOOKMARK)?'bkm_Added':'rec_Added';
+                    $fld = ($this->search_domain == BOOKMARK)?'bkm_Added':'r0.rec_Added';
                     if(!in_array($fld, $sort_fields)) {
                         $sort_fields[] = $fld;   
                         $sort_expr[] = $fld.$scending;   
                     }
                     break;
                 case 't': case 'title':
-                    if(!in_array('rec_Title', $sort_fields)) {
-                        $sort_fields[] = 'rec_Title';   
-                        $sort_expr[] = 'rec_Title'.$scending;   
+                    if(!in_array('r0.rec_Title', $sort_fields)) {
+                        $sort_fields[] = 'r0.rec_Title';   
+                        $sort_expr[] = 'r0.rec_Title'.$scending;   
                     }
                     break;
                 case 'id': case 'ids':
-                    if(!in_array('rec_ID', $sort_fields)) {
-                        $sort_fields[] = 'rec_ID';   
-                        $sort_expr[] = 'rec_ID'.$scending;   
+                    if(!in_array('r0.rec_ID', $sort_fields)) {
+                        $sort_fields[] = 'r0.rec_ID';   
+                        $sort_expr[] = 'r0.rec_ID'.$scending;   
                     }
                     break;
                 case 'rt': case 'type':
-                    if(!in_array('rec_RecTypeID', $sort_fields)) {
-                        $sort_fields[] = 'rec_RecTypeID';   
-                        $sort_expr[] = 'rec_RecTypeID'.$scending;   
+                    if(!in_array('r0.rec_RecTypeID', $sort_fields)) {
+                        $sort_fields[] = 'r0.rec_RecTypeID';   
+                        $sort_expr[] = 'r0.rec_RecTypeID'.$scending;   
                     }
                     break;
                     
                 case 'f': case 'field':
                     if($dty_ID!=null && !in_array($dty_ID, $sort_fields)) {
                     $sort_expr[] = 
-'ifnull((select if(link.rec_ID is null, dtl_Value, link.rec_Title) from recDetails left join Records link on dtl_Value=link.rec_ID where dtl_RecID=r'.$this->level.'.rec_ID and dtl_DetailTypeID='.$dty_ID.' ORDER BY link.rec_Title limit 1), "~~"), rec_Title';                    
+'ifnull((select if(link.rec_ID is null, dtl_Value, link.rec_Title) from recDetails left join Records link on dtl_Value=link.rec_ID where dtl_RecID=r'.$this->level.'.rec_ID and dtl_DetailTypeID='.$dty_ID.' ORDER BY link.rec_Title limit 1), "~~"), r'.$this->level.'.rec_Title';                    
                         $sort_fields[] = $dty_ID;   
                     }
                     
@@ -446,8 +453,7 @@ class HLimb {
         $this->conjunction = $conjunction;
 
         //echo "<br>".(print_r($query_json, true));
-        
-
+        if(is_array($query_json))
         foreach ($query_json as $key => $value){
 
             //echo "<br>key=".$key."  ".(print_r($value,true));
@@ -529,7 +535,9 @@ class HLimb {
         //$where = $where."}";
 
         $this->where_clause = $where;
-        return array("from"=>$this->tables, "where"=>$where);
+        $res = array("from"=>$this->tables, "where"=>$where);
+        
+        return $res;        
     }
 
     function addTable($table){
@@ -565,7 +573,7 @@ class HPredicate {
     var $lessthan = false;
     var $greaterthan = false;
 
-    var $allowed = array('title','t','url','notes','type','ids','id',
+    var $allowed = array('title','t','modified','url','notes','type','ids','id','count','cnt',
             'f','field','linked_to','linkedfrom','related_to','relatedfrom','links','plain');
     /*
     notes, n:        record heder notes (scratchpad)
@@ -642,8 +650,10 @@ class HPredicate {
             
                 $query = parse_query($top_query->search_domain, urldecode($this->value), null, null, $top_query->currUserID);
 
+                $tab = 'r'.$this->qlevel;
+                             
                 $where_clause = $query->where_clause;
-                $where_clause = str_replace('TOPBIBLIO','r0',$where_clause);
+                $where_clause = str_replace('TOPBIBLIO',$tab,$where_clause);  //need to replace for particular level
                 $where_clause = str_replace('TOPBKMK','b',$where_clause);
                 
 //error_log($where_clause);
@@ -672,6 +682,12 @@ class HPredicate {
                 $res = "r".$this->qlevel.".rec_RecTypeID ".$res;
                 return array("where"=>$res);
 
+            case 'count':
+            case 'cnt':
+            
+                if(!$this->field_id) return null;
+                $this->pred_type = strtolower($this->pred_type);
+                
             case 'field':
             case 'f':
 
@@ -681,6 +697,14 @@ class HPredicate {
                     return $this->predicateField();
                 }
 
+            case 'title':
+            case 'modified':
+            case 'url':
+            case 'notes':
+            
+                $this->pred_type = strtolower($this->pred_type);
+                return $this->predicateField();
+                
             case 'ids':
             case 'id':
 
@@ -732,32 +756,62 @@ class HPredicate {
 
         $p = "rd".$this->qlevel.".";
         $p = "";
-
-        if(intval($this->field_id)>0){
+        
+        if($this->pred_type=='count' || $this->pred_type=='cnt'){
+            $this->field_type = 'link'; //integer without quotes
+        }else if(intval($this->field_id)>0){
             //find field type - @todo from cache
             $this->field_type = mysql__select_value($mysqli, 'select dty_Type from defDetailTypes where dty_ID = '.$this->field_id);
         }else{
             $this->field_type = 'freetext';
         }
         
+        $is_empty = $this->isEmptyValue(); //search for empty or not defined value
+        
         $val = $this->getFieldValue();
         if(!$val) return null;
+        
+        $sHeaderField = null;
+        
+        if($this->pred_type=='title' || $this->field_id=='title'){
 
-        if($this->field_id=="title"){
+            $sHeaderField = "rec_Title";
 
-            $res = "(r".$this->qlevel.".rec_Title ".$val.")";
+        }else if($this->pred_type=='modified' || $this->field_id=='modified'){
 
-        }else if($this->field_id=="modified"){
-
-            $res = "(r".$this->qlevel.".rec_Modified ".$val.")";
+            $sHeaderField = "rec_Modified";
             
-        }else if($this->field_id=='url'){
+        }else if($this->pred_type=='url' || $this->field_id=='url'){
             
-            $res = "(r".$this->qlevel.".rec_URL ".$val.")";
+            $sHeaderField = "rec_URL";
 
-        }else if($this->field_id=='notes'){
+        }else if($this->pred_type=='notes' || $this->field_id=='notes'){
             
-            $res = "(r".$this->qlevel.".rec_ScratchPad ".$val.")";
+            $sHeaderField = "rec_ScratchPad";
+        }
+            
+          
+        if($sHeaderField){    
+            
+            if($this->pred_type=='f') $this->pred_type = $this->field_id;
+            
+            if($is_empty){
+                $res = "(r".$this->qlevel.".$sHeaderField is NULL OR r".$this->qlevel.".$sHeaderField=='')";    
+            }else{
+                $res = "(r".$this->qlevel.".$sHeaderField ".$val.")";    
+            }
+            
+            
+        }else if( $is_empty ){ //search for records where field value is not defined
+            
+            $res = "NOT exists (select dtl_ID from recDetails ".$p." where r".$this->qlevel.".rec_ID=".$p."dtl_RecID AND "
+            .$p."dtl_DetailTypeID=".$this->field_id.")";
+
+        }else if($this->pred_type=='count' || $this->pred_type=='cnt'){ //search for records where field occurs N times (repeatable values)
+
+            $res = "(select count(dtl_ID) from recDetails ".$p." where r".$this->qlevel.".rec_ID=".$p."dtl_RecID AND "
+            .$p."dtl_DetailTypeID=".$this->field_id.")".$val;
+        
             
         }else{
             
@@ -790,16 +844,24 @@ class HPredicate {
         $p = "rd".$this->qlevel.".";
         $p = "";
 
+        $keep_val = $this->value;
+        
+        $this->field_type = 'enum';
+        $val_enum = $this->getFieldValue();
+        
         $this->field_type = 'freetext';
+        $this->value = $keep_val;
         $val = $this->getFieldValue();
         if(!$val) return null;
 
         $res = 'exists (select dtl_ID from recDetails '.$p
         . ' left join defDetailTypes on dtl_DetailTypeID=dty_ID '
-        . ' left join Records link on rd.dtl_Value=link.rec_ID '
+        . ' left join Records link on '.$p.'dtl_Value=link.rec_ID '
         .' where r'.$this->qlevel.'.rec_ID='.$p.'dtl_RecID '
-        .'  and if(dty_Type != "resource", '.$p.'dtl_Value'.$val
-        .' , link.rec_Title like "%'.$mysqli->real_escape_string($this->value).'%"))';
+        .'  and if(dty_Type != "resource", '
+                .' if(dty_Type="enum", '.$p.'dtl_Value'.$val_enum 
+                   .', '.$p.'dtl_Value'.$val
+                   .'), link.rec_Title '.$val.'))';   //'like "%'.$mysqli->real_escape_string($this->value).'%"))';
 
         return array("where"=>$res);
     }
@@ -809,13 +871,21 @@ class HPredicate {
     //
     function predicateRecIds(){
 
+        global $top_query, $params_global;
+        $not_nested = (@$params_global['nested']===false);
+        
         $this->field_type = "link";
         $p = $this->qlevel;
 
         if($this->query){
             $this->query->makeSQL();
             if($this->query->where_clause && trim($this->query->where_clause)!=""){
-                $val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE ".$this->query->where_clause.")";
+                if($not_nested){
+                    $val = ' = r'.$this->query->level.'.rec_ID AND '.$this->query->where_clause;
+                    $top_query->top_limb->addTable($this->query->from_clause);
+                }else{
+                    $val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE ".$this->query->where_clause.")";
+                }
             }else{
                 return null;
             }
@@ -846,41 +916,80 @@ class HPredicate {
     * find records that have pointers to specified records
     */
     function predicateLinkedTo(){
+    
+        global $top_query, $params_global;
+        $not_nested = (@$params_global['nested']===false);
 
         $this->field_type = "link";
-
         $p = $this->qlevel;
         $rl = "rl".$p."x".$this->index_of_predicate;
-
-        if($this->query){
-            $this->query->makeSQL();
-            if($this->query->where_clause && trim($this->query->where_clause)!=""){
-                $val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE ".$this->query->where_clause.")";
+        
+        if($this->isEmptyValue()){
+            
+            $rd = "rd".$this->qlevel;
+            
+            if($this->field_id){
+                //no pointer field
+                $where = "NOT exists (select dtl_ID from recDetails $rd where r$p.rec_ID=$rd.dtl_RecID AND "
+            ."$rd.dtl_DetailTypeID=".$this->field_id.")";
+            
             }else{
-                return null;
+                //no links at all
+                $where = "r$p.rec_ID NOT IN (select rl_SourceID from recLinks where $rl.rl_RelationID is null";
             }
-
+            
+            return array("where"=>$where);
+            
         }else{
-            $val = $this->getFieldValue();
+        
+//$top_query->top_limb->addTable tables
+//$top_query->top_limb->$where_clause
+            
+            $rl = "rl".$p."x".$this->index_of_predicate;
 
-            if(!$this->field_list){
-                $val = "=0";
-                //@todo  findAnyField query
-                //$val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE".$this->query->where_clause.")";
+            if($this->query){
+                $this->query->makeSQL();
+                
+                if($this->query->where_clause && trim($this->query->where_clause)!=""){
+
+                    if($not_nested){
+                        $val = ' = r'.$this->query->level.'.rec_ID AND '.$this->query->where_clause;
+                        $top_query->top_limb->addTable($this->query->from_clause);
+                    }else{
+                        $val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE ".$this->query->where_clause.")";
+                    }
+                    
+                }else{
+                    return null;
+                }
+            }else{
+                
+                $val = $this->getFieldValue();
+
+                if(!$this->field_list){
+                    $val = "=0";
+                    //@todo  findAnyField query
+                    //$val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE".$this->query->where_clause.")";
+                }
             }
+
+            $where = "r$p.rec_ID=$rl.rl_SourceID AND ".
+            (($this->field_id) ?"$rl.rl_DetailTypeID=".$this->field_id :"$rl.rl_RelationID is null")
+            ." AND $rl.rl_TargetID".$val;
+
+            return array("from"=>"recLinks ".$rl, "where"=>$where);
+        
         }
-
-        $where = "r$p.rec_ID=$rl.rl_SourceID AND ".
-        (($this->field_id) ?"$rl.rl_DetailTypeID=".$this->field_id :"$rl.rl_RelationID is null")
-        ." AND $rl.rl_TargetID".$val;
-
-        return array("from"=>"recLinks ".$rl, "where"=>$where);
     }
 
     /**
     * find records that have pointers to specified records
     */
     function predicateLinkedFrom(){
+        
+        global $top_query, $params_global;
+        $not_nested = (@$params_global['nested']===false);
+        
 
         $this->field_type = "link";
         $p = $this->qlevel;
@@ -891,7 +1000,13 @@ class HPredicate {
             $this->query->makeSQL();
 
             if($this->query->where_clause && trim($this->query->where_clause)!=""){
-                $val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE ".$this->query->where_clause.")";
+
+                if($not_nested){
+                    $val = ' = r'.$this->query->level.'.rec_ID AND '.$this->query->where_clause;
+                    $top_query->top_limb->addTable($this->query->from_clause);
+                }else{
+                    $val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE ".$this->query->where_clause.")";
+                }
             }else{
                 return null;
             }
@@ -920,6 +1035,10 @@ class HPredicate {
     */
     function predicateRelatedTo(){
 
+        global $top_query, $params_global;
+        $not_nested = (@$params_global['nested']===false);
+        
+
         $this->field_type = "link";
         $p = $this->qlevel;
         $rl = "rl".$p."x".$this->index_of_predicate;
@@ -927,7 +1046,13 @@ class HPredicate {
         if($this->query){
             $this->query->makeSQL();
             if($this->query->where_clause && trim($this->query->where_clause)!=""){
-                $val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE ".$this->query->where_clause.")";
+                
+                if($not_nested){
+                    $val = ' = r'.$this->query->level.'.rec_ID AND '.$this->query->where_clause;
+                    $top_query->top_limb->addTable($this->query->from_clause);
+                }else{
+                    $val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE ".$this->query->where_clause.")";
+                }
             }else{
                 return null;
             }
@@ -954,6 +1079,9 @@ class HPredicate {
     */
     function predicateRelatedFrom(){
 
+        global $top_query, $params_global;
+        $not_nested = (@$params_global['nested']===false);
+        
         $this->field_type = "link";
         $p = $this->qlevel; //parent level
         $rl = "rl".$p."x".$this->index_of_predicate;
@@ -961,7 +1089,12 @@ class HPredicate {
         if($this->query){
             $this->query->makeSQL();
             if($this->query->where_clause && trim($this->query->where_clause)!=""){
-                $val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE ".$this->query->where_clause.")";
+                if($not_nested){
+                    $val = ' = r'.$this->query->level.'.rec_ID AND '.$this->query->where_clause;
+                    $top_query->top_limb->addTable($this->query->from_clause);
+                }else{
+                    $val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE ".$this->query->where_clause.")";
+                }
             }else{
                 return null;
             }
@@ -988,6 +1121,10 @@ class HPredicate {
     * find records that any links (both pointers and relations) to specified records
     */
     function predicateLinks(){
+        
+        global $top_query, $params_global;
+        $not_nested = (@$params_global['nested']===false);
+        
 
         $this->field_type = "link";
         $p = $this->qlevel;
@@ -996,7 +1133,12 @@ class HPredicate {
         if($this->query){
             $this->query->makeSQL();
             if($this->query->where_clause && trim($this->query->where_clause)!=""){
-                $val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE ".$this->query->where_clause.")";
+                if($not_nested){
+                    $val = ' = r'.$this->query->level.'.rec_ID AND '.$this->query->where_clause;
+                    $top_query->top_limb->addTable($this->query->from_clause);
+                }else{
+                    $val = " IN (SELECT rec_ID FROM ".$this->query->from_clause." WHERE ".$this->query->where_clause.")";
+                }
             }else{
                 return null;
             }
@@ -1089,6 +1231,13 @@ class HPredicate {
         }
     }
 
+    /*
+      is search for empty or null value
+    */
+    function isEmptyValue(){
+                                            //$this->value=='' ||
+        return !is_array($this->value) && ( strtolower($this->value)=='null');
+    }
 
     /**
     * put your comment there...
@@ -1107,6 +1256,7 @@ class HPredicate {
 
         //
         if (strpos($this->value,"<>")===false) {
+            
             if(strpos($this->value, '-')===0){
                 $this->negate = true;
                 $this->value = substr($this->value, 1);
@@ -1149,7 +1299,14 @@ class HPredicate {
             
         }else
         if (($this->field_type=='float' || $this->field_type=='integer' || $this->field_type == 'link') && is_numeric($this->value)) {
-            if($this->field_type == "link"){
+            
+            if (strpos($this->value,"<>")>0) {
+                $vals = explode("<>", $this->value);
+                $between = (($this->negate)?" not":"")." between ";
+                if(is_numeric($vals[0]) && is_numeric($vals[1])){
+                    $res = $between.$vals[0]." and ".$vals[1];
+                }
+            }else if($this->field_type == "link"){
                 $res = " $eq ".intval($this->value);  //no quotes
             }else{
                 $res = " $eq '".($this->field_type=='float'?floatval($this->value):intval($this->value))."'";
@@ -1157,8 +1314,13 @@ class HPredicate {
             $this->field_list = true;
         }
         else {
-        
-            $cs_ids = getCommaSepIds($this->value);
+            
+            if($this->pred_type=='title' || $this->pred_type=='url' || $this->pred_type=='notes'){
+                $cs_ids = null;
+            }else{
+                $cs_ids = getCommaSepIds($this->value);
+            }
+            
             if ($cs_ids) {  
             //if (preg_match('/^\d+(?:,\d*)+$/', $this->value)) { - it does not work for >500 entries
                                 

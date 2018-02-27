@@ -30,12 +30,13 @@ if(@$_REQUEST['db'] && $system->init(@$_REQUEST['db'])){
     //include('dh_stats.php');
     $appcode = @$_REQUEST['app'];
     if($appcode=='DigitalHarlem1935'){
-        $appcode = 4800; //4751;
+        $appcode = 4800; //prod: 4800; dev:4751;
     }else if($appcode=='DigitalHarlem'){
-        $appcode = 4799; //4750
+        $appcode = 4799; //prod 4799; dev:4750
     }else{
         $appcode = 0;
     }  
+    $system->defineConstants();
 }
 ?>
 <html>
@@ -69,14 +70,15 @@ if(@$_REQUEST['db'] && $system->init(@$_REQUEST['db'])){
                 <div class="menubutton"><a class="menuitem" href="javascript:void(0)" onClick="{location.reload(true);}">HOME</a></div>
                 <?php
                 if(true){
-                    // Building query
+                    // Building query  - search for "Web Content" records (id 25)
                     $query = 'SELECT rec_ID id, rec_Title as title, d1.dtl_Value as content, d2.dtl_Value as ord, '
                     .' d3.dtl_Value as btn_title'
                     .' FROM Records '
-                    .' left join recDetails d2 on rec_ID=d2.dtl_recID and d2.dtl_DetailTypeID=94 '  //order 
+                    .' left join recDetails d2 on rec_ID=d2.dtl_recID and d2.dtl_DetailTypeID='.DT_ORDER  //order 
                     .' , recDetails d1, recDetails d3 '   
-                    .' WHERE rec_ID=d1.dtl_recID and rec_RecTypeID=25 and d1.dtl_DetailTypeID=4 and ' //content
-                    .' rec_ID=d3.dtl_recID and d3.dtl_DetailTypeID=1 '   //title
+                    .' WHERE rec_ID=d1.dtl_recID and rec_RecTypeID='.RT_WEB_CONTENT
+                    .' and d1.dtl_DetailTypeID='.DT_EXTENDED_DESCRIPTION.' and ' //content
+                    .' rec_ID=d3.dtl_recID and d3.dtl_DetailTypeID='.DT_NAME   //title
                     .' ORDER BY d2.dtl_Value';
 
 
@@ -97,13 +99,14 @@ if(@$_REQUEST['db'] && $system->init(@$_REQUEST['db'])){
                     if($system->is_inted()){
                         $res = $system->get_mysqli()->query($query);
                         $stats = array();
+                        
                         while($row = $res->fetch_assoc()) { // each loop is a complete table row
 
 
                             if($appcode>0){
                                 //detect app
                                 $list = mysql__select_list($system->get_mysqli(), 'recDetails', 'dtl_Value', 
-                                    'dtl_recID='.$row["id"].' and dtl_DetailTypeID=154'); //145
+                                    'dtl_recID='.$row["id"].' and dtl_DetailTypeID=154'); //dev:145  prod:154
                                 $classes = '';    
                                 $isNotFound = true;
                                 if(is_array($list))

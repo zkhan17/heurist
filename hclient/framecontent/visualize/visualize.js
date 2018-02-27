@@ -120,6 +120,7 @@ var svg;        // The SVG where the visualisation will be executed on
             
             
             // UI default settings
+            advanced: false,
             linetype: "straight",
             linelength: 100,
             linewidth: 3,
@@ -137,7 +138,7 @@ var svg;        // The SVG where the visualisation will be executed on
             formula: "linear",
             fisheye: false,
             
-            gravity: "touch",
+            gravity: "off",
             attraction: -3000,
             
             translatex: 0,
@@ -146,7 +147,7 @@ var svg;        // The SVG where the visualisation will be executed on
         }, options );
  
         // Handle settings (settings.js)
-        checkStoredSettings();
+        checkStoredSettings();  //restore default settings
         handleSettingsInUI();
 
         // Check visualisation limit
@@ -502,7 +503,7 @@ var lines = svg.append("svg:g").selectAll("path")
         }
         
         $('#showRectypeSelector').button({label:sText, icons:{secondary:'ui-icon-carat-1-'
-            +($('#list_rectypes').is(':visible')?'n':'s')   }});
+            +($('#list_rectypes').is(':visible')?'n':'s')   }}).css({'padding':'4px 2px'});
     }
     
     $('#btnZoomIn').button({icons:{primary:'ui-icon-plus'},text:false}).click(
@@ -516,6 +517,16 @@ var lines = svg.append("svg:g").selectAll("path")
          zoomBtn(false);
     }
     );
+
+    if(settings.isDatabaseStructure || isStandAlone){
+        $('#embed-export').css('visibility','hidden');//hide();
+    }else{
+        $('#embed-export').button({icons:{primary:'ui-icon-globe'},text:false}).click(
+        function(){
+             showEmbedDialog();
+        }
+        );
+    }
     
 } //end visualizeData
 
@@ -531,14 +542,14 @@ function addContainer() {
     var translateY = getSetting(setting_translatey);
     
     var s ='';
-    if(isNaN(translateX) || isNaN(translateY) || 
+    if(isNaN(translateX) || isNaN(translateY) ||  translateX==null || translateY==null ||
         Math.abs(translateX)==Infinity || Math.abs(translateY)==Infinity){
         
         translateX = 1;
         translateY = 1;
     }
     s = "translate("+translateX+", "+translateY+")";    
-    if(!isNaN(scale)){
+    if(!(isNaN(scale) || scale==null || Math.abs(scale)==Infinity)){
         s = s + "scale("+scale+")";
     }
     
@@ -689,7 +700,7 @@ function addForce() {
 * Adds marker definitions to a container
 */
 function addMarkerDefinitions() {
-    var linetype = getSetting(setting_linetype);
+    var linetype = getSetting(setting_linetype,'straight');
     var linelength = getSetting(setting_linelength);
     var markercolor = getSetting(setting_markercolor);
     
@@ -752,7 +763,7 @@ function addLines(name, color, thickness) {
     // Add the chosen lines [using the linetype setting]
     var lines;
     
-    var linetype = getSetting(setting_linetype);
+    var linetype = getSetting(setting_linetype,'straight');
     
     if(true){ //getSetting(setting_linetype) != "straight"){//} == "curved") {
         // Add curved lines
@@ -820,7 +831,7 @@ function tick() {
     var topLines = d3.selectAll(".top-lines"); 
     var bottomLines = d3.selectAll(".bottom-lines");
     
-    var linetype = getSetting(setting_linetype);
+    var linetype = getSetting(setting_linetype,'straight');
     if(linetype == "curved") {
         updateCurvedLines(topLines);
         updateCurvedLines(bottomLines);     
@@ -1222,3 +1233,40 @@ function addLabels(name, color) {
                   });
     return labels;
 }
+
+//
+//
+//
+function showEmbedDialog(){
+
+    var query = window.hWin.HEURIST4.util.composeHeuristQuery2(window.hWin.HEURIST4.current_query_request, false);
+    query = query + ((query=='?')?'':'&') + 'db='+window.hWin.HAPI4.database;
+    var url = window.hWin.HAPI4.baseURL+'hclient/framecontent/visualize/springDiagram.php' + query;
+
+    //document.getElementById("linkTimeline").href = url;
+
+    document.getElementById("code-textbox").value = '<iframe src=\'' + url +
+    '\' width="800" height="650" frameborder="0"></iframe>';
+
+    //document.getElementById("linkKml").href = url_kml;
+
+    //encode
+    query = window.hWin.HEURIST4.util.composeHeuristQuery2(window.hWin.HEURIST4.current_query_request, true);
+    query = query + ((query=='?')?'':'&') + 'db='+window.hWin.HAPI4.database;
+    url = window.hWin.HAPI4.baseURL+'hclient/framecontent/visualize/springDiagram.php' + query;
+    document.getElementById("code-textbox2").value = '<iframe src=\'' + url +
+    '\' width="800" height="650" frameborder="0"></iframe>';
+    
+    
+    
+    var $dlg = $("#embed-dialog");
+
+    $dlg.dialog({
+        autoOpen: true,
+        height: 320,
+        width: 700,
+        modal: true,
+        resizable: false,
+        title: window.hWin.HR('Publish Network Diagram')
+    });
+}            

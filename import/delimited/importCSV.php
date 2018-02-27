@@ -103,9 +103,10 @@ if(intval(@$_REQUEST["recid"])>0 && @$_REQUEST["table"] ){
 
         <meta http-equiv="content-type" content="text/html; charset=utf-8">
 
-        <script type="text/javascript" src="../../ext/jquery-ui-1.10.2/jquery-1.9.1.js"></script>
-        <script type="text/javascript" src="../../ext/jquery-ui-1.10.2/ui/jquery-ui.js"></script>
-        <link rel="stylesheet" href="../../ext/jquery-ui-1.10.2/themes/heurist/jquery-ui.css">
+        <link rel="stylesheet" type="text/css" href="../../ext/jquery-ui-themes-1.12.1/themes/heurist/jquery-ui.css" />
+        
+        <script type="text/javascript" src="../../ext/jquery-ui-1.12.1/jquery-1.12.4.js"></script>
+        <script type="text/javascript" src="../../ext/jquery-ui-1.12.1/jquery-ui.js"></script>
         
         <script type="text/javascript" src="../../ext/jquery-file-upload/js/jquery.iframe-transport.js"></script>
         <script type="text/javascript" src="../../ext/jquery-file-upload/js/jquery.fileupload.js"></script>
@@ -238,7 +239,7 @@ if(intval(@$_REQUEST["recid"])>0 && @$_REQUEST["table"] ){
                         dataType: "json",
                         cache: false,
                         error: function(jqXHR, textStatus, errorThrown ) {
-                            alert('Error connecting server. '+textStatus);
+                            alert('Error connecting to server. '+textStatus);
                         },
                         success: function( response, textStatus, jqXHR ){
                             if(response=="ok"){
@@ -1291,6 +1292,7 @@ if(is_array($imp_session)){
         <input type="hidden" id="upload_file_name" name="upload_file_name">
 
         <table width="100%">
+
             <tr>
                 <td align="right" width="250px">Select previously uploaded file:</td>
                 <td><select name="import_id" id="import_id" onchange="doSelectSession()"><?=get_list_import_sessions()?></select>
@@ -1299,13 +1301,16 @@ if(is_array($imp_session)){
                                             style="margin-right: 10px;" onclick="doClearSession('all')">
                 </td>
             </tr>
-
+        
             <tr>
                 <td colspan=2><hr/></td>
             </tr>
+
             <tr>
                 <td align="right"><label>OR Upload new CSV/TSV file</label></td>
             </tr>
+        
+            
             <tr>
                 <td>&nbsp;</td>
             </tr>

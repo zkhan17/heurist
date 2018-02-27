@@ -18,12 +18,23 @@
     * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
     * See the License for the specific language governing permissions and limitations under the License.
     */
+    
+/*
+parameters
+
+db - database
+ent = term (only) @todo make the same
+
+color - convert to given color
+checkmode - return json  {"res":"ok"} or {"res":"notfound"}
+
+id - record id    
+*/    
     require_once (dirname(__FILE__).'/../System.php');
 
     $system = new System();   
     
     $db = @$_REQUEST['db'];
-    $rectype_id = @$_REQUEST['id'];
     
     $system->initPathConstants($db);
     
@@ -36,7 +47,47 @@
         $rectype_id = substr($rectype_id,0,-5) . ".png";   
     }
     else */
+    
+    if(@$_REQUEST['ent']=='term'){    //FOR H3 UI
+    
+        $term_id = @$_REQUEST['id'];
+        if(substr($term_id,-4,4) != ".png") $term_id = $term_id . ".png";  
+    
+        $filename = HEURIST_FILESTORE_DIR . 'term-images/'.$term_id;
+        if (@$_REQUEST['checkmode']=='1'){
+            header('Content-type: text/javascript');
+            if(file_exists($filename)){
+                print '{"res":"ok"}';
+            }else{
+                print '{"res":"notfound"}';
+            }
+        }/*else if (@$_REQUEST['deletemode']=='1'){
+            header('Content-type: text/javascript');
+            //header('Content-type: text/html');
+            if (@$_REQUEST['deletemode']=='1'){
+                if(file_exists($filename)){
+                    unlink($filename);
+                }
+                print '{"res":"ok"}';
+            }else{
+                print '{"res":"notfound"}';
+            }
+        }*/else 
+        if(file_exists($filename)){
+            download_file($filename);
+        }else if (@$_REQUEST['editmode']=='1'){ //show invitation to add image
+            download_file(dirname(__FILE__).'/../../hclient/assets/100x100click.png');
+        }else {
+            download_file(dirname(__FILE__).'/../../hclient/assets/100x100.gif');
+        }
+        exit();
+    }
+  
+    //record types - @todo as other entities
+  
+    $rectype_id = @$_REQUEST['id'];
     if(substr($rectype_id,-4,4) != ".png") $rectype_id = $rectype_id . ".png";
+    $filename = HEURIST_ICON_DIR . $rectype_id;
 
     if(@$_REQUEST['color']){
         
@@ -55,34 +106,7 @@
         
     }else{
         $color_new = null; //array(255, 0, 0);    
-    }
-    
-    if(@$_REQUEST['ent']=='term'){    //FOR H3 UI
-        $filename = HEURIST_FILESTORE_DIR . 'term-images/'.$rectype_id;
-        if (@$_REQUEST['deletemode']=='1'){
-            header('Content-type: text/javascript');
-            //header('Content-type: text/html');
-            if (@$_REQUEST['deletemode']=='1'){
-                if(file_exists($filename)){
-                    unlink($filename);
-                }
-                print '{"res":"ok"}';
-            }else{
-                print '{"res":"notfound"}';
-            }
-        }else 
-        if(file_exists($filename)){
-            download_file($filename);
-        }else if (@$_REQUEST['editmode']=='1'){
-            download_file(dirname(__FILE__).'/../../hclient/assets/100x100click.png');
-        }else {
-            download_file(dirname(__FILE__).'/../../hclient/assets/100x100.gif');
-        }
-        exit();
-    }else{
-        $filename = HEURIST_ICON_DIR . $rectype_id;
-    }
-  
+    }  
 //print $filename;    
     if(file_exists($filename)){
         download_file($filename);
@@ -154,6 +178,7 @@ function create_rt_icon_with_bg( $rectype_id,  $color_new ){ //}, $bg_color ) {
     if(substr($rectype_id,-5,5) == "m.png") { //for mapping
         $rectype_id = substr($rectype_id, 0, -5);
         $bg_color = array(200,200,200);   //gray
+        //$bg_color = array(0,0,0);   //black
         $filename2 = $path . $rectype_id . "m.png";
         $alpha = 127; //0-127
     }else if(substr($rectype_id,-5,5) == "s.png") { //for selection
@@ -211,7 +236,7 @@ function create_rt_icon_with_bg( $rectype_id,  $color_new ){ //}, $bg_color ) {
         // load icon
         $img_icon = @imagecreatefrompng($filename);
 
-        $color_old = array(54,100,139);      
+        $color_old = array(0,0,0);//???? 54,100,139);      
         $color_new = (!$color_new)?array(255, 0, 0):$color_new;      
         /* RGB of your inside color */
         $rgb = $color_new; //array(0,0,255);

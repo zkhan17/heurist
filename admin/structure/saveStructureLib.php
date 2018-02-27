@@ -37,6 +37,7 @@
     require_once(dirname(__FILE__).'/../../common/php/utilsTitleMask.php');
     require_once(dirname(__FILE__).'/../../records/edit/deleteRecordInfo.php');
     require_once(dirname(__FILE__).'/../../common/php/imageLibrary.php');
+    require_once(dirname(__FILE__).'/../../common/php/utilsMail.php');
 
     $rtyColumnNames = array(
         "rty_ID"=>"i",
@@ -73,6 +74,7 @@
         "rst_DisplayExtendedDescription"=>"s",
         "rst_DisplayOrder"=>"i",
         "rst_DisplayWidth"=>"i",
+        "rst_DisplayHeight"=>"i",
         "rst_DefaultValue"=>"s",
         "rst_RecordMatchOrder"=>"i",
         "rst_CalcFunctionID"=>"i",
@@ -87,6 +89,7 @@
         "rst_DisplayDetailTypeGroupID"=>"i",
         "rst_FilteredJsonTermIDTree"=>"s",
         "rst_PtrFilteredIDs"=>"s",
+        "rst_CreateChildIfRecPtr"=>"i",
         "rst_OrderForThumbnailGeneration"=>"i",
         "rst_TermIDTreeNonSelectableIDs"=>"s",
         "rst_Modified"=>"s",
@@ -178,7 +181,28 @@
         array_push($parameters, $val);
         return $parameters;
     }
-
+    
+    //
+    // format SQL error message and send email to bug info
+    //
+    function handleError($msg, $query, $sqlerror=null){
+        
+        global $mysqli;
+        
+        if(@$sqlerror===null){
+            $sqlerror = $mysqli->error;
+        }
+        
+        $email_title = 'SQL error on db structure modification. '.HEURIST_DBNAME;
+        $email_text = 'Database '.HEURIST_DBNAME."\n\n".
+                      'Message: '.$msg."\n\n".
+                      'Query: '.$query."\n\n".
+                      'SQL error '.$sqlerror;
+        
+        sendEmail(HEURIST_MAIL_TO_BUG, $email_title, $email_text, null);
+        
+        return array('error'=> $msg.': '.$sqlerror.'.  This error has been emailed to the Heurist team. We apologise for any inconvenience');
+    }
 
 	/**
 	* deleteRectype - Helper function that delete a rectype from defRecTypes table.if there are no existing records of this type
@@ -191,11 +215,34 @@
         global $mysqli;
 
 		$ret = array();
+        
+        
+        $query = 'SELECT dty_ID, dty_Name FROM defDetailTypes where FIND_IN_SET('.$rtyID.', dty_PtrTargetRectypeIDs)>0';
+        $res = $mysqli->query($query);
+        if ($mysqli->error) {
+            return handleError("SQL error in deleteRecType retreiving field types which use rectype $rtyID", $query);
+        }else{
+            $dtCount = $res->num_rows;
+            if ($dtCount>0) { // there are fields that use this rectype, need to return error and the dty_IDs
+                $ret['error'] = "Error: You cannot delete record type $rtyID. "
+                            ." It is referenced in $dtCount base field defintions "
+                            ."- please delete field definitions or remove rectype from pointer constraints to allow deletion of this record type.<div style='text-align:left'><ul>";
+                $ret['dtyIDs'] = array();
+                while ($row = $res->fetch_row()) {
+                    array_push($ret['dtyIDs'], $row[0]);
+                    $ret['error'] = $ret['error'].("<li>".$row[0]."&nbsp;".$row[1]."</li>");
+                }
+                $ret['error'] = $ret['error']."</ul></div>";
+                return $ret;
+            }
+        }
+        
+        
 		$query = "select rec_ID from Records where rec_RecTypeID=$rtyID and rec_FlagTemporary=0 limit 1";
 		$res = $mysqli->query($query);
         $error = $mysqli->error;
 		if ($error) {
-			$ret['error'] = "SQL error finding records of type $rtyID in the Records table: ".$error;
+			$ret = handleError("SQL error finding records of type $rtyID in the Records table", $query);
 		} else {
 			$recCount = $res->num_rows;
 			if ($recCount) { // there are records existing of this rectype, need to return error and the recIDs
@@ -216,7 +263,7 @@
 				$query = "delete from defRecTypes where rty_ID = $rtyID";
 				$res = $mysqli->query($query);
 				if ( $mysqli->error) {
-					$ret['error'] = "SQL error deleting record type $rtyID from defRecTypes table: ".$mysqli->error;
+                    $ret = handleError("SQL error deleting record type $rtyID from defRecTypes table", $query);
 				} else {
 
 					$icon_filename = HEURIST_ICON_DIR.$rtyID.".png"; //BUG what about thumb??
@@ -241,7 +288,7 @@
     * @param $icon_filename - filename from icon library - for new record type ONLY
     * @return $ret an array of return values for the various data elements created or errors if they occurred
     **/
-    function createRectypes($commonNames, $rt, $isAddDefaultSetOfFields, $convertTitleMask=true, $icon_filename=null) {
+    function createRectypes($commonNames, $rt, $isAddDefaultSetOfFields, $convertTitleMask=true, $icon_filename=null, $newfields=null) {
         global $mysqli, $rtyColumnNames;
 
         $ret = null;
@@ -252,6 +299,7 @@
 
             $parameters = array("");
             $titleMask = null;
+            $rty_Name = null;
             $query = "";
             $querycols = "";
 
@@ -262,6 +310,8 @@
                     //keep value of text title mask to create canonical one
                     if($convertTitleMask && $colName == "rty_TitleMask"){
                         $titleMask = $val;
+                    }else if ($colName == "rty_Name"){
+                        $rty_Name = $val;
                     }
 
                         if($query!="") {
@@ -274,6 +324,16 @@
 
                 }
             }
+            
+            $query_check = "SELECT rty_ID FROM defRecTypes where rty_Name='".mysql_real_escape_string($rty_Name)."'";
+            $res = mysql_query($query_check);
+            if($res){
+                $rty_ID = mysql_fetch_array($res);
+                if($rty_ID && @$rty_ID[0]>0){
+                    return  "Record type with specified name already exists in the database, please use the existing record type\nThis type may be hidden - turn it on through Database > Manage structure";
+                }
+            }
+            
 
             $query = "insert into defRecTypes ($querycols) values ($query)";
 
@@ -282,13 +342,22 @@
             if($rows == "1062"){
                 $ret =  "Record type with specified name already exists in the database, please use the existing record type\nThis type may be hidden - turn it on through Database > Manage structure";
             }else if ($rows==0 || is_string($rows) ) {
-                $ret = "SQL error inserting data into table defRecTypes: ".$rows;
+                $ret = handleError("SQL error inserting data into table defRecTypes: ".$rows, $query);
+                $ret = $ret['error'];
             } else {
                 $rtyID = $mysqli->insert_id;
+                
+                if(HEURIST_DBID>0){
+                    $query= 'UPDATE defRecTypes SET rty_OriginatingDBID='.HEURIST_DBID
+                        .', rty_NameInOriginatingDB=rty_Name'
+                        .', rty_IDInOriginatingDB='.$rtyID.' WHERE rty_ID='.$rtyID;
+                        $res = mysql_query($query);
+                }
+                
                 $ret = -$rtyID;
                 if($isAddDefaultSetOfFields){
                     //add default set of detail types
-                    addDefaultFieldForNewRecordType($rtyID);
+                    addDefaultFieldForNewRecordType($rtyID, $newfields);
                 }
 
                 //create canonical title mask
@@ -306,8 +375,10 @@
                     getRectypeThumbURL($rtyID);
                 }
 
-            }
+            
 
+            
+            }
         }
         if ($ret ==  null) {
             $ret = "no data supplied for inserting record type";
@@ -332,13 +403,15 @@
 
 		$ret = null;
 
-		$res = $mysqli->query("select rty_OriginatingDBID from defRecTypes where rty_ID = $rtyID");
+		$res = $mysqli->query("select rty_OriginatingDBID, rty_IDInOriginatingDB from defRecTypes where rty_ID = $rtyID");
 
 		if ($res->num_rows<1){ //$mysqli->affected_rows<1){
 			$ret = "invalid rty_ID ($rtyID) passed in data to updateRectype";
 			return $ret;
 		}
 
+        
+        
 		//		$row = $res->fetch_object();
 		//		$query = "rty_LocallyModified=".(($row->rty_OriginatingDBID>0)?"1":"0").",";
 
@@ -380,11 +453,20 @@
 				if($res == "1062"){
 					$ret =  "Record type with specified name already exists in the database, please use the existing record type";
 				}else if(!is_numeric($res)){
-					$ret = "SQL error updating record type $rtyID in updateRectype: ".$res;
+                    $ret = handleError("SQL error updating record type $rtyID in updateRectype: ".$res, $query);
+                    $ret = $ret['error'];
 					//}else if ($rows==0) {
 					//	$ret = "error updating $rtyID in updateRectype - ".$mysqli->error;
 				} else {
 					$ret = $rtyID;
+                    
+                    if(HEURIST_DBID>0){
+                        $query= 'UPDATE defRecTypes SET rty_NameInOriginatingDB=rty_Name '
+                            .' WHERE rty_ID='.$rtyID
+                            .' AND rty_IDInOriginatingDB='.$rtyID.' AND rty_OriginatingDBID='.HEURIST_DBID;
+                        $res = mysql_query($query);
+                    }
+                    
 				}
 			}
 		}
@@ -421,7 +503,8 @@
 
 				$res = execSQL($mysqli, $query, $parameters, true);
 				if(!is_numeric($res)){
-					$ret = "SQL error updating record type $rtyID in updateTitleMask: ".$res;
+                    $ret = handleError("SQL error updating record type $rtyID in updateTitleMask: ".$res, $query);
+                    $ret = $ret['error'];
 				}
 		}
 		return $ret;
@@ -471,21 +554,29 @@
 		$arr_target[$ri['rst_DisplayName']] = $dt[$di['dty_Name']];
 		$arr_target[$ri['rst_DisplayHelpText']] = $dt[$di['dty_HelpText']];
 		$arr_target[$ri['rst_DisplayExtendedDescription']] = $dt[$di['dty_ExtendedDescription']];
+
+        $arr_target[$ri['rst_DisplayOrder']] = $defvals[3];//"null";
+        $arr_target[$ri['rst_DisplayWidth']] = $defvals[2];
+        $arr_target[$ri['rst_DisplayHeight']] = 0;
 		$arr_target[$ri['rst_DefaultValue']] = "";
+        $arr_target[$ri['rst_RecordMatchOrder']] = "0";
+
 		$arr_target[$ri['rst_RequirementType']] = $defvals[0];
+        $arr_target[$ri['rst_NonOwnerVisibility']] = "viewable";
+        $arr_target[$ri['rst_Status']] = "open";
+        
+        $arr_target[$ri['rst_OriginatingDBID']] = 2;
 		$arr_target[$ri['rst_MaxValues']] = "1";
 		$arr_target[$ri['rst_MinValues']] = $defvals[1]; //0 -repeatable, 1-single
-		$arr_target[$ri['rst_DisplayWidth']] = $defvals[2];
-		$arr_target[$ri['rst_RecordMatchOrder']] = "0";
-		$arr_target[$ri['rst_DisplayOrder']] = "null";
+        
 		$arr_target[$ri['rst_DisplayDetailTypeGroupID']] = "1";
 		$arr_target[$ri['rst_FilteredJsonTermIDTree']] = null;
 		$arr_target[$ri['rst_PtrFilteredIDs']] = null;
+        $arr_target[$ri['rst_CreateChildIfRecPtr']] = '0';
+        
+        $arr_target[$ri['rst_OrderForThumbnailGeneration']] = null;
 		$arr_target[$ri['rst_TermIDTreeNonSelectableIDs']] = null;
 		$arr_target[$ri['rst_CalcFunctionID']] = null;
-		$arr_target[$ri['rst_Status']] = "open";
-		$arr_target[$ri['rst_OrderForThumbnailGeneration']] = null;
-		$arr_target[$ri['rst_NonOwnerVisibility']] = "viewable";
 		//$arr_target[$ri['dty_TermIDTreeNonSelectableIDs']] = "null";
 		//$arr_target[$ri['dty_FieldSetRectypeID']] = "null";
 
@@ -493,11 +584,11 @@
 
 		return $arr_target;
 	}
-
+                                 
 	//
 	//
 	//
-	function addDefaultFieldForNewRecordType($rtyID)
+	function addDefaultFieldForNewRecordType($rtyID, $newfields)
 	{
 
 			$dt = getAllDetailTypeStructures();
@@ -510,15 +601,58 @@
 			$ri = $rv['typedefs']['dtFieldNamesToIndex'];
 
 			$data = array();
-			$data['dtFields'] = array(
-			DT_NAME => getInitRty($ri, $di, $dt, DT_NAME, array('required',1,40)),
-			//DT_CREATOR => getInitRty($ri, $di, $dt, DT_CREATOR, array('optional',0,40)),
-			DT_SHORT_SUMMARY => getInitRty($ri, $di, $dt, DT_SHORT_SUMMARY, array('recommended',1,60))
-			//DT_THUMBNAIL => getInitRty($ri, $di, $dt, DT_THUMBNAIL, array('recommended',1,60)),
-			//DT_GEO_OBJECT => getInitRty($ri, $di, $dt, DT_GEO_OBJECT, array('recommended',1,40))
-			// DT_START_DATE => getInitRty($ri, $di, $dt, DT_START_DATE, array('recommended',1,40)),
-			// DT_END_DATE => getInitRty($ri, $di, $dt, DT_END_DATE, array('recommended',1,40))
-			);
+            
+            if($newfields){
+                        $newfields = json_decode(urldecode($newfields), true);
+            }
+            
+            if(is_array($newfields) && count($newfields)>0){
+                
+                //find two separators
+                $seps = array();
+                foreach($dt as $dty_ID=>$fld){ 
+                    if($dty_ID>0 && @$fld['commonFields'][$di['dty_Type']]=='separator'){
+                       $seps[] = $dty_ID;  
+                       if(count($seps)==2) break;
+                    }
+                }
+                
+                $fields = $newfields['fields'];
+                $reqs   = $newfields['reqs'];
+                
+                $data['dtFields'] = array();
+                
+                $need_sep = true;
+                $order = 10;
+                if(count($seps)==2){
+                    $data['dtFields'][$seps[0]] = getInitRty($ri, $di, $dt, $seps[0], array('optional',1,60,$order));
+                    $data['dtFields'][$seps[0]][$ri['rst_DisplayName']] = 'Identification';
+                    $order = $order+10;
+                }
+                
+                foreach($fields as $dty_ID){
+                    $data['dtFields'][$dty_ID] = getInitRty($ri, $di, $dt, $dty_ID, 
+                            array((in_array($dty_ID, $reqs)?'required':'recommended'),1,60,$order));  //req,minval,width
+                    $order = $order+10;        
+                    if(count($seps)==2 && $need_sep){
+                        $data['dtFields'][$seps[1]] = getInitRty($ri, $di, $dt, $seps[1], array('optional',1,60,$order));
+                        $data['dtFields'][$seps[1]][$ri['rst_DisplayName']] = 'Description';
+                        $order = $order+10;
+                        $need_sep = false;
+                    }
+                }
+            }else{
+                $data['dtFields'] = array();
+			    $data['dtFields'][DT_NAME]= getInitRty($ri, $di, $dt, DT_NAME, array('required',1,40,$order));
+                $order = $order+10;        
+                $data['dtFields'][DT_SHORT_SUMMARY]= getInitRty($ri, $di, $dt, DT_SHORT_SUMMARY, array('recommended',1,60,$order));
+                $order = $order+10;        
+			    //DT_CREATOR => getInitRty($ri, $di, $dt, DT_CREATOR, array('optional',0,40)),
+			    //DT_THUMBNAIL => getInitRty($ri, $di, $dt, DT_THUMBNAIL, array('recommended',1,60)),
+			    //DT_GEO_OBJECT => getInitRty($ri, $di, $dt, DT_GEO_OBJECT, array('recommended',1,40))
+			    // DT_START_DATE => getInitRty($ri, $di, $dt, DT_START_DATE, array('recommended',1,40)),
+			    // DT_END_DATE => getInitRty($ri, $di, $dt, DT_END_DATE, array('recommended',1,40))
+            }
 
 			updateRecStructure($dtFieldNames, $rtyID, $data);
 	}
@@ -577,7 +711,8 @@
 					$val = array_shift($fieldVals);
 
 
-					if (array_key_exists($colName, $rstColumnNames) && $colName!="rst_LocallyModified") {
+					if (array_key_exists($colName, $rstColumnNames) 
+                                && $colName!="rst_LocallyModified") {
 						//array_push($ret['error'], "$colName is not a valid column name for defDetailTypes val= $val was not used");
 
 						if($isInsert){
@@ -605,10 +740,9 @@
 						$query = "update defRecStructure set ".$query." where rst_RecTypeID = $rtyID and rst_DetailTypeID = $dtyID";
 					}
 
-
 					$rows = execSQL($mysqli, $query, $parameters, true);
 
-					if ($rows==0 || is_string($rows) ) {
+					if ( ($isInsert && $rows==0) || is_string($rows) ) {
 						$oper = (($isInsert)?"inserting":"updating");
 						array_push($ret[$rtyID], "Error on ".$oper." field type ".$dtyID." for record type ".$rtyID." in updateRecStructure: ".$rows);
 					} else {
@@ -637,12 +771,13 @@
 	//
 	function deleteRecStructure($rtyID, $dtyID) {
 		global $mysqli;
-
-		$mysqli->query("delete from defRecStructure where rst_RecTypeID = $rtyID and rst_DetailTypeID = $dtyID limit 1");
+        
+        $query = "delete from defRecStructure where rst_RecTypeID = $rtyID and rst_DetailTypeID = $dtyID limit 1";
+		$mysqli->query($query);
 
 		$rv = array();
 		if(isset($mysqli) && $mysqli->error!=""){
-			$rv['error'] = "SQL error deleting entry in defRecStructure for record type $rtyID and field type $dtyID: ".$mysqli->error;
+            $rv = handleError("SQL error deleting entry in defRecStructure for record type $rtyID and field type $dtyID", $query);
 		}else if ($mysqli->affected_rows<1){
 			$rv['error'] = "Error - no rows affected - deleting entry in defRecStructure for record type $rtyID and field type $dtyID";
 		}else{
@@ -698,7 +833,7 @@
 				$rows = execSQL($mysqli, $query, $parameters, true);
 
 				if ($rows==0 || is_string($rows) ) {
-					$ret['error'] = "SQL error inserting data into defRecTypeGroups: ".$rows;
+                    $ret = handleError("SQL error inserting data into defRecTypeGroups".$rows, $query);
 				} else {
 					$rtgID = $mysqli->insert_id;
 					$ret['result'] = $rtgID;
@@ -716,9 +851,9 @@
 
 
 	/**
-	* updateRectypeGroup - Helper function that updates group in the deleteRectypeGroup table
+	* updateRectypeGroup - Helper function that updates group in the defRecTypeGroups table
 	* @author Artem Osmakov
-	* @param $columnNames an array valid column names in the deleteRectypeGroups table which match the order of data in the $rt param
+	* @param $columnNames an array valid column names in the defRecTypeGroups table which match the order of data in the $rt param
 	* @param $rtgID id of the group to update
 	* @param $rt - data
 	* @return $ret an array of return values for the various data elements created or errors if they occurred
@@ -771,8 +906,9 @@
 				$query = "update defRecTypeGroups set ".$query." where rtg_ID = $rtgID";
 
 				$rows = execSQL($mysqli, $query, $parameters, true);
-				if ($rows==0 || is_string($rows) ) {
-					$ret['error'] = "SQL error updating $colName in updateRectypeGroup: ".$rows;
+				if (is_string($rows) ) {
+                    $ret = handleError("SQL error updating $colName in updateRectypeGroup "
+                        .$rows.' params:'.print_r($parameters,true), $query);
 				} else {
 					$ret['result'] = $rtgID;
 				}
@@ -868,7 +1004,7 @@
 				$rows = execSQL($mysqli, $query, $parameters, true);
 
 				if ($rows==0 || is_string($rows) ) {
-					$ret['error'] = "SQL error inserting data into defDetailTypeGroups table: ".$rows;
+                    $ret = handleError("SQL error inserting data into defDetailTypeGroups table".$rows, $query);
 				} else {
 					$dtgID = $mysqli->insert_id;
 					$ret['result'] = $dtgID;
@@ -941,8 +1077,8 @@
 				$query = "update defDetailTypeGroups set ".$query." where dtg_ID = $dtgID";
 
 				$rows = execSQL($mysqli, $query, $parameters, true);
-				if ($rows==0 || is_string($rows) ) {
-					$ret['error'] = "SQL error updating $colName in updateDettypeGroup: ".$rows;
+				if (is_string($rows) ) {
+                    $ret = handleError("SQL error updating $colName in updateDettypeGroup".$rows, $query);
 				} else {
 					$ret['result'] = $dtgID;
 				}
@@ -982,7 +1118,7 @@
 				$query = "delete from defDetailTypeGroups where dtg_ID=$dtgID";
 				$res = $mysqli->query($query);
 				if ($mysqli->error) {
-					$ret['error'] = "SQL error deleting field type group $dtgID from defRecTypeGroups table:".$mysqli->error;
+                    $ret = handleError("SQL error deleting field type group $dtgID from defRecTypeGroups table", $query);
 				} else {
 					$ret['result'] = $dtgID;
 				}
@@ -1070,7 +1206,7 @@
 		$query = "select dtl_ID from recDetails where dtl_DetailTypeID =$dtyID";
 		$res = $mysqli->query($query);
 		if ($mysqli->error) {
-			$ret['error'] = "SQL error: unable to retrieve fields of type $dtyID from recDetails table: ".$mysqli->error;
+            $ret = handleError("SQL error: unable to retrieve fields of type $dtyID from recDetails table", $query);
 		} else {
 			$dtCount = $res->num_rows;
 			if ($dtCount) { // there are records existing of this rectype, need to return error and the recIDs
@@ -1083,7 +1219,7 @@
 				$query = "delete from defDetailTypes where dty_ID = $dtyID";
 				$res = $mysqli->query($query);
 				if ($mysqli->error) {
-					$ret['error'] = "SQL error deleting field type $dtyID from defDetailTypes table: ".$mysqli->error;
+                    $ret = handleError("SQL error deleting field type $dtyID from defDetailTypes table", $query);
 				} else {
 					$ret['result'] = $dtyID;
 				}
@@ -1108,6 +1244,7 @@
 		//$row = $res->fetch_object();
 		//$query = "dty_LocallyModified=".(($row->dty_OriginatingDBID>0)?"1":"0").",";
 		$query = "";
+        $dty_Name = null;
 
 		if (count($commonNames)) {
 
@@ -1125,20 +1262,39 @@
 					$query = $query."$colName = ?";
 
                     $parameters = addParam($parameters, $dtyColumnNames[$colName], $val);
+                    
+                    if($colName=='dty_Name'){
+                        $dty_Name = $val;
+                    }
 				}
 			}//for
 			//
 			if($query!=""){
+                
+                
+                if($dty_Name){
+                    $query_check = "SELECT dty_ID FROM defDetailTypes where dty_ID<>$dtyID AND dty_Name='".mysql_real_escape_string($dty_Name)."'";
+                    $res = mysql_query($query_check);
+                    if($res){
+                        $dty_ID = mysql_fetch_array($res);
+                        if($dty_ID && @$dty_ID[0]>0){
+                            return  "Field type with specified name already exists in the database, please use the existing field type";
+                        }
+                    }
+                }
+            
 
 				$query = $query.", dty_LocallyModified=IF(dty_OriginatingDBID>0,1,0)";
 				$query = "update defDetailTypes set ".$query." where dty_ID = $dtyID";
 
 				$rows = execSQL($mysqli, $query, $parameters, true);
+
 				if($rows == "1062"){
 					$ret =  "Field type with specified name already exists in the database, please use the existing field type";
-				}else if ($rows==0 || is_string($rows) ) {
-					$ret = "AAA SQL error updating field type $dtyID in updateDetailType: "
-                        .htmlspecialchars($query)."  type=".$parameters[0]." values=".@$parameters[1].'   '.$mysqli->error;
+				}else if ($rows!='' && is_string($rows)){  //(is_string($rows) || $rows==0)
+                    $ret = handleError("SQL error updating field type $dtyID in updateDetailType: "
+                        .htmlspecialchars($query)."  parameters=".implode(',',$parameters), $query, $rows);
+                    $ret = $ret['error'];
 				} else {
 					$ret = $dtyID;
 				}
@@ -1210,33 +1366,35 @@
                         $querycols = $querycols.",";
                     }
 
-					if($isInsert){
-						$query = $query."?";
-                        $querycols = $querycols.$colName;
-					}else{
-						$query = $query."$colName = ?";
-					}
-
                     if($colName=="trm_ParentTermID"){
+                        if(!($val>0)) $val = null;  //set null value, otherwise we get mysql error
                         $ch_parent_id = $val;
                     }else if($colName=="trm_Code"){
                         $ch_code = $val;
                     }else if($colName=="trm_Label"){
                         $ch_label = $val;
                     }else if($colName=="trm_InverseTermId"){
-                        if($val=="") $val=null;
-                        $inverse_termid = $val;   //new value
+                        if(!($val>0)) $val = null;
+                        $inverse_termid = $val;   //set null value, otherwise we get mysql error
                     }else if($colName=="trm_Status"){
                         if($val=="") $val="open";
                     }
 
+                    if($isInsert){
+                        $query = $query."?";
+                        $querycols = $querycols.$colName;
+                    }else{
+                        $query = $query."$colName = ?";
+                    }
+
+                    
                     $parameters = addParam($parameters, $trmColumnNames[$colName], $val);
 				}
 			}//for columns
 
             //check label and code duplication for the same level
             if($ch_code || $ch_label){
-                if($ch_parent_id){
+                if($ch_parent_id>0){
                     $ch_parent_id = "trm_ParentTermID=".$ch_parent_id;
                 }else{
                     $ch_parent_id = "(trm_ParentTermID is null or trm_ParentTermID=0)";
@@ -1261,7 +1419,8 @@
 
                 $res = $ext_db->query($dupquery);
                 if ($ext_db->error) {
-                    $ret = "SQL error checking duplication values in terms: ".$ext_db->error."  Query:".$dupquery;
+                    $ret = handleError("SQL error checking duplication values in terms", $dupquery, $ext_db->error);
+                    $ret = $ret['error'];
                 } else {
                     $recCount = $res->num_rows;
                     if($recCount>0){
@@ -1283,9 +1442,12 @@
 
 				$rows = execSQL($ext_db, $query, $parameters, true);
 
-				if ($rows==0 || is_string($rows) ) {      //ERROR
+				if (is_string($rows) ) {      //ERROR
 					$oper = (($isInsert)?"inserting":"updating term ".$trmID);
-					$ret = "SQL error $oper in updateTerms: ".$rows; //."  ".htmlspecialchars($query);
+
+                    $ret = handleError("SQL error $oper in updateTerms: ".$rows
+                                .' params='.implode(',',$parameters), $query, $ext_db->error);
+                    $ret = $ret['error'];
 				} else {
 					if($isInsert){
 						$trmID = $ext_db->insert_id;  // new id
@@ -1316,6 +1478,7 @@
 		return $ret;
 	}
 
+    
     /**
     * Merge two terms in defTerms and update recDetails
     *
@@ -1330,13 +1493,17 @@
     function mergeTerms($retain_id, $merge_id, $colNames, $dt){
         global $mysqli;
 
-        $ret = array();
+        $ret = isTermInUse($merge_id, true, false);
 
+        if(array_key_exists("error", $ret))
+        {
+            return $ret;   
+        }
         //1. change parent id for all children terms
         $query = "update defTerms set trm_ParentTermID = $retain_id where trm_ParentTermID = $merge_id";
         $res = $mysqli->query($query);
         if ($mysqli->error) {
-            $ret['error'] = "SQL error - cannot change parent term for $merge_id from defTerms table: ".$mysqli->error;
+            $ret = handleError("SQL error - cannot change parent term for $merge_id from defTerms table", $query);
             return $ret;
         }
 
@@ -1348,7 +1515,7 @@
 
         $res = $mysqli->query($query);
         if ($mysqli->error) {
-            $ret['error'] = "SQL error in mergeTerms updating record details ".$mysqli->error;
+            $ret = handleError("SQL error in mergeTerms updating record details", $query);
             return $ret;
         }
 
@@ -1356,12 +1523,18 @@
         $query = "delete from defTerms where trm_ID = $merge_id";
         $res = $mysqli->query($query);
         if ($mysqli->error) {
-            $ret['error'] = "SQL error deleting term $merge_id from defTerms table: ".$mysqli->error;
+            $ret = handleError("SQL error deleting term $merge_id from defTerms table", $query);
             return $ret;
         }
 
         //4. update term $retain_id
-        return updateTerms( $colNames, $retain_id, $dt, null );
+        $res = updateTerms( $colNames, $retain_id, $dt, null );
+        if(!($res>0)){
+           $ret['error'] = $res;
+        }else{
+           $ret = $res; 
+        }
+        return $ret; 
     }
 
 	/**
@@ -1369,15 +1542,24 @@
 	* @param $ret -- array of child
 	* @param $trmID - term id to be find all children
 	*/
-	function getTermsChilds($ret, $trmID) {
+	function getTermsChilds($ret, $trmID, $terms=null) {
         global $mysqli;
 
+         if(!$terms) $terms = array($trmID); //to prevent recursion
+        
 		$query = "select trm_ID from defTerms where trm_ParentTermID = $trmID";
 		$res = $mysqli->query($query);
 		while ($row = $res->fetch_row()) {
 			$child_trmID = $row[0];
-			$ret = getTermsChilds($ret, $child_trmID);
-			array_push($ret, $child_trmID);
+            
+            if(in_array($child_trmID, $terms)){
+                $ret = array($child_trmID);
+            }else{
+                array_push($terms, $child_trmID);
+                
+                $ret = getTermsChilds($ret, $child_trmID, $terms);
+                array_push($ret, $child_trmID);
+            }
 		}
 		return $ret;
 	}
@@ -1400,57 +1582,172 @@
 
         $parentId = mysql_fetch_array(mysql_query($query));
         if($parentId && @$parentId[0]){
-            return getTopMostParentTerm($parentId[0]);
+            return getTermTopMostParent($parentId[0]);
         }else{
             return $termId;
         }
     }
+    
+    
+    //
+    //
+    //
+    function getTermTopMostParent($termId, $terms=null){
+        global $mysqli;
+        
+        
+        if(!$terms) $terms = array($termId); //to prevent recursion
 
+        $query = "select trm_ParentTermID from defTerms where trm_ID = ".$termId;
 
-	/**
-	* deletes the term with given ID and all its children
-	* before deletetion it verifies that this term or any of its children is refered in defDetailTypes dty_JsonTermIDTree
-	*
-	* @todo - need to check inverseid or it will error by foreign key constraint?
-	*/
-	function deleteTerms($trmID) {
-         global $mysqli;
-
-		$ret = array();
-
-		$children = array();
-		//find all children
-		$children = getTermsChilds($children, $trmID);
-		array_push($children, $trmID);
-
-        //find possible entries in defDetailTypes dty_JsonTermIDTree
-        foreach ($children as $termID) {
-            $query = "select dty_ID, dty_Name from defDetailTypes where (FIND_IN_SET($termID, dty_JsonTermIDTree)>0)";
-            $res = $mysqli->query($query);
-            if ($mysqli->error) {
-                $ret['error'] = "SQL error in deleteTerms retreiving field types which use term $termID: ".$mysqli->error;
-                break;
+        $res = $mysqli->query($query);
+        $parentId = $res->fetch_row();
+        if($parentId && @$parentId[0]){
+            
+            if(in_array($parentId[0], $terms)){
+                return $termId;
             }else{
-                $dtCount = $res->num_rows;
-                if ($dtCount>0) { // there are records existing of this rectype, need to return error and the recIDs
-                    $ret['error'] = "Error: You cannot delete term $trmID. "
-                                .(($trmID==$termID)?"It":"Its child term $termID")
-                                ." is referenced in $dtCount base field defintions "
-                                ."- please delete field definitions or remove terms from these fields to allow deletion of these terms.<div style='text-align:left'><ul>";
-                    $ret['dtyIDs'] = array();
-                    while ($row = $res->fetch_row()) {
-                        array_push($ret['dtyIDs'], $row[0]);
-                        $ret['error'] = $ret['error'].("<li>".$row[0]."&nbsp;".$row[1]."</li>");
-                    }
-                    $ret['error'] = $ret['error']."</ul></div>";
-                    break;
-                }
+                array_push($terms, $parentId[0]);
+                return getTermTopMostParent($parentId[0]);
             }
-            //TODO: need to check inverseid or it will error by foreign key constraint?
-        }//foreach
+        }else{
+            return $termId;
+        }
+    }
+    
+    
+    /**
+    * verify whether term is in use in field that uses vocabulry
+    * if yes it means it can not be moved into different vocabulary
+    */
+    function checkTerms($termID){
+    
+        global $mysqli;
+/*
+    Get parent vocabulary (vocab id) which is not necessarily the immediate parent term
+    Get field types where this vocab is used
+    Find details which are of found field types which use this term value
+    If any are found, get the record types for these details
+    Report as above
+*/    
+        $ret = array();
+        $vocab_id = getTermTopMostParent($termID);
+        if($vocab_id>0){ //not vocab itself
+         
+                $query = 'select dty_ID, dty_Name from defDetailTypes where '
+                          .'dty_JsonTermIDTree='.$vocab_id
+                          .' AND (dty_Type=\'enum\' or dty_Type=\'relationtype\')';
+                $res = $mysqli->query($query);
+                
+                if ($mysqli->error) {
+                    $ret = handleError("SQL error in checkTerms retreiving field types which use vocabulary $vocab_id", $query);
+                    return $ret;
+                }else{
+                    $dtCount = $res->num_rows;
+                    if ($dtCount>0) { 
+                        $dtyIDs = array();
+                        while ($row = $res->fetch_row()) {
+                            array_push($dtyIDs, $row[0]);
+                        }
+                        
+                        $query = 'select rec_ID, rec_RecTypeID  from recDetails, Records '
+                                .'where (dtl_RecID=rec_ID) AND (dtl_DetailTypeID in ('.implode(',',$dtyIDs).')) and '
+                                .'(dtl_Value='.$termID.')';
+
+                            $res = $mysqli->query($query);
+                            
+                            if ($mysqli->error) {
+                                $ret = handleError("SQL error in checkTerms retreiving records which use term $termID", $query);
+                                return $ret;
+                            }else{
+                                $recCount = $res->num_rows;
+                                if ($recCount>0) { //yes, $termID is in use
+                                    $labels = getTermLabels(array($termID));
+                                    $ret['warning'] = "Term $termID [{$labels[$termID]}] is used by field(s) in existing record(s) which depend on its current vocabulary. We recommend merging the current vocabulary with the target vocabulary instead. Moving the term would invalidate values in $recCount records.";
+                                    
+                                    $ret['error_title'] = 'Warning: Terms in use';
+                                    $recIDs = array();
+                                    $rtyIDs = array();
+                                    while ($row = $res->fetch_row()) {
+                                        array_push($recIDs, $row[0]);
+                                        if(!in_array($row[1], $rtyIDs)) array_push($rtyIDs, $row[1]);
+                                    }
+                                    $ret['warning'] = $ret['warning'].'<br><br>'
+                                    ."<a href='#' onclick='window.open(\""
+                                    .HEURIST_BASE_URL."?db=".HEURIST_DBNAME."&q=ids:".implode(",", $recIDs)."\",\"_blank\")'>Click here</a> to search for all the records which would be affected.";
+
+                                    $ret['warning'] = $ret['warning'].'<br><div style="padding:10px 30px;text-align:left">The following record types would be affected: <ul style="padding-top:5px">';
+                                     $labels = getRecTypeNames($rtyIDs);
+                                    
+                                     foreach  ($labels as $rty_ID=>$rty_Name)  {
+                                         $ret['warning'] = $ret['warning'].'<li>'.$rty_Name.'</li>';
+                                     }
+                                    
+                                     $ret['warning'] = $ret['warning']."</ul></div>";            
+                                }
+                            }
+                    }//$dtCount>0
+                }
+        }
+        return $ret;
+
+    }
+    
+    /**
+    *  verify whether term (and its children) is in use in field definition or record details
+    * 
+    * @param mixed $infield
+    * @param mixed $indetails
+    */
+    function isTermInUse($trmID, $infield, $indetails){
+        
+        global $mysqli;
+
+        $ret = array();
+
+        $children = array();
+        //find all children
+        $children = getTermsChilds($children, $trmID);
+        array_push($children, $trmID); //add itself
+
+        if($infield){
+            //find possible entries in defDetailTypes dty_JsonTermIDTree
+            foreach ($children as $termID) {
+                $query = 'select dty_ID, dty_Name from defDetailTypes where '
+                .'(dty_JsonTermIDTree='.$termID.' OR dty_JsonTermIDTree like \'%"'.$termID.'"%\') '
+                          .'AND (dty_Type=\'enum\' or dty_Type=\'relationtype\')';
+                //OLD does not work (FIND_IN_SET($termID, dty_JsonTermIDTree)>0)";
+                $res = $mysqli->query($query);
+                if ($mysqli->error) {
+                    $ret = handleError("SQL error in isTermInUse retreiving field types which use term $termID", $query);
+                    break;
+                }else{
+                    $dtCount = $res->num_rows;
+                    if ($dtCount>0) { 
+                        
+                        $labels = getTermLabels(array($trmID, $termID));
+                        
+                        $ret['error'] = "You cannot delete term $trmID [{$labels[$trmID]}]. "
+                                    .(($trmID==$termID)?"It":"Its child term $termID [{$labels[$termID]}]")
+                                    ." is referenced in $dtCount base field definitions. "
+                                    ." Please delete field(s) or remove terms from these fields.<div style='padding:10px 30px;text-align:left'><ul>";
+                        $ret['dtyIDs'] = array();
+                        while ($row = $res->fetch_row()) {
+                            array_push($ret['dtyIDs'], $row[0]);
+                            $ret['error'] = $ret['error'].("<li>".$row[0]."&nbsp;".$row[1]."</li>");
+                        }
+                        $ret['error'] = $ret['error']."</ul></div>";
+                        
+                        $ret['error_title'] = 'Warning: Terms in use';
+                        break;
+                    }
+                }
+                //TODO: need to check inverseid or it will error by foreign key constraint?
+            }//foreach
+        }
 
         //find usage in recDetails
-        if(!array_key_exists("error", $ret)){
+        if(!array_key_exists("error", $ret) && $indetails){
 
             $query = "select distinct dtl_RecID from recDetails, defDetailTypes "
                     ."where (dty_ID = dtl_DetailTypeID ) and "
@@ -1459,12 +1756,13 @@
 
                 $res = $mysqli->query($query);
                 if ($mysqli->error) {
-                    $ret['error'] = "SQL error in deleteTerms retreiving records which use term $termID: ".$mysqli->error;
+                    $ret = handleError("SQL error in isTermInUse retreiving records which use term $termID", $query);
                     break;
                 }else{
                     $recCount = $res->num_rows;
                     if ($recCount>0) { // there are records existing of this rectype, need to return error and the recIDs
-                        $ret['error'] = "Error: You cannot delete term $trmID. It or its child terms are referenced in $recCount record(s)";
+                        $ret['error'] = "You cannot delete term $trmID. It or its child terms are referenced in $recCount record(s)";
+                        $ret['error_title'] = 'Warning: Terms in use';
                         $ret['recIDs'] = array();
                         while ($row = $res->fetch_row()) {
                             array_push($ret['recIDs'], $row[0]);
@@ -1476,17 +1774,39 @@
                 }
         }
 
+        
+        if(!array_key_exists("error", $ret)){
+            $ret['children'] = $children;
+        }
+        
+        return $ret;        
+        
+    }
+
+
+	/**
+	* deletes the term with given ID and all its children
+	* before deletetion it verifies that this term or any of its children is refered in defDetailTypes dty_JsonTermIDTree
+	*
+	* @todo - need to check inverseid or it will error by foreign key constraint?
+	*/
+	function deleteTerms($trmID) {
+        global $mysqli;
+        
+        $ret = isTermInUse($trmID, true, true);
 
 		//all is clear - delete the term
 		if(!array_key_exists("error", $ret)){
 			//$query = "delete from defTerms where trm_ID in (".join(",",$children).")";
 			//$query = "delete from defTerms where trm_ID = $trmID";
 
+            $children = $ret['children'];
+            
 			foreach ($children as $termID) {
 				$query = "delete from defTerms where trm_ID = $termID";
 				$res = $mysqli->query($query);
 				if ($mysqli->error) {
-					$ret['error'] = "SQL error deleting term $termID from defTerms table: ".$mysqli->error;
+                    $ret = handleError("SQL error deleting term $termID from defTerms table", $query);
 					break;
 				}
 			}
@@ -1555,8 +1875,10 @@
 
 		$parameters = array("s",$terms[3]); //notes will be parameter
 		$query = "";
+        
+        $isInsert = ($res==null || $res->num_rows<1);
 
-		if ($res==null || $res->num_rows<1){ //$mysqli->affected_rows<1){
+		if ($isInsert){ //$mysqli->affected_rows<1){
 			//insert
 			$query = "insert into defRelationshipConstraints(rcs_SourceRectypeID, rcs_TargetRectypeID, rcs_Description, rcs_TermID, rcs_TermLimit) values (".
 						$srcID.",".$trgID.",?,".$terms[0].",".$terms[2].")";
@@ -1567,8 +1889,9 @@
 		}
 
 		$rows = execSQL($mysqli, $query, $parameters, true);
-		if ($rows==0 || is_string($rows) ) {
-				$ret = "SQL error in updateRelConstraint: ".$query; //$mysqli->error;
+		if ( ($isInsert && $rows==0) || is_string($rows) ) {
+                $ret = handleError("SQL error in updateRelConstraint", $query);
+                $ret = $ret['error'];
 		} else {
 				$ret = array($srcID, $trgID, $terms);
 		}
@@ -1608,7 +1931,7 @@
 
 		$res = $mysqli->query($query);
 		if ($mysqli->error) {
-			$ret['error'] = "SQL error deleting constraint ($srcID, $trgID, $trmID) from defRelationshipConstraints table: ".$mysqli->error;
+            $ret = handleError("SQL error deleting constraint ($srcID, $trgID, $trmID) from defRelationshipConstraints table", $query);
 		} else {
 			$ret['result'] = "ok";
 		}

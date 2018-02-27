@@ -85,7 +85,8 @@ class HeuristKMLParser extends HeuristForeignParser {
 
 
 	function parseFile(&$file) {
-		$fp =& $file->getRawFile();
+        
+		$fp = $file->getRawFile();
 		rewind($fp);
 
 		// easiest to grab the file as a single string and use the (natively compiled) preg stuff
@@ -557,12 +558,15 @@ class HeuristKMLEntry extends HeuristForeignEntry {
 	}
 
 	function _parseExtendedData(&$entry, $innerTags) {
-		foreach ($innerTags["data"] as $data) {
-			if ($data["name"] === "HeuristID") {
-				$id = $data["value"][0]["-text"][0];
-				setPermanentBiblioID($entry, $id);
-			}
-		}
+        
+        if(is_array(@$innerTags['data'])){
+		    foreach ($innerTags["data"] as $data) {
+			    if ($data["name"] === "HeuristID") {
+				    $id = $data["value"][0]["-text"][0];
+				    setPermanentBiblioID($entry, $id);
+			    }
+		    }
+        }
 	}
 }
 

@@ -19,32 +19,45 @@
 * See the License for the specific language governing permissions and limitations under the License.
 */
 
-function hEditing(container, _recdata, _recstructure) {
+function hEditing(_options) {
      var _className = "Editing",
          _version   = "0.4";
 
      var $container = null,
          recdata = null,     //hRecordSet with data to be edited
          editing_inputs = [],
-         recstructure;
+         recstructure,
+         wasModified = 0, //0 not modified (on init), 1 was modified, 2 - finalized(not modified)
+         onChangeCallBack=null,
+         entityConfig = null;
 
     /**
     * Initialization
     * 
     * container - element Id or jqyuery element
     */
-    function _init(container, _recdata, _recstructure) {
-        if (typeof container==="string") {
-            $container = $("#"+container);
+    function _init(_options) {
+        
+        
+        if (typeof _options.container==="string") {
+            $container = $("#"+_options.container);
         }else{
-            $container = $(container);
+            $container = $(_options.container);
         }
         if($container==null || $container.length==0){
             $container = null;
             alert('Container element for editing not found');
         }
         
-        _initEditForm(_recstructure, _recdata);
+        if(_options.entity){
+            entityConfig = _options.entity;
+        }else{
+            entityConfig = null;
+        }
+        
+        onChangeCallBack = _options.onchange;
+        
+        _initEditForm(_options.recstructure, _options.recdata);
     }
 
     //
@@ -72,7 +85,7 @@ function hEditing(container, _recdata, _recstructure) {
             var idx, ele;
             for (idx in editing_inputs) {
                 ele = $(editing_inputs[idx]);
-                var val = recdata.fld(record, ele.editing_input('option', 'dtID'));
+                var val = recdata.values(record, ele.editing_input('option', 'dtID'));
                 if(!window.hWin.HEURIST4.util.isArray(val)) val = [val];
                 ele.editing_input('setValue', val );
             }
@@ -80,7 +93,17 @@ function hEditing(container, _recdata, _recstructure) {
         }
     }
     
+    function _setDisabled(mode){
+            var idx, ele;
+            for (idx in editing_inputs) {
+                ele = $(editing_inputs[idx]);
+                ele.editing_input('setDisabled', mode);
+            }
+    }
+    
     function _initEditForm(_recstructure, _recdata){
+        
+        wasModified = 0;
         
         $container.hide();
         $container.empty(); //clear previous edit elements
@@ -89,7 +112,7 @@ function hEditing(container, _recdata, _recstructure) {
         record = null;
         
         if(!window.hWin.HEURIST4.util.isArrayNotEmpty(_recstructure) && _recdata==null){
-            $('<div class="center-message">Select an entity in the list to edit</div>').appendTo($container);
+            //$('<div class="center-message">Select an entity in the list to edit</div>').appendTo($container);
             $container.show();
             return;     
         } 
@@ -98,26 +121,27 @@ function hEditing(container, _recdata, _recstructure) {
                 
         var recID = '';
         if(recdata!=null){ //for edit mode
-             record = recdata.getFirstRecord();
+            record = recdata.getFirstRecord();
             //get record ID
             var idx;
             for (idx=0; idx<recstructure.length; idx++){
                if(recstructure[idx]['keyField']){
-                    recID = recdata.fld(record, idx);
+                    recID = recdata.fld(record, recstructure[idx]['dtID']);
                     break;
                }
             }
+            
         }
         
         
-        //rec structure is arrya in following format
+        //rec structure is array in following format
         /*
             only type 'header' can have children
                [
                     {
                     groupHeader: '',
                     groupType: '',  accordeon, tab, group 
-                    groupStye: {}
+                    groupStyle: {}
                     children:[
                         dtID, dtID, dtID, 
                         {groupHeader: , children:},
@@ -147,19 +171,19 @@ function hEditing(container, _recdata, _recstructure) {
             var currGroupType = null; //current accodion or tab control
             var groupTabHeader, groupEle;
             
-            //var groupEle,      //current accodion or tab control
+            //var groupEle,      //current accordion or tab control
             //    fieldContainer, groupTabHeader;
                 
             for (idx=0; idx<fields.length; idx++){
                 
-                if( $.isPlainObject(fields[idx]) && 
-                    window.hWin.HEURIST4.util.isArrayNotEmpty(fields[idx].children)){ //this is group
+                if( $.isPlainObject(fields[idx]) && fields[idx].groupType){ //this is group
+                //  window.hWin.HEURIST4.util.isArrayNotEmpty(fields[idx].children)
                     
                     if(fields[idx].groupType != currGroupType){ //create new group container and init previous
                         //init previous one 
                         if(groupEle!=null){
                             if(currGroupType == 'accordion'){
-                                groupEle.accordion({heightStyle: "content"});
+                                groupEle.accordion({heightStyle: "content", active:false, collapsible: true});
                             }else if(currGroupType == 'tabs'){
                                 groupEle.tabs();
                             }
@@ -178,6 +202,9 @@ function hEditing(container, _recdata, _recstructure) {
                     }
                     
                     var headerText = fields[idx]['groupHeader'];
+                    var headerHelpText = fields[idx]['groupHelpText'];
+                    var is_header_visible = fields[idx]['groupTitleVisible'];
+                    
                     fieldContainer = $('<fieldset>').uniqueId();
                     if(!$.isEmptyObject(fields[idx]['groupStyle'])){
                         fieldContainer.css(fields[idx]['groupStyle']);    
@@ -186,16 +213,29 @@ function hEditing(container, _recdata, _recstructure) {
                     //add header and field container
                     if(currGroupType == 'accordion'){
                          $('<h3>').text(headerText).appendTo(groupEle);
-                         fieldContainer.addClass('ui-heurist-bg-light').appendTo($('<div>').appendTo(groupEle));
+                         fieldContainer.appendTo($('<div>').appendTo(groupEle));
+                         
+                         if(groupEle.parents('.editor').length==0){
+                                fieldContainer.addClass('ui-heurist-bg-light');
+                         }
                          
                     }else if(currGroupType == 'tabs'){
                          $('<li>').html('<a href="#'+fieldContainer.attr('id')+'"><span>'+headerText+'</span></a>')
                                 .appendTo(groupTabHeader);
-                         $(fieldContainer).addClass('ui-heurist-bg-light').appendTo(groupEle);
+                         $(fieldContainer).appendTo(groupEle);
+                         
+                         if(groupEle.parents('.editor').length==0){
+                                fieldContainer.addClass('ui-heurist-bg-light');
+                         }
                          //.css({'font-size':'1em'})
                     }else{
-                         fieldContainer.appendTo(container);
-                         $('<h3>').text(headerText).appendTo(groupContainer);
+                        if(is_header_visible){
+                             $('<h4>').text(headerText).addClass('separator').appendTo(groupContainer);
+                             var div_prompt = $('<div>').text(headerHelpText).css('padding-left','80px').addClass('heurist-helper1').appendTo(groupContainer);
+                             //see applyCompetencyLevel
+                             //if(window.hWin.HAPI4.get_prefs('help_on')!=1){div_prompt.hide();}
+                        }
+                        fieldContainer.appendTo(groupContainer);
                     }
                         
                     __createGroup(fields[idx].children, groupContainer, fieldContainer);
@@ -209,13 +249,27 @@ function hEditing(container, _recdata, _recstructure) {
                     }
                     
                     if(fields[idx]['dty_Type']=="separator"){
-                        $('<h3>').text(fields[idx]['rst_DisplayName']).addClass('separator').appendTo(fieldContainer);
-                    }else  //do not include hidden 
-                    if(fields[idx]['dtFields']['rst_Display']!="hidden") {
+                        $('<h4>').text(fields[idx]['rst_DisplayName']).addClass('separator').appendTo(fieldContainer);
+                        var div_prompt = $('<div>').text(fields[idx]['rst_DisplayHelpText']).addClass('heurist-helper1').appendTo(fieldContainer);
+                        //see applyCompetencyLevel
+                        //if(window.hWin.HAPI4.get_prefs('help_on')!=1){div_prompt.hide();}
+                    }else  
+                    //if(fields[idx]['dtFields']['rst_Display']!="hidden") 
+                    {
                         
                         //assign values from record
                         if(record!=null){
-                            var val = recdata.fld(record, fields[idx]['dtID']);
+                            
+                            var val;
+                            if(fields[idx]['dty_Type']=="geo"){
+                                val = recdata.getFieldGeoValue(record, fields[idx]['dtID']);
+                            }else{
+                                val = recdata.values(record, fields[idx]['dtID']);
+                            }
+
+//console.log( fields[idx]['dtID'] + '=>');
+//console.log(val);                            
+                            
                             if(!window.hWin.HEURIST4.util.isnull(val)){
                                 if(!window.hWin.HEURIST4.util.isArray(val)) val = [val];
                                 fields[idx].values = val;
@@ -228,14 +282,12 @@ function hEditing(container, _recdata, _recstructure) {
                         }
                         
                         fields[idx].recID = recID;
+                        fields[idx].recordset = recdata;
+                        fields[idx].change = _onChange;
                         
-                        var inpt = $('<div>').appendTo(fieldContainer).editing_input(fields[idx]);     
+                        var inpt = $('<div>').css('display','block !important')
+                                .appendTo(fieldContainer).editing_input(fields[idx]);     
                         editing_inputs.push(inpt);  
-                        
-                    }else{
-                        //keep hidden value - to return it back
-                        
-                        
                     }
                 }
                 
@@ -244,7 +296,7 @@ function hEditing(container, _recdata, _recstructure) {
             //init last one
             if(groupEle!=null){
                 if(currGroupType == 'accordion'){
-                    groupEle.accordion({heightStyle: "content"});
+                    groupEle.accordion({heightStyle: "content", active:false, collapsible: true });
                 }else if(currGroupType == 'tabs'){
                     groupEle.tabs();
                 }
@@ -252,7 +304,17 @@ function hEditing(container, _recdata, _recstructure) {
             
         }//end of function
 
-        $container.addClass('ui-heurist-bg-light');        
+        if($container.parents('.editor').length==0){
+               $container.addClass('ui-heurist-bg-light');
+        }
+
+
+        if(entityConfig && entityConfig.entityDescription){
+            //add description at the beginning of form
+            $('<div>').css({padding: '4px'}).addClass('heurist-helper2')
+                .html(entityConfig.entityDescription).appendTo($container);
+        }
+        
         __createGroup(recstructure, $container, null);
         
         $container.fadeIn(250);
@@ -267,6 +329,18 @@ function hEditing(container, _recdata, _recstructure) {
             }
         }
         
+        var $div_hints = $('<div>').css({float: 'right'}).appendTo($container);
+        if($container.find('.forbidden').length>0 && window.hWin.HAPI4.is_admin()){
+            $('<div>').css({padding: '4px'})
+                .html('There are hidden fields in this form. <span class="btn-modify_structure"'
+                +'  style="cursor:pointer;display:inline-block;color:#7D9AAA;">'
+                +'Modify structure</span> to enable them.').appendTo($div_hints);
+        }
+        if($container.find('div.optional').length>0 && recdata && recdata.entityName=='Records'){
+            $('<div>').css({padding: '4px'}).addClass('optional_hint')
+                .html('Fields missing? Turn on <u>optional fields</u> (checkbox at the top of page)').appendTo($div_hints);
+        }
+        
     }
 
     function _save(){
@@ -274,6 +348,25 @@ function hEditing(container, _recdata, _recstructure) {
         return true;
     }
 
+    //
+    //
+    //
+    function _getValue(dtID){
+        var idx, ele, values = [];
+        for (idx in editing_inputs) {
+            ele = $(editing_inputs[idx]);
+            if(ele.editing_input('option', 'dtID')==dtID){
+                var vals = ele.editing_input('getValues');
+                if(vals && vals.length>0){
+                    return ele.editing_input('getValues');
+                }else{
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+    
     //
     // returns values as object {'xyz_Field':'value','xyz_Field2':['val1','val2','val3]}
     //    
@@ -292,14 +385,49 @@ function hEditing(container, _recdata, _recstructure) {
         return details;
     }
     
+    //
+    // get values from editing form and assign to underlaying recordset
+    //
+    function _assignValuesIntoRecord(){
+    
+        if(recdata!=null){ //for edit mode
+            record = recdata.getFirstRecord();
+
+            var idx, ele, details = {};
+            for (idx in editing_inputs) {
+                ele = $(editing_inputs[idx]);
+                var vals = ele.editing_input('getValues');
+                if(vals && vals.length>0){
+                    recdata.setFld(record, ele.editing_input('option', 'dtID'), vals);
+                }
+            }
+        }
+    }
+
+    
     function _isModified(){
         
-        var idx;
-        for (idx in editing_inputs) {
-            ele = $(editing_inputs[idx]);
-            if(ele.editing_input('isChanged')) return true;
+        if(wasModified==2){ //modfied flag is reset (after save)
+            return false;
+        }else if(wasModified==1){
+            return true;
+        }else{
+            var idx;
+            for (idx in editing_inputs) {
+                ele = $(editing_inputs[idx]);
+                
+                if(ele.editing_input('isChanged')) {
+                    return true;   
+                }
+            }
+            return false;
         }
-        return false;
+    }
+    
+    function _onChange(){
+        if($.isFunction(onChangeCallBack)){
+            onChangeCallBack.call(this);    
+        }
     }
     
     function _validate(){
@@ -376,9 +504,20 @@ function hEditing(container, _recdata, _recstructure) {
         initEditForm: function(_recstructure, _recdata){
             _initEditForm(_recstructure, _recdata);
         },
+
+        getValue:function(dtID){
+            return _getValue(dtID);
+        },
         
         getValues:function(needArrays){
             return _getValues(needArrays);
+        },
+        
+        //
+        // get values from editing form and assign to underlaying recordset
+        //
+        assignValuesIntoRecord:function(){
+            _assignValuesIntoRecord();
         },
         
         //
@@ -388,21 +527,41 @@ function hEditing(container, _recdata, _recstructure) {
             return _getFieldByName(fieldName);
         },
         
-        getFieldByValue:function(fieldName, value){
-            return _getFieldByValue(fieldName, value);
-        },
-        
+        //
+        // returns array of ALL input elements by field name
+        //
         getInputs:function(fieldName){
             return _getInputs(fieldName);
         },
         
+        //
+        // returns array of input elements by value
+        //
+        getFieldByValue:function(fieldName, value){
+            return _getFieldByValue(fieldName, value);
+        },
+        
         isModified: function(){
             return _isModified();
+        },
+        
+        setModified: function(val){
+            wasModified = (val===false)?2:1;
+        },
+        
+        getContainer: function(){
+            return $container;
+        },
+        
+        setDisabled: function(mode){
+            _setDisabled(mode);
         }
+        
+        
         
     }
 
-    _init(container, _recdata, _recstructure);
+    _init(_options);
     return that;  //returns object
 }
 /*

@@ -224,7 +224,9 @@ $rec_types = mysql__select_array("defRecTypes","distinct rty_ID", "1 order by rt
 // dty_TermIDTreeNonSelectableIDs, dty_FieldSetRectypeID, rst_NonOwnerVisibility] ...]
 $rstC2I = getColumnNameToIndex(getRectypeStructureFieldColNames());
 foreach ($rec_types as $rec_type) {
-    foreach (getRectypeFields($rec_type) as $dtyID => $rdr) {
+    $rectype_fields = getRectypeFields($rec_type);
+    if($rectype_fields && is_array($rectype_fields))
+    foreach ($rectype_fields as $dtyID => $rdr) {
         // saw TODO need to represent the trm ids  and rectype pointer ids that are valid for this rectype.detailtype.
         array_push($detailRequirements, array(
             $rec_type,																							// 0-recTypeID
@@ -235,6 +237,7 @@ foreach ($rec_types as $rec_type) {
             $rstC2I['rst_DisplayHelpText']?$rdr[$rstC2I['rst_DisplayHelpText']]:null,							// 5-HelpText
             $rstC2I['rst_RecordMatchOrder']?intval($rdr[$rstC2I['rst_RecordMatchOrder']]):0,					// 6-Match Order
             $rstC2I['rst_DisplayWidth']?intval($rdr[$rstC2I['rst_DisplayWidth']]):0,							// 7-DisplayWidth
+            $rstC2I['rst_DisplayHeight']?intval($rdr[$rstC2I['rst_DisplayHeight']]):0,                            // 7-DisplayHeight
             $rstC2I['rst_DisplayOrder']?intval($rdr[$rstC2I['rst_DisplayOrder']]):0,							// 8-Display Order
             $rstC2I['rst_DisplayExtendedDescription']?$rdr[$rstC2I['rst_DisplayExtendedDescription']]:null,		// 9-Extended Description
             $rstC2I['rst_DefaultValue']?$rdr[$rstC2I['rst_DefaultValue']]:null,									//10-Default Value
@@ -244,10 +247,11 @@ foreach ($rec_types as $rec_type) {
             $rstC2I['rst_TermIDTreeNonSelectableIDs']?$rdr[$rstC2I['rst_TermIDTreeNonSelectableIDs']]:null,		//14-Extended Disabled Term IDs
             $rstC2I['dty_TermIDTreeNonSelectableIDs']?$rdr[$rstC2I['dty_TermIDTreeNonSelectableIDs']]:null,		//15-Detail Type Disabled Term IDs
             $rstC2I['rst_PtrFilteredIDs']?$rdr[$rstC2I['rst_PtrFilteredIDs']]:null,								//16-Filtered Pointer Constraint Rectype IDs
-            $rstC2I['rst_CalcFunctionID']?$rdr[$rstC2I['rst_CalcFunctionID']]:null,								//17-Calc Function ID
-            $rstC2I['rst_OrderForThumbnailGeneration']?$rdr[$rstC2I['rst_OrderForThumbnailGeneration']]:null,	//18-Thumbnail selection Order
-            $rstC2I['rst_Status']?$rdr[$rstC2I['rst_Status']]:null,												//19-Status
-            $rstC2I['rst_NonOwnerVisibility']?$rdr[$rstC2I['rst_NonOwnerVisibility']]:null,));					//20-Non-Owner Visibility
+            $rstC2I['rst_CreateChildIfRecPtr']?$rdr[$rstC2I['rst_CreateChildIfRecPtr']]:0,                      //17- Create child record
+            $rstC2I['rst_CalcFunctionID']?$rdr[$rstC2I['rst_CalcFunctionID']]:null,								//18-Calc Function ID
+            $rstC2I['rst_OrderForThumbnailGeneration']?$rdr[$rstC2I['rst_OrderForThumbnailGeneration']]:null,	//19-Thumbnail selection Order
+            $rstC2I['rst_Status']?$rdr[$rstC2I['rst_Status']]:null,												//20-Status
+            $rstC2I['rst_NonOwnerVisibility']?$rdr[$rstC2I['rst_NonOwnerVisibility']]:null,));					//21-Non-Owner Visibility
     }
 }
 
@@ -263,8 +267,8 @@ $commonData = array(
     "recordTypes" => $recordTypes,
     "detailTypes" => $detailTypes,
     "detailRequirements" =>$detailRequirements,
-    'max_post_size'=>_get_config_bytes(ini_get('post_max_size')),
-    'max_file_size'=>_get_config_bytes(ini_get('upload_max_filesize'))
+    'max_post_size'=>__get_config_bytes(ini_get('post_max_size')),
+    'max_file_size'=>__get_config_bytes(ini_get('upload_max_filesize'))
 );
 if (! @$_REQUEST["json"]) {
     print "var HAPI_commonData = ";
@@ -274,13 +278,13 @@ if (! @$_REQUEST["json"]) {
     print ";\n";
 }
 
-function _fix_integer_overflow($size) {
+function __fix_integer_overflow($size) {
         if ($size < 0) {
             $size += 2.0 * (PHP_INT_MAX + 1);
         }
         return $size;
 }
-function _get_config_bytes($val) {
+function __get_config_bytes($val) {
     $val = trim($val);
     $last = strtolower($val[strlen($val)-1]);
     switch($last) {
@@ -291,6 +295,6 @@ function _get_config_bytes($val) {
         case 'k':
             $val *= 1024;
     }
-    return _fix_integer_overflow($val);
+    return __fix_integer_overflow($val);
 }
 ?>

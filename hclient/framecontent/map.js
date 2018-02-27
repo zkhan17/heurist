@@ -26,26 +26,33 @@
 */
 
 
-function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
+function hMapping(_mapdiv_id, _timeline, _options, _mylayout) {
     var _className = "Mapping",
     _version   = "0.4";
 
     var mapdiv_id = null,
     timelinediv_id = null,
+    _current_stack_setting = true,
 
     all_mapdata = {}, // array of all datasets
     selection = [],   // array of selected record ids
     mylayout,         // layout object that contains map and timeline
     _curr_layout = null; // keep current layout sets to avoid redundant update
 
+    var options = {
+        mapVisible: true, //otherwise show timeline only
+        legendVisible: true,
+        defaultZoom: 2
+        //to be extended
+    };
+    
     var tmap = null,  // timemap object
     vis_timeline = null, // vis timeline object
     vis_timeline_range = null,
-    vis_timeline_label_mode = 2,
+    vis_timeline_label_mode = 0, //default full label
     drawingManager,     //manager to draw the selection rectnagle
     lastSelectionShape,
 
-    defaultZoom = 2,
     keepMinDate = null,
     keepMaxDate = null,
     keepMinMaxDate = true,
@@ -65,12 +72,13 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
 
     /**
     * Initialization
-    * _basePath - redundant
     */
-    function _init(_mapdiv_id, _timeline, _basePath, _mylayout) {
+    function _init(_mapdiv_id, _timeline, _options, _mylayout) {
         mapdiv_id = _mapdiv_id;
         timelinediv_id = _timeline;
         mylayout = _mylayout;
+        
+        $.extend(options, _options);
 
         /*if(_mapdata){
         _load(_mapdata);
@@ -85,7 +93,7 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
     * show/hide panels map and timeline
     */
     function _updateLayout(){
-
+        
         var ismap = false, istime = false;
 
 
@@ -135,11 +143,17 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
             if(!istime){
                 mylayout.hide('south');
             }else {
+                
                 mylayout.show('south', true);
-                if(ismap){
-                    mylayout.sizePane('south', th);
+                if(options.mapVisible){
+                    if(ismap){
+                        mylayout.sizePane('south', th);
+                    }else{
+                        mylayout.sizePane('south', tha-30);  //center panel with map - reduced to minimum (30px)
+                    }
                 }else{
-                    mylayout.sizePane('south', tha-30);  //center panel with map - reduced to minimum (30px)
+                    $(".ui-layout-center").hide();
+                    mylayout.sizePane('south', tha);
                 }
             }
             if(ismap || !istime){
@@ -184,7 +198,8 @@ function hMapping(_mapdiv_id, _timeline, _basePath, _mylayout) {
 
 var MAXITEMS = window.hWin.HAPI4.get_prefs('search_detail_limit');    
 var ele_warn = $('#map_limit_warning');
-console.log(_mapdata.limit_warning+'  '+_mapdata.mapenabled+'  '+MAXITEMS);
+//DEBUG console.log(_mapdata.limit_warning+'  '+_mapdata.mapenabled+'  '+MAXITEMS);
+
 if(_mapdata.limit_warning){
     //cnt = _mapdata.options.items.length;
     ele_warn.html('These results are limited to '+MAXITEMS+' records<br>(limit set in your profile Preferences)<br>Please filter to a smaller set of results').show();//.delay(2000).fadeOut(10000);
@@ -224,7 +239,7 @@ if(_mapdata.limit_warning){
     }
 
     //
-    // chnage color andn reload dataset 
+    // chnage color and reload dataset 
     //
     function _changeDatasetColor( dataset_id, new_color, updateOnMap ){
 
@@ -233,9 +248,16 @@ if(_mapdata.limit_warning){
             if(mapdata['color']!=new_color){
 
                 for (var i=0; i<mapdata.options.items.length; i++){
-                    mapdata.options.items[i].options.icon =
-                        window.hWin.HAPI4.iconBaseURL + mapdata.options.items[i].options.iconId 
-                        + 'm.png&color='+encodeURIComponent(new_color);
+                    
+                    var iconId = mapdata.options.items[i].options.iconId;
+                    if(typeof iconId=='string' && iconId.indexOf('http:')==0){
+                        mapdata.options.items[i].options.icon = iconId;
+                    }else{
+                        mapdata.options.items[i].options.icon =
+                            window.hWin.HAPI4.iconBaseURL + iconId
+                                + 'm.png&color='+encodeURIComponent(new_color);
+                    }
+                    
 
                     mapdata.options.items[i].options.color = new_color;
                     mapdata.options.items[i].options.lineColor = new_color;
@@ -319,6 +341,19 @@ if(_mapdata.limit_warning){
                     forceZoom = true;
                 }
                 
+                if(mapdata.min_zoom>0){
+                    if(maxLat-minLat<mapdata.min_zoom){
+                        var d = minLat+(maxLat-minLat)/2;
+                        maxLat = d + mapdata.min_zoom/2;
+                        minLat = d - mapdata.min_zoom/2;
+                    }
+                    if(maxLng-minLng<mapdata.min_zoom){
+                        var d = minLng+(maxLng-minLng)/2;
+                        maxLng = d + mapdata.min_zoom/2;
+                        minLng = d - mapdata.min_zoom/2;
+                    }
+                }
+                
                 var southWest = new google.maps.LatLng(minLat, minLng);
                 var northEast = new google.maps.LatLng(maxLat, maxLng);
                 mapdata.geoextent = new google.maps.LatLngBounds(southWest, northEast);
@@ -326,7 +361,7 @@ if(_mapdata.limit_warning){
                 dataset.hide();
                 dataset.show();
                 
-                if(forceZoom){
+                if(forceZoom || mapdata.forceZoom){
                     setTimeout( function(){ _zoomDataset( dataset_id );}, pnt_counts>1000?2000:500 );
                 }
     }
@@ -389,6 +424,7 @@ if(_mapdata.limit_warning){
         var mapdata = _getDataset(dataset_id);
         if(mapdata && mapdata.geoextent){
               //zoom to geo extent
+              
               var nativemap = tmap.getNativeMap();
               nativemap.fitBounds(mapdata.geoextent);
         }
@@ -572,7 +608,7 @@ if(_mapdata.limit_warning){
             }
         }
 
-        var toolbar = $("#timeline_toolbar").zIndex(3).css('font-size','0.8em');
+        var toolbar = $("#timeline_toolbar").css({'font-size':'0.8em', zIndex:3});
 
         $("<button>").button({icons: {
             primary: "ui-icon-circle-plus"
@@ -605,23 +641,33 @@ if(_mapdata.limit_warning){
             .click(function(){ __timelineMoveToRight(); })
             .appendTo(toolbar);
 
-
-
-        var menu_label_settings = $('<ul id="vis_timeline_toolbar"><li id="tlm0"><a href="#"><span/>Full label</a></li>'
+        var menu_label_settings = $('<ul id="vis_timeline_toolbar"><li id="tlm0"><a href="#"><span class="ui-icon ui-icon-check"/>Full label</a></li>'
                         +'<li id="tlm1"><a href="#"><span/>Truncate to bar</a></li>'
-                        +'<li id="tlm2"><a href="#"><span class="ui-icon ui-icon-check"/>Fixed length</a></li>'
+                        +'<li id="tlm2"><a href="#"><span/>Fixed length</a></li>'
                         +'<li id="tlm3"><a href="#"><span/>Hide labels</a></li>'
-                        +'<li id="tlm4"><a href="#"><span/>Hide labels/No stack</a></li></ul>')
-        .zIndex(9999)
+                        /*+'<li class="separator">-</li>'
+                        +'<li id="tlm10"><a href="#"><span/>No stack</a></li>'
+                        +'<li id="tlm11"><a href="#"><span/>Label after bar</a></li>'*/
+                        +'</ul>')
+                        //+'<li id="tlm4"><a href="#"><span/>Hide labels/No stack</a></li>
         .addClass('menu-or-popup')
-        .css({'position':   'absolute', 'padding':'2px'})
+        .css({'position':   'absolute', 'padding':'2px', zIndex:99999})
         .appendTo( $('body') )
         .menu({
             select: function( event, ui ) {
 
+                var mode =  Number(ui.item.attr('id').substr(3));
+                
+                if(mode>=10){
+                    
+                    
+                    return;
+                }
+                
+                //remove all checks
                 menu_label_settings.find('span').removeClass('ui-icon ui-icon-check');
                 ui.item.find('span').addClass('ui-icon ui-icon-check');
-                var mode =  Number(ui.item.attr('id').substr(3));
+                
                 vis_timeline_label_mode = mode;
                 var spinner = $("#timeline_spinner");
                 if(mode==2){
@@ -636,10 +682,8 @@ if(_mapdata.limit_warning){
         }})
         .hide();
 
-        $("<button>").button({icons: {
-            primary: "ui-icon-tag",
-            secondary: "ui-icon-triangle-1-s"
-            },text:false, label:window.hWin.HR("Label settings")})
+        //secondary: "ui-icon-triangle-1-s"
+        $("<button>").button({icon:"ui-icon-tag",showLabel:false, label:window.hWin.HR("Label settings")})
             .click(function(){
                 $('.menu-or-popup').hide(); //hide other
 
@@ -650,7 +694,7 @@ if(_mapdata.limit_warning){
                 return false;
 
             })
-            .css({width:'5em'})
+            //.css({width:'5em'})
             .appendTo(toolbar);
 
         var spinner = $( "<input>", {id:"timeline_spinner", value:10} ).appendTo(toolbar);
@@ -679,6 +723,14 @@ if(_mapdata.limit_warning){
             .click(function(){ __timelineShowLabels(); })
             .appendTo(toolbar);
         */
+        
+        var el = $('<label style="padding:3px 4px;background:#DDDDDD"><input type="checkbox" checked>Stack</label>').appendTo(toolbar);
+        el.find('input').change(function(event){ 
+              _current_stack_setting = $(event.target).is(':checked');
+              vis_timeline.setOptions({'stack':_current_stack_setting}); //(mode!=4)
+//              vis_timeline.redraw();
+        });
+
 
     }
     
@@ -699,7 +751,7 @@ if(_mapdata.limit_warning){
                 $('div .vis-item-overflow').css('overflow',(mode===1)?'hidden':'visible');
 
                 //'label_in_bar':(mode==1),
-                vis_timeline.setOptions({'margin':1,  'stack':(mode!=4)});
+                vis_timeline.setOptions({'margin':1,'stack':_current_stack_setting}); //(mode!=4)
 
                 if(mode>=3){ //hide labels at all
                     contents.find("span").hide();
@@ -731,7 +783,7 @@ if(_mapdata.limit_warning){
         var groups = new vis.DataSet( timeline_groups );
         var items = new vis.DataSet( timeline_data ); //options.items );
 
-        var is_stack = true;//(timeline_groups.length<2 && timeline_data.length<250);
+        var is_stack = _current_stack_setting;//(timeline_groups.length<2 && timeline_data.length<250);
 
  //DEBUG console.log('TIMELINE DATASET '+ ( new Date().getTime() / 1000 - window.hWin.HEURIST4._time_debug) );
         window.hWin.HEURIST4._time_debug = new Date().getTime() / 1000;
@@ -770,13 +822,19 @@ if(_mapdata.limit_warning){
                     //remove dataset prefixes
                     $.each(selection,function(idx, itemid){
                         var k = itemid.indexOf('-');
-                        if(k>0)
-                            selection[idx] = itemid.substring(k+1);
+                        if(k>0){
+                            itemid = itemid.substring(k+1);
+                            k = itemid.indexOf('-');
+                            if(k>0){
+                                itemid = itemid.substring(0,k);
+                            }
+                        }
+                        selection[idx] = itemid;
                     });
 
                     $( document ).bubble( "option", "content", "" );
                     _showSelection(true, true); //show selction on map
-                    _onSelectEventListener.call(that, selection); //trigger global selection event
+                    if(_onSelectEventListener)_onSelectEventListener.call(that, selection); //trigger global selection event
                 }
             });
 
@@ -794,6 +852,7 @@ if(_mapdata.limit_warning){
         
         vis_timeline.setGroups(groups);
         vis_timeline.setItems(items);
+        
         
         //apply label settings
         _applyTimeLineLabelsSettings(vis_timeline_label_mode);
@@ -873,6 +932,7 @@ console.log('tileloaded 2');
                     // loading the list of map documents  see map_overlay.js
                     that.map_control = new hMappingControls(that, __startup_mapdocument);
 
+                    
                     $("#map-settingup-message").hide();
                     $(".map-inited").show();
 
@@ -959,7 +1019,7 @@ console.log('tileloaded 2');
                 datasets: _mapdata,
 
                 options: {
-                    mapZoom: defaultZoom,
+                    mapZoom: options['defaultZoom'],
                     theme: customTheme,
                     eventIconPath: window.hWin.HAPI4.iconBaseURL,
                     useMarkerClusterer: useMarkerClusterer,
@@ -1162,7 +1222,7 @@ console.log('tileloaded 2');
         //reset and highlight selection
         _showSelection(true);
         //trigger selection - to highlight on other widgets
-        _onSelectEventListener.call(that, selection);
+        if(_onSelectEventListener)_onSelectEventListener.call(that, selection);
     }
 
 
@@ -1179,7 +1239,7 @@ console.log('tileloaded 2');
         selection = [this.opts.recid];
         _showSelection(true);
         //trigger global selection event - to highlight on other widgets
-        _onSelectEventListener.call(that, selection);
+        if(_onSelectEventListener) _onSelectEventListener.call(that, selection);
         //TimeMapItem.openInfoWindowBasic.call(this);
     }
 
@@ -1454,13 +1514,38 @@ console.log('tileloaded 2');
             var ed_html =  '';
             var popupURL = null;
 
+            //popup can be shown
+            // 1. as a result of mapdocument smarty template  (popupURL)  - expermental
+            // 2. renderRecordData.php output (default)  (popupURL) - default
+            // 3. item.opts.info - popupURL or html content - filled in _toTimemap as rec_Info field content 
+            //              - this is main customization way for DH
+            // 4. html content is created from item.opts values here - deprecated way
+            
             if(true){ //Since 2016-11-17 use common renderRecordData !window.hWin.HEURIST4.util.isnull(item.opts.info)){
 
                 //if(!item.opts.info){
                 //    return;   //supress popup
                 //}else 
-                if(item.opts.info && item.opts.info.indexOf('http://')==0){
-                    popupURL =  item.opts.info; //load content from url
+
+                var mapdocument = null;
+                /*                
+                var mapdocument = that.map_control.getMapDocumentDataById(); //get current map document
+                mapdocument = {popup_template:'Person connected to Place via Events.tpl'};
+                mapdocument = {popup_template:'BoroPlaceOnMap.tpl'};
+                */
+                    
+                if(mapdocument && mapdocument.popup_template){ //1. as smarty output 
+                                               
+                    popupURL = window.hWin.HAPI4.baseURL + 'viewers/smarty/showReps.php?h4=1&w=a&db='+window.hWin.HAPI4.database
+                            +'&q=ids:'+item.opts.recid+'&template='+encodeURIComponent(mapdocument.popup_template);
+
+            
+                }else if(item.opts.info){
+                    if(item.opts.info.indexOf('http://')==0){
+                        popupURL =  item.opts.info; //load content from url
+                    }else{
+                        html =  item.opts.info; //3. content already defined
+                    }
                 }else{
                     popupURL = window.hWin.HAPI4.baseURL + 'records/view/renderRecordData.php?mapPopup=1&recID='
                             +item.opts.recid+'&db='+window.hWin.HAPI4.database;
@@ -1469,7 +1554,7 @@ console.log('tileloaded 2');
                 }
 
             }else{
-                //compose content of popup dynamically
+                //compose content of popup dynamically - workable although NOT USED - in favour of renderRecordData.php
 
                 var recID       = item.opts.recid,
                     rectypeID   = item.opts.rectype,
@@ -1490,7 +1575,7 @@ console.log('tileloaded 2');
                 '<div title="Click to edit record" style="float:right;height:16px;width:16px;" id="btnEditRecordFromBubble" >'
               /*  '<div title="Click to edit record" style="float:right;height:16px;width:16px;" id="btnEditRecordFromBubble" '
             + 'class="logged-in-only ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only" role="button" aria-disabled="false">'
-            //+ ' onclick={event.preventDefault(); window.open("'+(window.hWin.HAPI4.baseURL+'records/edit/editRecord.html?db='+window.hWin.HAPI4.database+'&recID='+recID)+'", "_new");} >'
+            //+ ' onclick={event.preventDefault(); window.open("'+(window.hWin.HAPI4.baseURL+'?fmt=edit&db='+window.hWin.HAPI4.database+'&recID='+recID)+'", "_new");} >'
             +     '<span class="ui-button-icon-primary ui-icon ui-icon-pencil"></span><span class="ui-button-text"></span>'*/
             +   '</div>':'')
             + '</div>';
@@ -1550,15 +1635,41 @@ ed_html +
                         placemark.closeInfoBubble.removeHandler(item.closeHandler);
                     });
                 } else {
-                    item.map.openBubble(item.getInfoPoint(), html);
-                    item.map.tmBubbleItem = item;
+                    
+                    if(popupURL){
+                        $.get(popupURL, function(responseTxt, statusTxt, xhr){
+                           if(statusTxt == "success"){
+                                item.map.openBubble(item.getInfoPoint(), bubble_header+responseTxt+'</div>');
+                                item.map.tmBubbleItem = item;
+                           }
+                        });
+
+                    }else{
+                        item.map.openBubble(item.getInfoPoint(), html);
+                        item.map.tmBubbleItem = item;
+                    }
                 }
+                
 
             } else {
                 // open window on TIMELINE - replacement native Timeline bubble with our own implementation
                 if(vis_timeline && marker){
+                    
+                    if(popupURL){
+                        $( document ).bubble( "option", "content", popupURL );
+                        /*
+                        $.get(popupURL, function(responseTxt, statusTxt, xhr){
+                           if(statusTxt == "success"){
+                               $( document ).bubble( "option", "content", html );
+                               //$( marker ).bubble('open');
+                               //that.openBubbleOnTimeline( marker, html );
+                           }
+                        });
+                        */
 
-                    $( document ).bubble( "option", "content", html );
+                    }else{
+                        $( document ).bubble( "option", "content", html );
+                    }
 
                     //marker.scrollIntoView();
                     //setTimeout(function(){ $( marker ).click();}, 500);
@@ -1597,13 +1708,13 @@ ed_html +
                         }, text:false})
                      .click(function( event ) {
                 event.preventDefault();
-                //window.open(window.hWin.HAPI4.baseURL + "hclient/framecontent/recordEdit.php?db="+window.hWin.HAPI4.database+"&q=ids:"+recID, "_blank");
-                window.open(window.hWin.HAPI4.baseURL + "records/edit/editRecord.html?db="+window.hWin.HAPI4.database+"&recID="+recID, "_new");
+                //@todo replce with new method => window.hWin.HEURIST4.ui.openRecordInPopup(recID, null, true, null)
+                window.open(window.hWin.HAPI4.baseURL + "?fmt=edit&db="+window.hWin.HAPI4.database+"&recID="+recID, "_new");
                     });
             }
 
     }
-
+    
     /**
     *  Keeps timeline zoom
     */
@@ -1761,15 +1872,22 @@ ed_html +
                 tmap.opts[name] = value;
             }
         },
-
-
+        
+        options: function(key, value){
+            if(typeof value==="undefined"){
+                return options[key];
+            }else{
+                options[key] = value;
+            }
+        },
+        
         //@todo - separate this functionality to different classes
         map_control: null,    //controls layers on map - add/edit/remove
         map_selection: null,  //@todo working with selection - search within selected area, highlight and popup info
         map_timeline: null,   //@todo vis timeline functionality
     }
 
-    _init(_mapdiv_id, _timeline, _basePath, _mylayout);
+    _init(_mapdiv_id, _timeline, _options, _mylayout);
     return that;  //returns object
 }
 

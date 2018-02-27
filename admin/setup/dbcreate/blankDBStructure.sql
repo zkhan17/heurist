@@ -16,7 +16,8 @@
 --    *  blankDBStructureDefinitionsOnly.sql must be updated at the same time
 --    *  if there is any change of structure
 
---    * Database structure version 1.1.0
+--    * Database structure version: 1.1.0
+--    * Database structure version: 1.2.0  @ 14/9/2017, 
 
 --    * THE INSERTION STATEMENTS AT THE END ARE * NOT * PART OF THE DUMP
 --    * DO NOT DELETE THEM
@@ -139,12 +140,13 @@ CREATE TABLE defDetailTypes (
   dty_OrderInGroup tinyint(3) unsigned default '0' COMMENT 'The display order of DetailType within group, alphabetic if equal values',
   dty_JsonTermIDTree varchar(5000) default NULL COMMENT 'Tree of Term IDs to show for this field (display-only header terms set in HeaderTermIDs)',
   dty_TermIDTreeNonSelectableIDs varchar(1000) default NULL COMMENT 'Term IDs to use as non-selectable headers for this field',
-  dty_PtrTargetRectypeIDs varchar(63) default NULL COMMENT 'CSVlist of target Rectype IDs, null = any',
+  dty_PtrTargetRectypeIDs varchar(250) default NULL COMMENT 'CSVlist of target Rectype IDs, null = any',
   dty_FieldSetRectypeID smallint(5) unsigned default NULL COMMENT 'For a FieldSetMarker, the record type to be inserted as a fieldset',
   dty_ShowInLists tinyint(1) unsigned NOT NULL default '1' COMMENT 'Flags if detail type is to be shown in end-user interface, 1=yes',
   dty_NonOwnerVisibility enum('hidden','viewable','public','pending') NOT NULL default 'viewable' COMMENT 'Allows restriction of visibility of a particular field in ALL record types (overrides rst_VisibleOutsideGroup)',
   dty_Modified timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP COMMENT 'Date of last modification of this record, used to get last updated date for table',
   dty_LocallyModified tinyint(1) unsigned NOT NULL default '0' COMMENT 'Flags a definition element which has been modified relative to the original source',
+  dty_SemanticReferenceURL VARCHAR( 250 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL COMMENT 'The URL to a semantic definition or web page describing the base field type',  
   PRIMARY KEY  (dty_ID),
   UNIQUE KEY dty_Name (dty_Name),
   KEY dty_Type (dty_Type),
@@ -220,10 +222,12 @@ CREATE TABLE defRecStructure (
   rst_DisplayHelpText varchar(255) default NULL COMMENT 'The user help text to be displayed for this detail type for this record type',
   rst_DisplayExtendedDescription varchar(5000) default NULL COMMENT 'The rollover text to be displayed for this detail type for this record type',
   rst_DisplayOrder smallint(3) unsigned zerofill NOT NULL default '999' COMMENT 'A sort order for display of this detail type in the record edit form',
-  rst_DisplayWidth tinyint(3) unsigned NOT NULL default '50' COMMENT 'The field width displayed for this detail type in this record type',
+  rst_DisplayWidth tinyint(3) unsigned NOT NULL default '100' COMMENT 'The field width displayed for this detail type in this record type',
+  rst_DisplayHeight tinyint(2) unsigned NOT NULL default '3' COMMENT 'The field height for this detail type in this record type, only relevant for memo fields',
   rst_DefaultValue varchar(63) default NULL COMMENT 'The default value for this detail type for this record type',
   rst_RecordMatchOrder tinyint(1) unsigned NOT NULL default '0' COMMENT 'Indicates order of significance in detecting duplicate records, 1 = highest',
   rst_CalcFunctionID tinyint(3) unsigned default NULL COMMENT 'FK to table of function specifications for calculating string values',
+  rst_CalcFieldMask Varchar(250) NULL COMMENT 'A mask string along the lines of the title mask allowing a composite field to be generated from other fields in the record',
   rst_RequirementType enum('required','recommended','optional','forbidden') NOT NULL default 'optional',
   rst_NonOwnerVisibility enum('hidden','viewable','public','pending') NOT NULL default 'viewable' COMMENT 'Allows restriction of visibility of a particular field in a specified record type',
   rst_Status enum('reserved','approved','pending','open') NOT NULL default 'open' COMMENT 'Reserved Heurist codes, approved/pending by ''Board'', and user additions',
@@ -232,11 +236,17 @@ CREATE TABLE defRecStructure (
   rst_IDInOriginatingDB smallint(5) unsigned default NULL COMMENT 'ID used in database where this record structure element originated',
   rst_MaxValues tinyint(3) unsigned default NULL COMMENT 'Maximum number of values per record for this detail, NULL = unlimited, 0 = not allowed',
   rst_MinValues tinyint(3) unsigned NOT NULL default '0' COMMENT 'If required, minimum number of values per record for this detail',
+  rst_InitialRepeats TINYINT(1) DEFAULT 1 COMMENT 'Number of repeat values to be displayed for this field when a new record is first displayed',
   rst_DisplayDetailTypeGroupID tinyint(3) unsigned default NULL COMMENT 'If set, places detail in specified group instead of according to dty_DetailTypeGroup',
   rst_FilteredJsonTermIDTree varchar(500) default NULL COMMENT 'JSON encoded tree of allowed terms, subset of those defined in defDetailType',
   rst_PtrFilteredIDs varchar(250) default NULL COMMENT 'Allowed Rectypes (CSV) within list defined by defDetailType (for pointer details)',
+  rst_CreateChildIfRecPtr tinyint(1) unsigned NOT NULL default '0' COMMENT 'For pointer fields, flags that new records created from this field should be marked as children of the creating record',
   rst_OrderForThumbnailGeneration tinyint(3) unsigned default NULL COMMENT 'Priority order of fields to use in generating thumbnail, null = do not use',
   rst_TermIDTreeNonSelectableIDs varchar(255) default NULL COMMENT 'Term IDs to use as non-selectable headers for this field',
+  rst_ShowDetailCertainty TinyInt(1) NOT NULL  default 0 COMMENT 'When editing the field, allow editng of the dtl_Certainty value (off by default)', 
+  rst_ShowDetailAnnotation TinyInt(1) unsigned NOT NULL default 0 COMMENT 'When editing the field, allow editng of the dtl_Annotation value (off by default)',
+  rst_NumericLargestValueUsed INTEGER NULL COMMENT 'For numeric fields, Null = no auto increment, 0 or more indicates largest value used so far. Set to 0 to switch on incrementing',
+  rst_EntryMask Varchar(250) NULL COMMENT 'Data entry mask, use to control decimals on numeric values, content of text fields etc. for this record type - future implementation Aug 2017',
   rst_Modified timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP COMMENT 'Date of last modification of this record, used to get last updated date for table',
   rst_LocallyModified tinyint(1) unsigned NOT NULL default '0' COMMENT 'Flags a definition element which has been modified relative to the original source',
   PRIMARY KEY  (rst_ID),
@@ -347,6 +357,8 @@ CREATE TABLE defTerms (
   trm_Modified timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP COMMENT 'Date of last modification of this record, used to get last updated date for table',
   trm_LocallyModified tinyint(1) unsigned NOT NULL default '0' COMMENT 'Flags a definition element which has been modified relative to the original source',
   trm_Code varchar(100) default NULL COMMENT 'Optional code eg. alphanumeric code which may be required for import or export',
+  trm_SemanticReferenceURL VARCHAR( 250 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL COMMENT 'The URL to a semantic definition or web page describing the term',
+  trm_IllustrationURL VARCHAR( 250 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL COMMENT 'The URL to a picture or other resource illustrating the term. If blank, look for trm_ID.jpg/gif/png in term_images directory',  
   PRIMARY KEY  (trm_ID),
   KEY trm_ParentTermIDKey (trm_ParentTermID),
   KEY trm_InverseTermIDKey (trm_InverseTermId)
@@ -400,6 +412,8 @@ CREATE TABLE recDetails (
   dtl_Geo geometry default NULL COMMENT 'A geometry (spatial) object',
   dtl_ValShortened varchar(31) NOT NULL default '' COMMENT 'Truncated version of the textual value without spaces',
   dtl_Modified timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP COMMENT 'Date of last modification of this record detail, used to get last updated date for table',
+  dtl_Certainty DECIMAL( 3, 2 ) NOT NULL DEFAULT '1.0' COMMENT 'A certainty value for this observation in the range 0 to 1, where 1 indicates complete certainty',
+  dtl_Annotation VARCHAR( 250 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL COMMENT'A short note / annotation about this specific data value - may enlarge for example on the reasons for the certainty value',  
   PRIMARY KEY  (dtl_ID),
   KEY dtl_DetailtypeIDkey (dtl_DetailTypeID),
   KEY dtl_RecIDKey (dtl_RecID),
@@ -590,7 +604,7 @@ CREATE TABLE sysIdentification (
   sys_dbOwner varchar(250) default NULL COMMENT 'Information on the owner of the database, may be a URL reference',
   sys_dbRights varchar(1000) NOT NULL default 'Please define ownership and rights here ...' COMMENT 'A statement of ownership and copyright for this database and content',
   sys_dbDescription varchar(1000) default NULL COMMENT 'A longer description of the content of this database',
-  sys_SyncDefsWithDB varchar(63) default NULL COMMENT 'The name of the SQL database with which local definitions are to be synchronised',
+  sys_SyncDefsWithDB varchar(1000) default NULL COMMENT 'One or more Zotero library name,userID,groupID,key combinations separated by pipe symbols, for synchronisation of Zotero libraries',
   sys_AutoIncludeFieldSetIDs varchar(63) default '0' COMMENT 'CSV list of fieldsets which are included in all rectypes',
   sys_RestrictAccessToOwnerGroup tinyint(1) unsigned NOT NULL default '0' COMMENT 'If set, database may only be accessed by members of owners group',
   sys_URLCheckFlag tinyint(1) unsigned NOT NULL default '0' COMMENT 'Flags whether system should send out requests to URLs to test for validity',
@@ -605,7 +619,7 @@ CREATE TABLE sysIdentification (
   sys_MediaFolders varchar(10000) default NULL COMMENT 'Additional comma-sep directories which can contain files indexed in database',
   sys_MediaExtensions varchar(1024) default 'jpg,png,gif,tif,tiff,wmv,doc,docx,xls,xlsx,txt,rtf,xml,xsl,xslt,mpg,mpeg,mov,mp3,mp4,qt,wmd,avi,kml,sid,ecw,mp3,mid,midi,evo,csv,tab,wav,cda,wmz,wms,aif,aiff' COMMENT 'The file extensions to be harvested from the MediaFolders directories',
   PRIMARY KEY  (sys_ID)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Identification/version for this Heurist database (single rec';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Identification/version for this Heurist database (single rec)';
 
 -- --------------------------------------------------------
 
@@ -665,7 +679,7 @@ CREATE TABLE sysUGrps (
   ugr_URLs varchar(2000) default NULL COMMENT 'URL(s) of group or personal website(s), comma separated',
   ugr_FlagJT int(1) unsigned NOT NULL default '0' COMMENT 'Flag to enable in Jobtrack/Worktrack application',
   ugr_Modified timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP COMMENT 'Date of last modification of this record, used to get last updated date for table',
-  ugr_NavigationTree text default NULL COMMENT 'JSON array that describes treeview for filters',
+  ugr_NavigationTree TEXT default NULL COMMENT 'JSON array that describes treeview for filters',
   PRIMARY KEY  (ugr_ID),
   UNIQUE KEY ugr_Name (ugr_Name),
   UNIQUE KEY ugr_eMail (ugr_eMail)
@@ -703,6 +717,7 @@ CREATE TABLE usrBookmarks (
   bkm_Rating tinyint(3) unsigned NOT NULL default '0' COMMENT 'Five point rating for interest/quality/content',
   bkm_AddedByImport tinyint(1) unsigned NOT NULL default '0' COMMENT 'Set to 1 if bookmark added by import, 0 if added by data entry',
   bkm_ZoteroID int(10) unsigned default NULL COMMENT 'Records your Zotero ID for this record for synchronisation with Zotero',
+  bkm_Notes TEXT COMMENT 'Personal notes',
   PRIMARY KEY  (bkm_ID),
   UNIQUE KEY bkm_RecID (bkm_RecID,bkm_UGrpID),
   KEY bkm_UGrpID (bkm_UGrpID),
@@ -821,7 +836,7 @@ CREATE TABLE usrReportSchedule (
 
 CREATE TABLE usrSavedSearches (
   svs_ID mediumint(8) unsigned NOT NULL auto_increment COMMENT 'Saved search ID, used in publishing, primary key',
-  svs_Name varchar(30) NOT NULL COMMENT 'The display name for this saved search',
+  svs_Name varchar(128) NOT NULL COMMENT 'The display name for this saved search',
   svs_Added date NOT NULL default '0000-00-00' COMMENT 'Date and time saves search added',
   svs_Modified timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP COMMENT 'Date and time saves search last modified',
   svs_Query text NOT NULL COMMENT 'The text of the saved search - added to search URL',
@@ -939,7 +954,7 @@ CREATE TABLE woots (
   sys_dbSubSubVersion,sys_eMailImapServer,sys_eMailImapPort,
   sys_eMailImapProtocol,sys_eMailImapUsername,sys_eMailImapPassword,
   sys_UGrpsdatabase,sys_OwnerGroupID,sys_ConstraintDefaultBehavior)
-  VALUES (1,0,1,1,0,NULL,NULL,NULL,NULL,NULL,NULL,1,'locktypetotype');
+  VALUES (1,0,1,2,0,NULL,NULL,NULL,NULL,NULL,NULL,1,'locktypetotype');
 
   -- Note: database sub version updated manually to '1' at 6pm 22/8/12
   -- 0 is everyone, 1 is the owning admins group, 2 is default dbAdmin user

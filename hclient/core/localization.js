@@ -21,51 +21,77 @@ regional['en'] = {
     Databases: 'Databases',
     'Design database': 'Design database',
     'Import data': 'Import data',
-    'Please log in':'Please Log in or Register to use all features Heurist in full scale',
-    'Please contact to register':'Please contact database owner to register and use all features Heurist in full scale',
-    'My Searches':'My Filters (private)',
-    'My Bookmarks':'My Bookmarks (private)',
+    'Please log in':'Please Log in or Register to use all features of Heurist.',
+    'Please contact to register':'Please contact database owner to register and use all features of Heurist.',
+    'My Searches':'My Filters',
+    'My Bookmarks':'My Bookmarks',
 
-    'Error_Empty_Message':'No error message was supplied, please report to Heurist developers',
+    'Error_Empty_Message':'No error message was supplied, please report to Heurist developers.',
 
-    'Password_Reset':'Your password has been reset. You should receive an email shortly with your new password',
+    'Password_Reset':'Your password has been reset. You should receive an email shortly with your new password.',
 
     'Error_Password_Reset':'Cannot complete operation.',
-    'Error_Mail_Recovery':'Your password recovery email cannot be sent as the smtp mail system has not been properly installed on this server. Please ask your system administrator to correct the installation',
+    'Error_Mail_Recovery':'Your password recovery email cannot be sent as the smtp mail system has not been properly installed on this server. Please ask your system administrator to correct the installation.',
     'Error_Mail_Registration':'Your registration info is added to database. However, it is not possible to approve it since registration email cannot be sent.',
-    'Error_Mail_Approvement':'Cannot send registration approvement email.',
-    'Error_Connection_Reset':'Timeout on response from Heurist server<br><br>'
-+'This may be due to server load or to requesting too large a result set, or a query that fails to resolve. If the problem persists, please email a bug report to the Heurist team so we can investigate.',
-    
-//OLD VERSION    No response from server. This may be due to too many simultaneous requests or a coding problem. Please report to Heurist developers if this reoccurs.',
+    'Error_Mail_Approvement':'Cannot send registration approval email - please contact Heurist developers.',
+    'Error_Connection_Reset':'Timeout on response from Heurist server.<br><br>'
+    +'This may be due to server load or to requesting too large a result set, or a query that fails to resolve. '
+    +'If the problem persists, please email a bug report to the Heurist team so we can investigate.',
 
-    'mailto_fail': 'You have not set an email handler for mailto: links. <br/>Please set this in your  browser (it is normally in the content settings under Privacy)',
+    //OLD VERSION    No response from server. This may be due to too many simultaneous requests or a coding problem. Please report to Heurist developers if this reoccurs.',
 
-    'No filter defined':'No filter defined - you can set a default startup filter in <b>Profile > Preferences</b><br><br>'
-+'Filters are used to locate information in the database and to create subsets to '
-+'which different actions can be applied - listing, tagging, mapping, export etc.<br><br>'
-+'If you are starting a new database you may wish to consult <b>Help > Getting-started tips</b>',
-    
+    'mailto_fail': 'You have not set an email handler for mailto: links. '
+    +'<br/>Please set this in your  browser (it is normally in the content settings under Privacy).',
+
     //titles
+    'add_record':'Add new record',
     'add_detail':'Add field value',
     'replace_detail':'Replace field value',
     'delete_detail':'Delete field value',
+    'rectype_change':'Change record (entity) type',
+    'ownership':'Change record access and ownership',
+    'add_link':'Add new link or create a relationship between records',
+
     //helps
-    'record_action_add_detail':'This function adds a new value for a specific field to the set of records selected in the dropdown. Existing values are unaffected. Addition will add values even if this exceeds the valid repeat count (eg. more than one value for single-value fields) - check the database for validity with Database > Verify structure and data.',
-    'record_action_replace_detail':'This functions replaces a specified value in a particular field for the set of records selected in the dropdown. Other fields / values are not affected.',
-    'record_action_delete_detail':'This functions deletes a specified value in a particular field for the set of records selected in the dropdown. Other fields / values are not affected. Deletion will remove values even if it is the last in a required field - check the database for validity with Database > Verify structure and data.',
+    'record_action_add_record':' ',
+    'record_action_add_detail':'This function adds a new value for a specific field to the set of records '
+    +'selected in the dropdown. Existing values are unaffected. Addition will add values even if this '
+    +'exceeds the valid repeat count (eg. more than one value for single-value fields) - check the database '
+    +'afterwards for validity using Manage > Structure > Verify.',
+    
+    'record_action_replace_detail':'This function replaces a specified value in a particular field for the '
+    +'set of records selected in the dropdown. Other fields / values are not affected.',
+    
+    'record_action_delete_detail':'This function deletes a specified value in a particular field for the '
+    +'set of records selected in the dropdown. Other fields / values are not affected. '
+    +'Deletion will remove values including the last value in a required field - check the database '
+    +'afterwards for validity using Manage > Structure > Verify.',
+    
+    'record_action_rectype_change':('This function changes the record (entity) type of the set of records '
+    +'selected in the dropdown. All records selected will be converted to the new type.'
+        +'<br><br>'
+        +'<b>Warning</b>: It is highly likely that the data recorded for many or all of these records will '
+        +'not satisfy the conditions set for the record type to which they are converted. '
+        +'<br><br>'
+        +'Please use Manage > Structure > Verify to locate and correct any invalid records generated by this process.'),    
+    'record_action_ownership':'&nbsp;',
     //reports
     'record_action_passed': 'Records passed to process',
-    'record_action_no_access': 'No editable records found',
+    'record_action_noaccess': 'Non-editable records found (may be due to permissions)',
     'record_action_processed': 'Records processed',
     'record_action_undefined_add_detail': 'Records with undefined fields',
     'record_action_undefined_replace_detail': 'Skipped due to no matching',
     'record_action_undefined_delete_detail': 'Skipped due to no matching',
-    'record_action_limitted_add_detail': 'Skipped due exceeding repeat values limit',
-    'record_action_limitted_delete_detail': 'Skipped due impossibility to delete required field',
-    'record_action_errors': 'Database sql errors'
+    'record_action_limitted_add_detail': 'Skipped due to exceeding repeat values limit',
+    'record_action_limitted_delete_detail': 'Skipped because required field cannot be deleted',
+    'record_action_errors': 'Database SQL errors',
+
+    'thumbs3':'preview'
 
 };
+
+// TODO: messages above, particularly the default startup message, have been substnatially modified/improved 6/11/17, 
+//       so translated versions require update.
 
 regional['ru'] = {
     language: 'Русский',
@@ -166,6 +192,7 @@ regional['ru'] = {
     'list':'список',
     'icons':'иконки',
     'thumbs':'миниатюры',
+    'thumbs3':'превью',
 
     'first':'первая',
     'previous':'предыдущая',
@@ -338,6 +365,7 @@ regional['fr'] = {
     'list':'liste',
     'icons':'icones',
     'thumbs':'onglets',
+    'thumbs3':'onglets2',
 
     'first':'premier',
     'previous':'précédent',
@@ -501,6 +529,7 @@ regional['nl'] = {
     'list':'lijst',
     'icons':'iconen',
     'thumbs':'miniaturen',
+    'thumbs3':'miniaturen 2',
 
     'first':'eerste',
     'previous':'vorige',

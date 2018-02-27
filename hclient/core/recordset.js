@@ -34,15 +34,16 @@ function hRecordSet(initdata) {
     offset = 0,
     //limit = 1000, use length()
     fields = [],       //array of field names
-    fields_detail = [], //array of fieldtypes ids in details - filled if search was with field ids in parameter detail
-    records = null,      //list of records objects {recID:[], ....}
+    fields_detail = [], //array of fieldtypes ids in details 
+    records = {},      //list of records objects {recID:[], ....}
     order = [], //array of record IDs in specified order
     mainset = null, //array of record IDs that belong to main result set (without applied rules)
     
     rectypes = [],      // unique list of record types with counts
     structures = null,  //record structure definitions for all rectypes in this record set
-    relationship = null; //relationship records within this recordset
-    
+    relationship = null, //relationship records within this recordset
+    relations_ids = null,  //this is object "direct","reverse","headers"
+
     limit_warning = null;
     
     var _progress = null,
@@ -74,15 +75,16 @@ function hRecordSet(initdata) {
                 rectypes = response.rectypes;
                 structures = response.structures;
                 records = response.records;  //$.isArray(records)
-                order = response.order;
+                order = $.isArray(response.order)?response.order:[response.order];
                 relationship = response.relationship;
+                relations_ids = response.relations;
                 
                 fields_detail = response.fields_detail;
                 
                 _isMapEnabled = response.mapenabled;
                 //@todo - merging
             }else{
-                records = [];
+                records = {};
                 order = response.records;
                 if(response.rectypes) rectypes = response.rectypes;
                 _isMapEnabled = false;
@@ -117,7 +119,7 @@ function hRecordSet(initdata) {
     //
     //
     //
-    function getDetailsFieldTypes(){
+    function _getDetailsFieldTypes(){
         
         var dty_ids = null;
         if(fields_detail){
@@ -142,7 +144,7 @@ function hRecordSet(initdata) {
         * 1 - main geo only
         * 2 - rec_Shape only
     */
-    function _toTimemap(dataset_name, filter_rt, iconColor, geoType){
+    function _toTimemap(dataset_name, filter_rt, symbology, geoType){
 
         var aitems = [], titems = [];
         var item, titem, shape, idx, 
@@ -154,12 +156,18 @@ function hRecordSet(initdata) {
         var MAXITEMS = window.hWin.HAPI4.get_prefs('search_detail_limit');    
             
         dataset_name = dataset_name || "main";
-        iconColor = iconColor || 'rgb(255, 0, 0)'; //'#f00';
+        
+        var iconColor, iconMarker = null;
+        if(symbology){
+            iconColor = symbology.iconColor;
+            iconMarker = symbology.iconMarker;
+        }
+        iconColor = iconColor || 'rgb(255, 0, 0)'; //'#f00';    
          
 
         var geofields = [], timefields = [];
         
-        var dty_ids = getDetailsFieldTypes(); 
+        var dty_ids = _getDetailsFieldTypes(); 
         
         if(!isnull(dty_ids) && window.hWin.HEURIST4){
 
@@ -207,7 +215,7 @@ function hRecordSet(initdata) {
                     //'<div class="recTypeThumb" style="background-image: url(&quot;'+ fld('rec_ThumbnailURL') + '&quot;);opacity:1"></div>'
                 }
                 
-                var k, m, dates = [], startDate=null, endDate=null, dres=null;
+                var k, m, dates = [], startDate=null, endDate=null, dres=null, singleFieldName;
                 for(k=0; k<timefields.length; k++){
                     var datetime = _getFieldValues(record, timefields[k]);
                     if(!isnull(datetime)){   
@@ -215,15 +223,28 @@ function hRecordSet(initdata) {
                         for(m=0; m<datetime.length; m++){
                             if(timefields[k]==DT_START_DATE){
                                 startDate = datetime[m];
+                                if(singleFieldName==null){
+                                     singleFieldName = window.hWin.HEURIST4.detailtypes.names[timefields[k]];
+                                }    
                             }else if(timefields[k]==DT_END_DATE){
                                 endDate  = datetime[m]; 
                             }else{
                                 dres = window.hWin.HEURIST4.util.parseDates(datetime[m]);
                                 if(dres){
                                     dates.push(dres);
+                                    singleFieldName = window.hWin.HEURIST4.detailtypes.names[timefields[k]];
                                 }     
                             }
                         }
+                    }
+                }
+                
+                if(startDate==null && endDate!=null){
+                    if(dres==null){
+                        startDate = endDate;    
+                        endDate = null;
+                    }else{
+                        startDate = dres[0];
                     }
                 }
                 
@@ -238,21 +259,32 @@ function hRecordSet(initdata) {
                      
                             dres = dates[k];
                             
+                            if(typeof iconId=='string' && iconId.indexOf('http:')==0){
+                                iconImg = iconId;
+                            }else if(iconMarker){
+                                //icon is set per map layer
+                                iconImg = iconMarker;    
+                            }else{
+                                iconImg = window.hWin.HAPI4.iconBaseURL + iconId + '.png';
+                            }
+                            
                             titem = {
                                 id: dataset_name+'-'+recID+'-'+k, //unique id
                                 group: dataset_name,
                                 content: 
-                                '<img src="'+window.hWin.HAPI4.iconBaseURL + iconId + 
-                                           '.png"  align="absmiddle" style="padding-right:3px;"/>&nbsp;<span>'+recName+'</span>',
+                                '<img src="'+iconImg + 
+                                           '"  align="absmiddle" style="padding-right:3px;" width="12" height="12"/>&nbsp;<span>'+recName+'</span>',
                                 //'<span>'+recName+'</span>',
                                 title: recName,
                                 start: dres[0],
                                 recID:recID
                             }
+                            
                             if(dres[1] && dres[0]!=dres[1]){
                                 titem['end'] = dres[1];
                             }else{
                                 titem['type'] = 'point';
+                                titem['title'] = singleFieldName+': '+ dres[0] + '. ' + titem['title'];
                             }
                             titems.push(titem);
                         }
@@ -271,7 +303,13 @@ function hRecordSet(initdata) {
                             for(m=0; m<geodata.length; m++){
                                 var shape = window.hWin.HEURIST4.util.parseCoordinates(geodata[m].geotype, geodata[m].wkt, 0);
                                 if(shape){ //main shape
-                                    shapes.push(shape);
+                                    if($.isArray(shapes)){
+                                        shapes.push(shape);
+                                    }else{
+                                        console.log(record);
+                                        console.log(shapes);
+                                    }
+                                        
                                 }
                             }
                         }
@@ -281,13 +319,31 @@ function hRecordSet(initdata) {
                     recID = recID + "_link";
                 }
                 
-                
+                        var iconImgEvt, iconImg;
+                        if(typeof iconId=='string' && iconId.indexOf('http:')==0){
+                            //icon is set in data (top prioriry)
+                            iconImgEvt = iconId;    
+                            iconImg = iconId;    
+                        }else if(iconMarker){
+                            //icon is set per map layer
+                            iconImgEvt = iconMarker;    
+                            iconImg = iconMarker;    
+                        }else{
+                            //default icon of record type
+                            iconImgEvt = iconId + 'm.png';
+                            iconImg = window.hWin.HAPI4.iconBaseURL + iconId + 'm.png&color='+encodeURIComponent(iconColor);
+                        }
+                        
+                       
                         item = {
                             title: recName,
                             start: (startDate || ''),
                             end: (endDate && endDate!=startDate)?endDate:'',
                             placemarks:[],
                             options:{
+                                eventIconImage: iconImgEvt,
+                                icon: iconImg,
+                                iconId: iconId,
 
                                 description: description,
                                 //url: (record.url ? "'"+record.url+"' target='_blank'"  :"'javascript:void(0);'"), //for timemap popup
@@ -295,11 +351,8 @@ function hRecordSet(initdata) {
                                 recid: recID,
                                 bkmid: _getFieldValue(record, 'bkm_ID'),
                                 rectype: recTypeID,
-                                iconId: iconId,
-                                title: recName,
                                 
-                                eventIconImage: iconId + 'm.png',
-                                icon: window.hWin.HAPI4.iconBaseURL + iconId + 'm.png&color='+encodeURIComponent(iconColor),
+                                title: recName,
                                 
                                 //color on dataset level works once only - timemap bug
                                 color: iconColor,
@@ -318,7 +371,12 @@ function hRecordSet(initdata) {
                                 
                                 //,infoHTML: (infoHTML || ''),
                             }
-                        };  
+                        }; 
+                        
+                        /*suppress default icons for boro
+                        if(window.hWin.HAPI4.sysinfo['layout']!='boro'){ 
+                            item.options.icon = iconImg; 
+                        }*/
                                           
                 if(shapes.length>0){
                     if(mapenabled<=MAXITEMS){
@@ -345,7 +403,7 @@ function hRecordSet(initdata) {
                 visible: true, 
                 mapenabled: mapenabled,
                 options: { items: aitems },
-                timeline:{ items:titems }, //, start: min_date  ,end: max_date  }
+                timeline:{ items: titems }, //, start: min_date  ,end: max_date  }
                 limit_warning:limit_warning
             };
 
@@ -376,7 +434,7 @@ function hRecordSet(initdata) {
         
         
         var record = records[forRecID];
-        var dty_ids = getDetailsFieldTypes(); 
+        var dty_ids = _getDetailsFieldTypes(); 
         var links = []; //{related, relation:0, rel_rt}
         
         if(!isnull(record) && !isnull(dty_ids) && window.hWin.HEURIST4){
@@ -507,22 +565,41 @@ function hRecordSet(initdata) {
         }
     }
     
+    /**
+    * public method "values"
+    */
     function _getFieldValues(record, fldname){
-        if(!isnull(record) && record['d'] && record['d'][fldname]){   
-            return record['d'][fldname]
+        if(window.hWin.HEURIST4.util.isempty(fldname)) return null;
+        
+        if(isnull(record)){
+            return null
+        }else{  //@todo calcfields
+            var idx = $.inArray(fldname, fields);
+            if(idx>-1){
+                return record[idx];
+            }else if(record['d'] && record['d'][fldname]){   
+                return record['d'][fldname]
+            }else{
+                return null;   
+            }
         }
     }
 
     
     /**
+    * public method "fld"
     * Returns field value by fieldname
     * WARNING for multivalues it returns first value ONLY
     * @todo - obtain fieldtype codes from server side
     */
     function _getFieldValue(record, fldname){
 
-        if(isnull(record)){
+        if(isnull(record) || window.hWin.HEURIST4.util.isempty(fldname)){
             return null;
+        }
+        
+        if(that.calcfields && $.isFunction(that.calcfields[fldname])){
+            return that.calcfields[fldname].call(that, record, fldname);
         }
         
         //this is field type ID  or field name (nominal for most common fields)
@@ -533,7 +610,17 @@ function hRecordSet(initdata) {
             
                 if(!isNaN(Number(fldname))){ //dt code
                     if(d[fldname] && d[fldname][0]){
+                        
+                        /*
+                        var dt = __getDataType(fieldName);
+                        if(dt=='integer' || dt=='float'){
+                            return Number(d[fldname][0]);
+                        }else{
+                            return d[fldname][0];    
+                        }
+                        */
                         return d[fldname][0];
+                        
                     }
                 }else if(fldname=="dtl_StartDate"){
                     if(d[DT_START_DATE] && d[DT_START_DATE][0]){
@@ -584,9 +671,20 @@ function hRecordSet(initdata) {
             if(!d){
                 record['d'] = {};
             }
-            record['d'][fldname] = [newvalue];
+            if($.isArray(newvalue)){
+                record['d'][fldname] = newvalue;
+            }else{
+                record['d'][fldname] = [newvalue];    
+            }
+            
+            
         }else {
+            //header fields always single values except rec_Shape
 
+            if($.isArray(newvalue) && fldname!='rec_Shape'){
+                newvalue = (newvalue.length>0)?newvalue[0]:null;
+            }
+            
             var idx = $.inArray(fldname, fields);
             if(idx>-1){
                 record[idx] = newvalue;
@@ -603,6 +701,8 @@ function hRecordSet(initdata) {
         isA: function (strClass) {return (strClass === _className);},
         getVersion: function () {return _version;},
         entityName:'',
+        calcfields:{}, //set of callback functions for calculation fields
+                       // is is used tp generate value for rec_Info field for mapping popup
 
         /**
         * Returns field value by fieldname for given record
@@ -613,6 +713,10 @@ function hRecordSet(initdata) {
 
         values: function(record, fldName){
             return _getFieldValues(record, fldName);
+        },
+        
+        getFieldGeoValue: function(record, fldName){
+            return _getFieldGeoValue(record, fldName);
         },
         
         setFld: function(record, fldName, value){
@@ -680,6 +784,25 @@ function hRecordSet(initdata) {
         },
         
         
+        getIdsByRectypeId: function(rty_ID){
+
+            var rty_ID = Number(rty_ID);
+            var res = [];
+            
+            if(rty_ID>0)
+            for(recID in records)
+                if(recID){
+                    var rec = records[recID];
+                    var recTypeID = Number(_getFieldValue(rec, 'rec_RecTypeID'));
+                    if(rty_ID==recTypeID){
+                        res.push(recID);
+                    }
+                }
+                
+            return res;
+        },
+        
+        
         /*
         getIdsChunked: function(chunk){
             var res = [];
@@ -727,11 +850,13 @@ function hRecordSet(initdata) {
             }
             
             return new hRecordSet({
+                entityName: that.entityName,
                 queryid: queryid,
                 count: _order.length,
                 total_count: _order.length,
                 offset: 0,
                 fields: fields,
+                fields_detail:fields_detail,
                 rectypes: rectypes,
                 structures: structures,
                 records: _records,
@@ -752,7 +877,7 @@ function hRecordSet(initdata) {
             if(Object.keys(records).length<rec_ids.length){
 
                 for(recID in records)
-                    if(recID && rec_ids.indexOf(recID)>-1) {
+                    if(recID && window.hWin.HEURIST4.util.findArrayIndex(rec_ID, rec_ids)>-1) {
                         _records[recID] = records[recID];
                     }
 
@@ -774,49 +899,85 @@ function hRecordSet(initdata) {
         //
         //  returns subset by rerquest/filter
         //
+        // request:  { sort:fieldName , =fieldName:value, fieldName:value }
+        // structure [{dtID:fieldname, dtFields:{dty_Type: } }]
         getSubSetByRequest: function(request, structure){
             
-            var _records = {}, _order=[];
+            var _records = {}, _order=[], that = this;
             
             if(fields==null || $.isEmptyObject(fields)) return null;
             if(request==null || $.isEmptyObject(request)) return this;
             
             function __getDataType(fieldname){
                 var idx;
-                for (idx in structure){
-                    if(structure[idx]['dtID']==fieldname){
-                          return structure[idx]['dtFields']['dty_Type'];
+                if(structure!=null){
+                    for (idx in structure){
+                        if(structure[idx]['dtID']==fieldname){
+                              return structure[idx]['dtFields']['dty_Type'];
+                        }
                     }
+                    return null;
+                }else{
+                    return 'freetext';
                 }
-                return null;
             }
             
-            var recID, fieldName, dataTypes={};
+            var recID, fieldName, dataTypes={}, sortFields = [], sortFieldsOrder=[];
+            var isexact = {};
+            var isnegate= {};
             //remove empty fields from request
             for (fieldName in request) {
                 if (request.hasOwnProperty(fieldName) ){
                     if(window.hWin.HEURIST4.util.isempty(request[fieldName])) {
                         delete request[fieldName];    
-                    }else{
+                    }else if(fieldName.indexOf('sort:')<0){
                         //find data type
                         dataTypes[fieldName] = __getDataType(fieldName);
+                        
                         if(dataTypes[fieldName]=='freetext' || dataTypes[fieldName]=='blocktext'){
                             request[fieldName] = request[fieldName].toLowerCase();
+                            
+                            if(request[fieldName].substring(0,2)=='!='){
+                                request[fieldName] = request[fieldName].substring(2);
+                                isnegate[fieldName] = true;
+                            }else
+                            if(request[fieldName][0]=='='){
+                                request[fieldName] = request[fieldName].substring(1);
+                                isexact[fieldName] = true;
+                            }
                         }
+                    }else{
+                        var realFieldName = fieldName.substr(5);
+                        sortFieldsOrder.push(Number(request[fieldName])); //1 - ASC, -1 DESC
+                        sortFields.push(realFieldName);
+                        dataTypes[realFieldName] = __getDataType(realFieldName);
                     }
                 }
             }            
 
             if($.isEmptyObject(request)) return this; //return all
 
+            
             //search
             for(recID in records){
                 var record = records[recID];
                 var isOK = true;
                 for(fieldName in request){
-                    if(request.hasOwnProperty(fieldName)){
+                    if(fieldName.indexOf('sort:')<0 && request.hasOwnProperty(fieldName)){
                         if(dataTypes[fieldName]=='freetext' || dataTypes[fieldName]=='blocktext'){
                             
+                            if(window.hWin.HEURIST4.util.isnull(this.fld(record,fieldName))){
+                                isOK = false;
+                                break;                            
+                            }else
+                            if(isnegate[fieldName]){
+                                isOK = (this.fld(record,fieldName).toLowerCase() != request[fieldName]);
+                                break;                            
+                            }else 
+                            if(isexact[fieldName]){
+                                isOK = (this.fld(record,fieldName).toLowerCase() == request[fieldName]);
+                                break;                            
+                            }else
                             if(this.fld(record,fieldName).toLowerCase().indexOf(request[fieldName])<0){
                                 isOK = false;
                                 break;                            
@@ -831,6 +992,25 @@ function hRecordSet(initdata) {
                 if(isOK){
                     _records[recID] = record;    
                     _order.push(recID);
+                }
+            }
+            
+            if(sortFields.length>0){
+                if(dataTypes[sortFields[0]]=='integer' || dataTypes[sortFields[0]]=='float'){
+
+                    _order.sort(function(a,b){  
+                        return sortFieldsOrder[0]*(Number(that.fld(records[a], sortFields[0]))<Number(that.fld(records[b], sortFields[0]))
+                                ?-1:1);
+                    });
+                    
+                }else{
+                    _order.sort(function(a,b){  
+                        var val1 = that.fld(records[a], sortFields[0]);
+                        var val2 = that.fld(records[b], sortFields[0]);
+                        if(val1) val1 = val1.toLowerCase();
+                        if(val2) val2 = val2.toLowerCase();
+                        return sortFieldsOrder[0]*(val1<val2?-1:1);
+                    });
                 }
             }
             
@@ -919,6 +1099,7 @@ function hRecordSet(initdata) {
             relationship2 = jQuery.unique( relationship2 );
             
             return new hRecordSet({
+                entityName: that.entityName,
                 queryid: queryid,
                 count: total_count, //keep from original
                 offset: 0,
@@ -967,6 +1148,10 @@ function hRecordSet(initdata) {
             return order;
         },
 
+        setOrder: function(_order){
+            order = _order;
+        },
+        
         /**
         * Returns first record from recordSet
         */
@@ -1078,8 +1263,8 @@ function hRecordSet(initdata) {
         * 1 - main geo only
         * 2 - rec_Shape only
         */
-        toTimemap: function(dataset_name, filter_rt, iconColor, geoType){
-            return _toTimemap(dataset_name, filter_rt, iconColor, geoType);
+        toTimemap: function(dataset_name, filter_rt, symbology, geoType){
+            return _toTimemap(dataset_name, filter_rt, symbology, geoType);
         },
         
         setProgressInfo: function(data){
@@ -1113,7 +1298,7 @@ function hRecordSet(initdata) {
         
         removeRecord:function(recID){
             delete records[recID];           //@todo check how it affect select_multi
-            var idx = order.indexOf(recID);
+            var idx = window.hWin.HEURIST4.util.findArrayIndex(recID, order);
             if(idx>=0){
                 order.splice(idx,1);
                 total_count = total_count-1;
@@ -1121,10 +1306,10 @@ function hRecordSet(initdata) {
         },
 
         addRecord:function(recID, record){
-            var idx = order.indexOf(recID);
+            var idx = window.hWin.HEURIST4.util.findArrayIndex(recID, order);
             if(idx<0){ //add new
                 records[recID] = [];
-                records[recID][fields.length-1] = undefined;
+                if(fields.length>0)records[recID][fields.length-1] = undefined;
                 order.push(recID);
                 total_count = total_count+1;
             }
@@ -1132,7 +1317,7 @@ function hRecordSet(initdata) {
         },
         
         setRecord:function(recID, record){
-            var idx = order.indexOf(recID);
+            var idx = window.hWin.HEURIST4.util.findArrayIndex(recID, order);
             if(idx>=0){
                 
                 if($.isPlainObject(record)){
@@ -1145,11 +1330,17 @@ function hRecordSet(initdata) {
                 }else if($.isArray(record)){
                     records[recID] = record;
                 } 
-                
-                
-                
-                
+            }else{
+                this.addRecord(recID, record);
             }
+        },
+        
+        getRelations:function(){
+            return relations_ids;    
+        },
+        
+        getDetailsFieldTypes:function(){
+            return _getDetailsFieldTypes();    
         },
         
         //

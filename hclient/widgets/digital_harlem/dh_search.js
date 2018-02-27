@@ -27,7 +27,8 @@ $.widget( "heurist.dh_search", {
 
     // default options
     options: {
-        UGrpID: 1007 // 1915-1930 user group for 'original' Digital Harlem map. 1010 is Year of the Riot (1935) only
+        UGrpID: 1007, // 1915-1930 user group for 'original' Digital Harlem map. 1010 is Year of the Riot (1935) only
+        search_at_init: false  //open first saved search (if true) or with given Id (if numeric)
     },
 
     _currenttype:null,  //obsolete
@@ -35,8 +36,12 @@ $.widget( "heurist.dh_search", {
 
     _currentRequest:null,
     _currentRecordset:null,
+    add_filter:null,
+    add_filter_original:null,
 
    _isDigitalHarlem:true,
+   
+   _first_search_in_list:0,
 
     // the constructor
     _create: function() {
@@ -85,10 +90,18 @@ $.widget( "heurist.dh_search", {
         .css({'position':'absolute',top:'3em',bottom:'0','width':'100%'})
         .appendTo( this.search_pane )
 
-        this._refresh();
+        if(this.element.is(':visible')){
+            this._refresh();
+        }
 
         //find Map Documents (19) for featured individuals ---------------------------------------
         if(this._isDigitalHarlem){
+            
+            this.element.on("myOnShowEvent", function(event){
+                if( event.target.id == that.element.attr('id')){
+                    that._refresh();
+                }
+            });
             
             var query = null;
             // "Featured Individuals"
@@ -131,8 +144,7 @@ $.widget( "heurist.dh_search", {
                     }});
 
                     that.menu_fi = $('<ul>'+smenu+'</ul>')   //<a href="#">
-                    .zIndex(9999)
-                    .css({'position':'absolute', 'width':that.btn_fi_menu.width() })
+                    .css({'position':'absolute', 'width':that.btn_fi_menu.width(), zIndex:99999 })
                     .appendTo( that.document.find('body') )
                     .menu({
                         select: function( event, ui ) {
@@ -159,7 +171,7 @@ $.widget( "heurist.dh_search", {
 
                     that._on( that.btn_fi_menu, {
                         click: function() {
-                            $('.ui-menu').not('.horizontalmenu').hide(); //hide other
+                            $('.ui-menu').not('.horizontalmenu').not('.heurist-selectmenu').hide(); //hide other
                             var menu = $( that.menu_fi )
                             //.css('min-width', '80px')
                             .show()
@@ -179,7 +191,8 @@ $.widget( "heurist.dh_search", {
             
         }//_isDigitalHarlem
         
-        $(this.document).on(window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH+' '+window.hWin.HAPI4.Event.ON_REC_SEARCHSTART,
+        $(this.document).on(window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH+' '+window.hWin.HAPI4.Event.ON_REC_SEARCHSTART+'  '+
+                        window.hWin.HAPI4.Event.ON_SYSTEM_INITED,
             function(e, data) {
                 // show progress div
                 if(e.type == window.hWin.HAPI4.Event.ON_REC_SEARCHSTART){
@@ -190,10 +203,65 @@ $.widget( "heurist.dh_search", {
                 }else if(e.type == window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH){
                     that.res_div.show();
                     that.res_div_progress.hide();
+                    
+                }else if(e.type == window.hWin.HAPI4.Event.ON_SYSTEM_INITED){
+//alas it does not work - it is triggered before this widget is created                    
+//console.log(' INITED! ');
+                    
+                    if(that._isDigitalHarlem){
+                     
+                        var init_search = window.hWin.HEURIST?window.hWin.HEURIST.displayPreferences['defaultSearch']:'';
+                        if(!window.hWin.HEURIST4.util.isempty(init_search)){
+                            var request = {q: init_search, w: 'a', f: 'map', source:'init' };
+                            setTimeout(function(){
+                                window.hWin.HAPI4.SearchMgr.doSearch(document, request);
+                            }, 3000);
+                        }else{
+                            //trigger search finish to init some widgets
+                            $(document).trigger(window.hWin.HAPI4.Event.ON_REC_SEARCH_FINISH, null );   
+                        }
+                        
+                    }
+                    
                 }
+                
         });
 
-
+        if(window.hWin.HAPI4.sysinfo['layout']=='boro'){
+            //find on page external search_value and search_button elements  - for BORO external search form
+            var ele_search = $('#search_query'); //$(window.hWin.document).find('#search_query');
+            if(ele_search.length>0){
+                
+                this._on( ele_search, {
+                    keypress: function(e){
+                        var code = (e.keyCode ? e.keyCode : e.which);
+                        if (code == 13) {
+                            window.hWin.HEURIST4.util.stopEvent(e);
+                            e.preventDefault();
+                            
+                            that.doSearch3( ele_search.val() );
+                        }
+                    }
+                });
+                
+                var btn_search = $('#search_button');
+                this._on( btn_search, {
+                    click:  function(){
+                            that.doSearch3( ele_search.val() );}
+                });
+            }
+            
+            $('.bor-page-search').on("myOnShowEvent", function(event){
+                if( event.target.id == 'bor-page-search'){
+                    that._refresh();
+                }
+            });
+            
+            
+        }
+        
+        
+        
     }, //end _create
 
 
@@ -257,6 +325,7 @@ $.widget( "heurist.dh_search", {
 
         var that = this, facet_params = null, isfaceted = false, cnt = 0;
 
+        this._first_search_in_list = 0;
 
         for (var svsID in this.usr_SavedSearch)
         {
@@ -271,6 +340,10 @@ $.widget( "heurist.dh_search", {
             }
 
             this.usr_SavedSearch[svsID].push(isfaceted);
+            
+            if(this._first_search_in_list<1){
+                this._first_search_in_list = svsID; //keep first
+            }
 
             if(true || isfaceted){
 
@@ -284,21 +357,125 @@ $.widget( "heurist.dh_search", {
             }
         }
         
-        if(cnt==1){ //launch faceted search in case the only button
-             this.search_list.find('button').click();
+        if(this._isDigitalHarlem && cnt==1){
+            this._doSearch2( this._first_search_in_list );
+        }else if(this.options.search_at_init==true || this.options.search_at_init>0){
+            this._doSearch2( this.options.search_at_init==true?this._first_search_in_list:this.options.search_at_init);    
         }
-
+                    
+                    
+        
         //add featured maps
-
-
     },
 
+    //
+    // apply search as preliminary filter for current faceted search
+    //
+    doSearch3: function(search_value){
+        
+       $('#main_pane > .clearfix').hide(); //hide all
+       $('.bor-page-search').show();
+       
+       var search_value_original = null;
+       
+       if(search_value!=''){
+           
+           if(typeof search_value === 'string'){
+               
+                search_value_original = search_value;
+           
+                var DT_NAME = window.hWin.HAPI4.sysinfo['dbconst']['DT_NAME'], //1
+                    DT_GIVEN_NAMES = window.hWin.HAPI4.sysinfo['dbconst']['DT_GIVEN_NAMES'],
+                    DT_EXTENDED_DESCRIPTION = 134;//window.hWin.HAPI4.sysinfo['dbconst']['DT_EXTENDED_DESCRIPTION']; //4      
+                
+                var criteria = [];
+                var criteria_or = {any:[]};
+                
+                const regex = /"(?:\\.|[^\\"])*"|\S+/g;
+                var matches = search_value.match(regex);
+                var hasOR = false;
+                if(matches!=null){
+//DEBUG console.log(matches);
+                    //const regex = /"[^"]+"|(&&|\ OR \b)/gi;
+                    for(var i=0;i<matches.length;i++){
+                        if(matches[i].toUpperCase() === 'OR'){
+                            if(criteria.length>0){
+                                hasOR = true;
+                                criteria_or.any.push(criteria.length==1?criteria[0]:criteria);
+                                criteria = [];
+                            }
+                        }else{
+                            //strip quotes
+                            var val = matches[i].replace(/(^")|("$)/g, '');
+                            if(val){
+                                
+                                //search for given and family name
+                                //var pred = {any:[{"f:1":val},{"f:18":val}]};
+                                
+                                //search  for rec title and OCR
+                                //var pred = {any:[{"title":val},{"f:134":val}]};
 
+                                //search  for rec any field and tite of linked records
+                                var pred = {"f":val};
+                                
+                                criteria.push(pred); 
+                            }
+                        }
+                    }
+                    if(hasOR && criteria.length>0){
+                        criteria_or.any.push(criteria.length==1?criteria[0]:criteria);
+                    }
+                    
+                    search_value = (hasOR)?criteria_or:criteria;
+//DEBUG console.log(search_value);  
+                }
+                
+                // OLD WAY
+                //search_value = {any:[{"title":search_value},
+                //    {"f:1":search_value},{"f:18":search_value},{"f:134":search_value}]};
+               
+           }
+            
+            this.add_filter = search_value;
+            this.add_filter_original = search_value_original;
+       } else {
+            this.add_filter = null;
+       }
+       
+       if(this.search_faceted.html()==''){ //not inited yet
+            
+       }else{
+            //add filter to existing faceted search
+            if(search_value_original!=null){
+               this.search_faceted.search_faceted('option', 'add_filter_original', search_value_original); 
+               this.add_filter_original = search_value_original;
+            }
+            this.search_faceted.search_faceted('option', 'add_filter', this.add_filter);
+            this.search_faceted.search_faceted('doReset');
+       }
+    },
+
+    //
+    //
+    //
+    getFacetedSearch: function(){
+        if(this.search_faceted.html()==''){
+            return null;
+        }else{
+            return this.search_faceted;    
+        }
+        
+    },
+    
      //
-     // START SEARH
+     // START SEARCH
      //
     _doSearch2: function(svsID){
 
+        if(!this.usr_SavedSearch[svsID]) return;
+        
+        this.options.search_at_init = false; //only once!!!!
+        
         var qsearch = this.usr_SavedSearch[svsID][_QUERY];
 
         //switch to result List Tab
@@ -322,8 +499,14 @@ $.widget( "heurist.dh_search", {
 
             this.search_pane.show();
             this.search_list.hide();
+            
+            if(that.add_filter!=null){
+                facet_params['add_filter'] = that.add_filter;
+                facet_params['add_filter_original'] = that.add_filter_original;
+            }            
 
-            var noptions= { query_name: this.usr_SavedSearch[svsID][_NAME], params:facet_params,
+            var noptions= { query_name: this.usr_SavedSearch[svsID][_NAME], 
+                params:facet_params,
                 onclose:function(event){
                     that.search_pane.hide();
                     that.search_list.show();
@@ -384,7 +567,7 @@ $.widget( "heurist.dh_search", {
 
 
     //
-    // add current reuslt set as layer to current map document
+    // add current result set as layer to current map document
     //
     _onAddLayer: function(){
 
@@ -393,7 +576,7 @@ $.widget( "heurist.dh_search", {
             var that = this;
             //switch to Map Tab
             window.hWin.HAPI4.LayoutMgr.putAppOnTop('app_timemap');
-            $(app.widget).app_timemap('editLayerProperties', 'main', function(res){
+            $(app.widget).app_timemap('editLayerProperties', 'main', null, function(res){
                 if(res){
                     that.res_div.hide();
                 }

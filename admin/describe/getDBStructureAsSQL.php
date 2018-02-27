@@ -23,6 +23,7 @@
 * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
 * See the License for the specific language governing permissions and limitations under the License.
 */
+define('SKIP_VERSIONCHECK2', 1);
 
 require_once(dirname(__FILE__).'/../../common/connect/applyCredentials.php');
 require_once(dirname(__FILE__).'/../../common/php/dbMySqlWrappers.php');
@@ -47,6 +48,17 @@ if("hdb_".$_REQUEST["db"]!=DATABASE){
 if(mysql_error()) {
     die("Could not get database structure from given database source, MySQL error - unable to connect to database.");
 }
+
+$query = "select * from sysIdentification";
+$res = mysql_query($query);
+if($res){
+    $row = mysql_fetch_assoc($res);
+    $db_version = $row['sys_dbVersion'].'.'.$row['sys_dbSubVersion'].'.'.$row['sys_dbSubSubVersion'];
+}else{
+    $db_version = HEURIST_DBVERSION; 
+}
+
+
 
 //$r = mysql_query("SELECT DATABASE()") or die(mysql_error());
 //error_log("DATABASE IS ".mysql_result($r,0));    
@@ -80,7 +92,7 @@ print "-- Heurist Definitions Exchange File  generated: ".date("d M Y @ H:i")."<
 print "-- Installation = " . HEURIST_BASE_URL. "<br>\n";
 print "-- Database = " . HEURIST_DBNAME . "<br>\n";
 print "-- Program Version: ".HEURIST_VERSION."<br>\n";
-print "-- Database Version: ".HEURIST_DBVERSION; // ** Do not change format of this line ** !!! it is checked to make sure vesions match
+print "-- Database Version: ".$db_version; // ** Do not change format of this line ** !!! it is checked to make sure vesions match
 if($isHTML) print "<br><br>\n";
 // Now output each of the definition tables as data for an insert statement. The headings are merely for documentation
 // Each block of data is between a >>StartData>> and >>EndData>> markers
@@ -470,9 +482,18 @@ function print_row($row,$fmt) {
                 $rty_RecTypeGroupID = mysql_real_escape_string($row['rty_RecTypeGroupID']);
                 $rty_ReferenceURL = mysql_real_escape_string($row['rty_ReferenceURL']);
                 $rty_AlternativeRecEditor = mysql_real_escape_string($row['rty_AlternativeRecEditor']);
+                
+                $rty_NameInOriginatingDB = $row['rty_NameInOriginatingDB']?mysql_real_escape_string($row['rty_NameInOriginatingDB']):$rty_Name;
+                $rty_IDInOriginatingDB = $row['rty_IDInOriginatingDB'];
+                $rty_OriginatingDBID = $row['rty_OriginatingDBID']>0?$row['rty_OriginatingDBID']:HEURIST_DBID;
+                if(HEURIST_DBID>0 && !($rty_IDInOriginatingDB>0)){
+                    $rty_IDInOriginatingDB = $row['rty_ID']; 
+                    $rty_OriginatingDBID = HEURIST_DBID; 
+                }
+                
                 print "('$row[rty_ID]','$rty_Name','$row[rty_OrderInGroup]','$rty_Description','$rty_TitleMask',
                 '$rty_CanonicalTitleMask','$rty_Plural','$row[rty_Status]',
-                '$row[rty_OriginatingDBID]','$rty_NameInOriginatingDB','$row[rty_IDInOriginatingDB]',
+                '$rty_OriginatingDBID','$rty_NameInOriginatingDB','$rty_IDInOriginatingDB',
                 '$row[rty_NonOwnerVisibility]','$row[rty_ShowInLists]','$rty_RecTypeGroupID','$row[rty_RecTypeModelIDs]',
                 '$row[rty_FlagAsFieldset]','$rty_ReferenceURL','$rty_AlternativeRecEditor','$row[rty_Type]',
                 '$row[rty_ShowURLOnEditForm]','$row[rty_ShowDescriptionOnEditForm]','$row[rty_LocallyModified]'),";
@@ -480,20 +501,34 @@ function print_row($row,$fmt) {
             break;
 
         case 'defDetailTypes': // Data from the recDetails table
+        
+            $dty_FieldSetRecTypeID = $row['dty_FieldSetRecTypeID']>0?$row['dty_FieldSetRecTypeID']:0;
+        
             $dty_Name = mysql_real_escape_string($row['dty_Name']);
             $dty_Documentation = mysql_real_escape_string($row['dty_Documentation']);
             $dty_HelpText = mysql_real_escape_string($row['dty_HelpText']);
             $dty_ExtendedDescription = mysql_real_escape_string($row['dty_ExtendedDescription']);
-            $dty_NameInOriginatingDB = mysql_real_escape_string($row['dty_NameInOriginatingDB']);
             $dty_EntryMask = mysql_real_escape_string($row['dty_EntryMask']);
             $dty_JsonTermIDTree = mysql_real_escape_string($row['dty_JsonTermIDTree']);
             $dty_TermIDTreeNonSelectableIDs = mysql_real_escape_string($row['dty_TermIDTreeNonSelectableIDs']);
             $dty_PtrTargetRectypeIDs = mysql_real_escape_string($row['dty_PtrTargetRectypeIDs']);
+            $dty_SemanticReferenceURL = mysql_real_escape_string($row['dty_SemanticReferenceURL']);
+            
+            $dty_NameInOriginatingDB = $row['dty_NameInOriginatingDB']?mysql_real_escape_string($row['dty_NameInOriginatingDB']):$dty_Name;
+            $dty_IDInOriginatingDB = $row['dty_IDInOriginatingDB'];
+            $dty_OriginatingDBID = $row['dty_OriginatingDBID']>0?$row['dty_OriginatingDBID']:HEURIST_DBID;
+            if(HEURIST_DBID>0 && !($dty_IDInOriginatingDB>0)){
+                $dty_IDInOriginatingDB = $row['dty_ID']; 
+                $dty_OriginatingDBID = HEURIST_DBID; 
+            }
+            
+            $dty_SemanticReferenceURL =  mysql_real_escape_string($row['dty_PtrTargetRectypeIDs']);
             print "('$row[dty_ID]','$dty_Name','$dty_Documentation','$row[dty_Type]','$dty_HelpText',
-            '$dty_ExtendedDescription','$dty_EntryMask','$row[dty_Status]','$row[dty_OriginatingDBID]',
-            '$dty_NameInOriginatingDB','$row[dty_IDInOriginatingDB]','$row[dty_DetailTypeGroupID]',
+            '$dty_ExtendedDescription','$dty_EntryMask','$row[dty_Status]','$dty_OriginatingDBID',
+            '$dty_NameInOriginatingDB','$dty_IDInOriginatingDB','$row[dty_DetailTypeGroupID]',
             '$row[dty_OrderInGroup]','$dty_JsonTermIDTree','$dty_TermIDTreeNonSelectableIDs',
-            '$dty_PtrTargetRectypeIDs','$row[dty_FieldSetRecTypeID]','$row[dty_ShowInLists]','$row[dty_NonOwnerVisibility]','$row[dty_LocallyModified]'),";
+            '$dty_PtrTargetRectypeIDs',$dty_FieldSetRecTypeID,'$row[dty_ShowInLists]','$row[dty_NonOwnerVisibility]',
+            '$row[dty_LocallyModified]','$dty_SemanticReferenceURL'),";
             break;
 
         case 'defRecStructure': // Data from the defRecStructure table
@@ -504,27 +539,63 @@ function print_row($row,$fmt) {
             $rst_FilteredJsonTermIDTree = mysql_real_escape_string($row['rst_FilteredJsonTermIDTree']);
             $rst_TermIDTreeNonSelectableIDs = mysql_real_escape_string($row['rst_TermIDTreeNonSelectableIDs']);
             $rst_PtrFilteredIDs = mysql_real_escape_string($row['rst_PtrFilteredIDs']);
-            print "('$row[rst_ID]','$row[rst_RecTypeID]',
-            '$row[rst_DetailTypeID]','$rst_DisplayName','$rst_DisplayHelpText',
-            '$rst_DisplayExtendedDescription','$row[rst_DisplayOrder]','$row[rst_DisplayWidth]',
-            '$rst_DefaultValue','$row[rst_RecordMatchOrder]','$row[rst_CalcFunctionID]',
-            '$row[rst_RequirementType]','$row[rst_NonOwnerVisibility]','$row[rst_Status]','$row[rst_MayModify]',
-            '$row[rst_OriginatingDBID]','$row[rst_IDInOriginatingDB]',
-            '$row[rst_MaxValues]','$row[rst_MinValues]','$row[rst_DisplayDetailTypeGroupID]',
-            '$rst_FilteredJsonTermIDTree','$rst_PtrFilteredIDs',
-            '$row[rst_OrderForThumbnailGeneration]','$rst_TermIDTreeNonSelectableIDs','$row[rst_LocallyModified]'),";
+            $rst_CalcFieldMask = mysql_real_escape_string($row['rst_CalcFieldMask']);
+            $rst_EntryMask = mysql_real_escape_string($row['rst_EntryMask']);
+            print "('$row[rst_ID]',
+            '$row[rst_RecTypeID]',
+            '$row[rst_DetailTypeID]',
+            '$rst_DisplayName',
+            '$rst_DisplayHelpText',
+            '$rst_DisplayExtendedDescription',
+            '$row[rst_DisplayOrder]',
+            '$row[rst_DisplayWidth]',
+            '$row[rst_DisplayHeight]',
+            '$rst_DefaultValue',
+            '$row[rst_RecordMatchOrder]',
+            '$row[rst_CalcFunctionID]',
+            '$rst_CalcFieldMask',
+            '$row[rst_RequirementType]',
+            '$row[rst_NonOwnerVisibility]',
+            '$row[rst_Status]',
+            '$row[rst_MayModify]',
+            '$row[rst_OriginatingDBID]',
+            '$row[rst_IDInOriginatingDB]',
+            '$row[rst_MaxValues]',
+            '$row[rst_MinValues]',
+            '$row[rst_InitialRepeats]',
+            '$row[rst_DisplayDetailTypeGroupID]',
+            '$rst_FilteredJsonTermIDTree',
+            '$rst_PtrFilteredIDs',
+            '$row[rst_CreateChildIfRecPtr]',
+            '$row[rst_OrderForThumbnailGeneration]',
+            '$rst_TermIDTreeNonSelectableIDs',
+            '$row[rst_ShowDetailCertainty]',
+            '$row[rst_ShowDetailAnnotation]',
+            '$row[rst_NumericLargestValueUsed]',
+            '$rst_EntryMask',
+            '$row[rst_LocallyModified]'),";
             break;
 
         case 'defTerms': // Data from the rec_details_lookup table
             $trm_Label = mysql_real_escape_string($row['trm_Label']);
             $trm_Description = mysql_real_escape_string($row['trm_Description']);
-            $trm_NameInOriginatingDB = mysql_real_escape_string($row['trm_NameInOriginatingDB']);
+            $trm_SemanticReferenceURL = mysql_real_escape_string($row['trm_SemanticReferenceURL']);
+            $trm_IllustrationURL = mysql_real_escape_string($row['trm_IllustrationURL']);
+            
+            $trm_NameInOriginatingDB = $row['trm_NameInOriginatingDB']?mysql_real_escape_string($row['trm_NameInOriginatingDB']):$trm_Label;
+            $trm_IDInOriginatingDB = $row['trm_IDInOriginatingDB'];
+            $trm_OriginatingDBID = $row['trm_OriginatingDBID']>0?$row['trm_OriginatingDBID']:HEURIST_DBID;
+            if(HEURIST_DBID>0 && !($trm_IDInOriginatingDB>0)){
+                $trm_IDInOriginatingDB = $row['trm_ID']; 
+                $trm_OriginatingDBID = HEURIST_DBID; 
+            }
+            
             print "('$row[trm_ID]','$trm_Label','$row[trm_InverseTermId]',
             '$trm_Description','$row[trm_Status]',
-            '$row[trm_OriginatingDBID]','$trm_NameInOriginatingDB','$row[trm_IDInOriginatingDB]',
+            '$trm_OriginatingDBID','$trm_NameInOriginatingDB','$trm_IDInOriginatingDB',
             '$row[trm_AddedByImport]','$row[trm_IsLocalExtension]','$row[trm_Domain]','$row[trm_OntID]',
             '$row[trm_ChildCount]','$row[trm_ParentTermID]','$row[trm_Depth]','$row[trm_Modified]','$row[trm_LocallyModified]',
-            '$row[trm_Code]'),";
+            '$row[trm_Code]','$trm_SemanticReferenceURL','$trm_IllustrationURL'),";
             // WARNING! This needs to be updated in sync with new db structure to be added for DB Version 1.2.0 for FAIMS compatibility
             // '$row[trm_ReferenceURL]','$row[trm_IllustrationURL]'),"; // for db version 1.2.0 @ 1/10/13
             break;

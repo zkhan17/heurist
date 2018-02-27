@@ -64,21 +64,40 @@ title: "Family Name"
 type:  "freetext"
 levels: []
 search: [t:10 f:1] 
+orderby: count|null
+groupby
 ]
 
 ]
 
 
 NOTE - to make search for facet value faster we may try to omit current search in query and search for entire database
-            
+  
+facet search general parameters are the same to saved search plus several special
+
+domain
+rules
+ui_title - title in user interface
+title_hierarchy - show hierarchy in facet header
+sup_filter - suplementary filter that is set in design time
+add_filter - additional filter that can be set in run time 
+add_filter_original - original search string for add_filter if it is json
+search_on_reset - search for empty form (on reset and on init)
+
+viewport - collapse facet to limit count of items
+
+rectypes[0] 
 */
-
-
 
 $.widget( "heurist.search_faceted", {
 
     _MIN_DROPDOWN_CONTENT: 50,//0, //min number in dropdown selector, otherwise facet values are displayed in explicit list
+    _FT_INPUT: 0,  //direct search input
+    _FT_SELECT: 1, //slider for numeric and date  (for freetext it is considered as _FT_LIST)
+    _FT_LIST: 2,
+    _FT_COLUMN: 3,
 
+    
     // default options
     options: {
         // callbacks
@@ -89,7 +108,7 @@ $.widget( "heurist.search_faceted", {
 
     cached_counts:[], //stored results of get_facets by stringified query index
     _input_fields:{},
-    _request_id: 0,
+    _request_id: 0, //keep unique id to avoid redraw facets for old requests
     _first_query:[], //query for all empty values
     _isInited: true,
     _current_query: null,
@@ -104,11 +123,15 @@ $.widget( "heurist.search_faceted", {
 
         this.div_header = $( "<div>" ).appendTo( this.element );
         
-        if(!this.options.ispreview){
-            this.div_title = $("<div style='text-align:left;padding-top:1.4em;padding-left:1em;display:inline-block;width:70%'></div").addClass('truncate').appendTo( this.div_header );
+        if(!this.options.ispreview){                       //padding-top:1.4em;
+            this.div_title = $('<div>')
+            .css({padding:'1em 0em 0 1em','font-size':'1.4em','font-weight':'bold',color:'rgb(142, 169, 185)','max-width':'90%'})
+//style='text-align:left;margin:4px 0 0 0!important;padding-left:1em;width:auto, max-width:90%'></h3")
+                    .addClass('truncate').appendTo( this.div_header );
         }
 
-        this.div_toolbar = $( "<div>" ).css({"font-size":"0.7em","float":"right","padding-top":"1.8em","padding-right":"0.6em"}).appendTo( this.div_header );
+        this.div_toolbar = $( "<div>" ).css({"font-size":"0.7em","float":"right","padding-top":"0.3em","padding-right":"0.6em"})
+                .appendTo( this.div_header );
 
         this.btn_submit = $( "<button>", { text: window.hWin.HR("Submit") })
         .appendTo( this.div_toolbar )
@@ -122,31 +145,27 @@ $.widget( "heurist.search_faceted", {
         .appendTo( this.div_toolbar )
         .button().hide(); //@todo
 
-        this.btn_close = $( "<button>", { text: window.hWin.HR("Close"), title:window.hWin.HR("Close this facet search and return to the list of saved searches") })
+        this.btn_close = $( "<button>", { text: window.hWin.HR("Close"), 
+                    title:window.hWin.HR("Close this facet search and return to the list of saved searches") })
         .appendTo( this.div_toolbar )
         .button({icons: {secondary: "ui-icon-close"}});
 
         this.btn_close.find('.ui-icon-close').css({'font-size': '1.3em', right: 0});
         
-        //Ian this.div_toolbar.buttonset();
-
         this._on( this.btn_submit, { click: "doSearch" });
-        this._on( this.btn_reset, { click: "doReset" });
+        this._on( this.btn_reset, { click: "doResetAll" });
         this._on( this.btn_save, { click: "doSaveSearch" });
         this._on( this.btn_close, { click: "doClose" });
 
 
         this.facets_list_container = $( "<div>" )
-        .css({"top":"3.6em","bottom":0,"left":'1em',"right":'0.5em',"position":"absolute"})
+        .css({"top":((this.div_title)?'5em':'2em'),"bottom":0,"left":'1em',"right":'0.5em',"position":"absolute"}) //was top 3.6
         .appendTo( this.element );
 
         this.facets_list = $( "<div>" )
         .css({"overflow-y":"auto","overflow-x":"hidden","height":"100%"}) //"font-size":"0.9em",
         .appendTo( this.facets_list_container );
 
-        //this._refresh();
-        this.doReset();
-        
         var that = this;
         var current_query_request_id;
         
@@ -177,6 +196,8 @@ $.widget( "heurist.search_faceted", {
             }
         });
 
+        //this._refresh();
+        this.doReset();
     }, //end _create
 
     // Any time the widget is called with no arguments or with only an option hash, 
@@ -184,11 +205,22 @@ $.widget( "heurist.search_faceted", {
     _init: function() {
     },
 
+    _setOption: function( key, value ) {
+        this._super( key, value );
+        if(key=='add_filter'){
+            this.options.params.add_filter = value;
+        }else if(key=='add_filter_original'){
+            this.options.params.add_filter_original = value;
+        }
+    },
+    
     _setOptions: function( options ) {
         this._superApply( arguments );
-        this.cached_counts = [];
-        //this._refresh();
-        this.doReset();
+        if(window.hWin.HEURIST4.util.isnull(options['add_filter'])){
+            this.cached_counts = [];
+            //this._refresh();
+            this.doReset();
+        }
     },
 
     /* 
@@ -206,8 +238,8 @@ $.widget( "heurist.search_faceted", {
               }
          }
         
-
-        if(this.div_title) this.div_title.html("<b>"+this.options.query_name+"</b>");
+        if(this.div_title) this.div_title.html(this.options.params.ui_title
+                            ?this.options.params.ui_title:this.options.query_name);
 
         if(this.options.ispreview){
             this.btn_save.hide(); 
@@ -215,11 +247,12 @@ $.widget( "heurist.search_faceted", {
         }else{
             
             if(hasHistory) {
-                if(this.div_title) this.div_title.css('width','45%');
+                //if(this.div_title) this.div_title.css('width','45%');
                 this.btn_reset.show()   
                 //this.btn_save.show();  //@todo
             }else{
-                if(this.div_title) this.div_title.css('width','70%');
+                //if(this.div_title) this.div_title.css({'width':'auto', 'max-width':'90%'});
+    
                 this.btn_reset.hide()   
                 this.btn_save.hide(); 
             }
@@ -269,7 +302,7 @@ $.widget( "heurist.search_faceted", {
                
                field['id']   = code[code.length-1];
                field['rtid'] = code[code.length-2];
-               if(field['isfacet']>0){
+               if(field['isfacet']!=that._FT_INPUT){  //not direct iinput
                
                        //create query to search facet values
                        function __crt( idx ){
@@ -384,7 +417,12 @@ $.widget( "heurist.search_faceted", {
      
        this.options.params['q'] = mainquery;
    }
-    
+
+    ,doResetAll: function(){
+        this.options.params.add_filter = null;
+        this.options.params.add_filter_original = null;
+        this.doReset();
+    }
     //
     // reset current search 
     // recreate facet elements/ or form inputs
@@ -402,11 +440,11 @@ $.widget( "heurist.search_faceted", {
                 facets[facet_index].history = [];
                 facets[facet_index].selectedvalue = null;
                 
-                if(window.hWin.HEURIST4.util.isnull(facets[facet_index].isfacet) || 
-                        facets[facet_index].isfacet==true || facets[facet_index].isfacet==1){
-                            facets[facet_index].isfacet=1;
+                //support old format
+                if(window.hWin.HEURIST4.util.isnull(facets[facet_index].isfacet) || facets[facet_index].isfacet==true){
+                            facets[facet_index].isfacet = this._FT_SELECT;
                 }else if (facets[facet_index].isfacet==false){
-                            facets[facet_index].isfacet=0;
+                            facets[facet_index].isfacet = this._FT_INPUT;
                 }
                 
                 //facets[facet_index].isfacet = facets[facet_index].isfacet || window.hWin.HEURIST4.util.isnull(facets[facet_index].isfacet);
@@ -421,7 +459,8 @@ $.widget( "heurist.search_faceted", {
        
        this.facets_list.empty();
        
-       var $fieldset = $("<fieldset>").css({'font-size':'0.9em','background-color':'white'}).addClass('fieldset_search').appendTo(this.facets_list);
+       var $fieldset = $("<fieldset>").css({'font-size':'0.9em','background-color':'white'})
+                    .addClass('fieldset_search').appendTo(this.facets_list);
 
        //hide submit button will be displayed in case all fields are input fields (not facets)
        if(true){ 
@@ -435,8 +474,9 @@ $.widget( "heurist.search_faceted", {
             this.btn_close.show(); 
         }
         if(this.div_title) {
-            this.div_title.html("<b>"+this.options.query_name+"</b>");
-            this.div_title.css('width','70%');    
+            this.div_title.html(this.options.params.ui_title
+                            ?this.options.params.ui_title:this.options.query_name);
+            //this.div_title.css('width','70%');    
         }
         this.btn_reset.hide()   
         this.btn_save.hide(); 
@@ -457,23 +497,29 @@ $.widget( "heurist.search_faceted", {
                j = j + 2;
           }
           
-          harchy = "<span>"+ harchy.join(" &gt; ") + "</span><br/>&nbsp;&nbsp;&nbsp;";
+          harchy = '<span class="truncate" style="display:inline-block;width:99%;font-weight:normal !important">'
+                + harchy.join(" &gt; ") + "</span><br/>&nbsp;&nbsp;&nbsp;";
            
            if(!window.hWin.HEURIST4.util.isnull(field['var']) && field['code'] ){
                
              if(!field['help']) field['help'] = '';
                
-             if(field['isfacet']>0){
+             if(field['isfacet']!=that._FT_INPUT){
                     
                     //inpt.find('.input-div').hide();
                     //inpt.find('.header').css({'background-color': 'lightgray', 'padding': '5px', 'width': '100%'});
                     //inpt.find('.editint-inout-repeat-button').hide();
                     
-                    $("<div>",{id: "fv_"+field['var'] }).html(
-                        '<div class="header" title="'+field['help']+'">'+   // style="width: 100%; background-color: lightgray; padding: 5px; width:100%"
-                            '<label>'+harchy + "<span style='font-weight:bold'>" + field['title'] + '</span></label>'+
+                    $("<div>",{id: "fv_"+field['var'] }).html(      //!!!!
+                        '<div class="header" title="'+field['help']+'">'   // style="width: 100%; background-color: lightgray; padding: 5px; width:100%"
+                              +(that.options.params.title_hierarchy?harchy:'')
+                              +'<h4 style="display:inline-block;">'
+                              + field['title'] + '</h4>'+  //field['order']+'  '+
+                              ((field['help'])?'<span class="bor-tooltip ui-icon ui-icon-circle-help" '
+                              +'style="width:17px;height:17px;margin-left:4px;display:inline-block;vertical-align:text-bottom;" title="'
+                              +field['help']+'"></span>':'')+
                         '</div>'+
-                        '<div class="input-cell"></div>').appendTo($fieldset);
+                        '<div class="input-cell" style="display:block;"></div>').appendTo($fieldset);    //width:100%
                   
              }else{
                  //instead of list of links it is possible to allow enter search value directly into input field
@@ -484,9 +530,10 @@ $.widget( "heurist.search_faceted", {
                                 rectypeID: field['rtid'],
                                 dtID: field['id'],
                                 rectypes: window.hWin.HEURIST4.rectypes,
-                                values: '',
+                                values: [''],
                                 readonly: false,
-                                title:  harchy + "<span style='font-weight:bold'>" + field['title'] + "</span>",
+                                title:  (that.options.params.title_hierarchy?harchy:'')
+                                        + "<span style='font-weight:bold'>" + field['title'] + "</span>",
                                 detailtype: field['type'],  //overwrite detail type from db (for example freetext instead of memo)
                                 showclear_button: false,
                                 suppress_prompts: true,  //supress help, error and required features
@@ -503,8 +550,6 @@ $.widget( "heurist.search_faceted", {
                        };
                    }
 
-//console.log('inpt added '+"fv_"+field['var']+'   '+field['id']);                   
-                     
                     var inpt = $("<div>",{id: "fv_"+field['var'] }).editing_input(   //this is our widget for edit given fieldtype value
                             ed_options
                         );
@@ -512,10 +557,10 @@ $.widget( "heurist.search_faceted", {
                     inpt.appendTo($fieldset);
                     that._input_fields['$X'+field['var']] = inpt;
                     
-                    inpt.find('.header').attr('title', field['help']); //@todo define option in editing_input
-                    
-                    inpt.find('.input-div').css('display','inline-block');
-                    
+                    inpt.find('.header').attr('title', field['help'])
+                        .css('display','block')
+                        .html('<h4 style="display:inline-block;">'+field['title']+'</h4>');
+                                                                        
                     //@todo make as event listeneres
                     //assign event listener
                     //var $inputs = inpt.editing_input('getInputs');
@@ -549,6 +594,9 @@ $.widget( "heurist.search_faceted", {
                                 that.doSearch();
                         }});//"doSearch"});                   
                     
+                    inpt.find('.input-cell > .input-div').css({'display':'inline-block'}); // !important
+                    inpt.find('.input-cell').css('display','block');
+                    
                     inpt.find('input').removeClass('text').css({'width':'150px'});
                     inpt.find('select').removeClass('text').css({'width':'150px'});
                     
@@ -575,15 +623,36 @@ $.widget( "heurist.search_faceted", {
            }
        });
        
-       $fieldset.find('.header').css({width: '100%', 'background-color': 'lightgray', padding: '5px', width:'100%'})
+       //'background-color': 'lightgray', 
+       $fieldset.find('.header').css({width: '100%', padding: '5px', width:'100%'})
        $fieldset.find('.input-cell').css({ 'padding':'5px' });
+       
+       $fieldset.find('.bor-tooltip').tooltip({
+            position: { my: "center bottom", at: "center top-5" },
+            /* does not work
+            classes: {
+                "ui-tooltip": "ui-corner-all tooltip-inner"
+            },*/
+            tooltipClass:"tooltip-inner",
+            hide: { effect: "explode", duration: 500 }
+        });
        
        this._isInited = true;
        //get empty query
        this._first_query = window.hWin.HEURIST4.util.cloneJSON( this.options.params.q ); //clone 
        this._fillQueryWithValues( this._first_query );
-       this._recalculateFacets(-1);
+       
 
+       
+//console.log('start search with empty form '+this.options.params.search_on_reset);        
+        if(this.options.params.search_on_reset || 
+           !window.hWin.HEURIST4.util.isempty(this.options.params.add_filter)){
+            //search at once - even none facet value provided
+            this.doSearch();
+        }else{
+            this._recalculateFacets(-1);     
+        }
+       
     }
 
     ,doSaveSearch: function(){
@@ -600,7 +669,40 @@ $.widget( "heurist.search_faceted", {
 
 
     }
+    
+    //
+    // return array of pairs - code:value
+    //
+    ,getFacetsValues: function(){
+        
+        var _inputs = this._input_fields;
+        var res = [];
+        
+        var facets = this.options.params.facets;
+        var facet_index, len = facets.length;
+        for (facet_index=0;facet_index<len;facet_index++){
 
+                if(facets[facet_index]['isfacet']==this._FT_INPUT){  //this is direct input
+                
+                     var val = '$X'+facets[facet_index]["var"];
+                     var sel = $(_inputs[val]).editing_input('getValues');
+                     if(sel && sel.length>0){
+                         facets[facet_index].selectedvalue = {value:sel[0]};
+                     }else{
+                         facets[facet_index].selectedvalue = null;
+                     }
+                }
+                
+                var selval = facets[facet_index].selectedvalue;
+                
+                if(selval && !window.hWin.HEURIST4.util.isempty(selval.value)){
+                    res.push({code:facets[facet_index].code, value:selval.value});
+                }
+
+        }//for
+
+        return res;                
+    }
 
     //
     // 1. substiture Xn variable in query array with value from input form
@@ -632,7 +734,7 @@ $.widget( "heurist.search_faceted", {
                         for (facet_index=0;facet_index<len;facet_index++){
                             if(facets[facet_index]["var"] == val.substr(2)){
 
-                                if(facets[facet_index]['isfacet']==0){
+                                if(facets[facet_index]['isfacet']==that._FT_INPUT){  //this is direct input
                                      var sel = $(_inputs[val]).editing_input('getValues');
                                      if(sel && sel.length>0){
                                          facets[facet_index].selectedvalue = {value:sel[0]};
@@ -641,9 +743,16 @@ $.widget( "heurist.search_faceted", {
                                      }
                                 }
                                 
-                                var selval = facets[facet_index].selectedvalue;;
+                                var selval = facets[facet_index].selectedvalue;
                                 
                                 if(selval && !window.hWin.HEURIST4.util.isempty(selval.value)){
+                                    
+                                    if(facets[facet_index].groupby=='decade'){
+                                        selval.value = selval.value + '<>' +(Number(selval.value)+10+'-01-01 00:00');
+                                    }else if(facets[facet_index].groupby=='century'){
+                                        selval.value = selval.value + '<>' +(Number(selval.value)+100+'-01-01 00:00');
+                                    }
+                                    
                                     predicate[key] = selval.value;
                                     isbranch_empty = false;
                                 }else{
@@ -681,10 +790,17 @@ $.widget( "heurist.search_faceted", {
     
     ,doSearch : function(){
 
+//console.log(this.options.params.q );
+
             var query = window.hWin.HEURIST4.util.cloneJSON( this.options.params.q ); //clone 
             var isform_empty = this._fillQueryWithValues(query);
+
+//console.log('form is empty '+isform_empty);                
             
-            if(isform_empty){
+            if(isform_empty && 
+                window.hWin.HEURIST4.util.isempty(this.options.params.add_filter) && 
+                !this.options.params.search_on_reset){
+                
                 if(true){
                     //clear main result set
                     
@@ -694,7 +810,7 @@ $.widget( "heurist.search_faceted", {
                 }
                 return;
             }else if(!this.options.ispreview){
-                this.div_title.css('width','45%');
+                //this.div_title.css('width','45%');
                 this.btn_reset.show()   
                 //@todo this.btn_save.show(); 
             }
@@ -704,14 +820,17 @@ $.widget( "heurist.search_faceted", {
 
             //this approach adds supplemntary(preliminary) filter to every request 
             //it works however 
-            //1) it requires that this filter must be a valid json
+            //1) it requires that this filter must be a valid json  - FIXED
             //2) it makes whole request heavier
             //add additional/supplementary filter
-            this._current_query = window.hWin.HEURIST4.util.mergeHeuristQuery(query, this.options.params.sup_filter);
+            this._current_query = window.hWin.HEURIST4.util.mergeHeuristQuery(query, 
+                            this.options.params.sup_filter, this.options.params.add_filter);
             
-            //this._request_id =  Math.round(new Date().getTime() + (Math.random() * 100));
             
 //{"f:10":"1934-12-31T23:59:59.999Z<>1935-12-31T23:59:59.999Z"}            
+            this._current_query.push({sortby:'t'});
+//console.log( this._current_query );
+
             
             var request = { q: this._current_query, 
                             w: this.options.params.domain, 
@@ -722,6 +841,10 @@ $.widget( "heurist.search_faceted", {
                             //to keep info what is primary record type in final recordset
                             primary_rt: this.options.params.rectypes[0] 
                             }; //, facets: facets
+                            
+            if(this.options.ispreview){
+                request['limit'] = 1000;    
+            }
             
             //perform search
             window.hWin.HAPI4.SearchMgr.doSearch( this, request );
@@ -733,11 +856,13 @@ $.widget( "heurist.search_faceted", {
     //-------------------------------------------------------------------------------
     //
     // called on ON_REC_SEARCH_FINISH
-    // perform search for facet values and redraw facet fields
+    // perform search for facet values and counts and redraw facet fields
     // @todo query - current query - if resultset > 1000, use query
     // _recalculateFacets (call server) -> as callback _redrawFacets -> _recalculateFacets (next facet)
     //
     , _recalculateFacets: function(field_index){
+     
+//@todo need to check that the sequence is not called more than once - otherwise we get multiple controls on facets
         
         //return;
         
@@ -745,6 +870,8 @@ $.widget( "heurist.search_faceted", {
         // this._resultset
         if(isNaN(field_index) || field_index<0){
                 field_index = -1;  
+                
+                this._request_id =  Math.round(new Date().getTime() + (Math.random() * 100));
             
                 var div_facets = this.facets_list.find(".facets");
                 if(div_facets.length>0)
@@ -758,16 +885,18 @@ $.widget( "heurist.search_faceted", {
         for(;i< this.options.params.facets.length; i++)
         {
             var field = this.options.params.facets[i];
-            if(i>field_index && field['isfacet']>0 && field['facet']){
+            if(i>field_index && field['isfacet']!=that._FT_INPUT && field['facet']){
                 
                 var subs_value = null;
                 
                 if(this._isInited){
                     //replace with current query   - @todo check for empty 
-                    subs_value =  this._first_query;
+                    subs_value = window.hWin.HEURIST4.util.mergeHeuristQuery(this._first_query, 
+                                    this.options.params.sup_filter, this.options.params.add_filter);
                 }else{
                     //replace with list of ids
-                    subs_value = this._currentRecordset.getMainSet().join(',');
+                    subs_value = window.hWin.HEURIST4.util.mergeHeuristQuery(this._first_query,
+                                    {ids:this._currentRecordset.getMainSet().join(',')});
                 }
                 
                 //
@@ -818,6 +947,8 @@ $.widget( "heurist.search_faceted", {
                             return res;
                     
                 }
+     
+//DBG console.log(field);
                 
                 var query, needcount = 2;
                 if( (typeof field['facet'] === 'string') && (field['facet'] == '$IDS') ){ //this is field form target record type
@@ -825,9 +956,12 @@ $.widget( "heurist.search_faceted", {
                     if(this._isInited){
                         //replace with current query   - @todo check for empty 
                         query = this._first_query;
-                        
+
                         //add additional/supplementary filter
-                        query = window.hWin.HEURIST4.util.mergeHeuristQuery(query, this.options.params.sup_filter);
+                        query = window.hWin.HEURIST4.util.mergeHeuristQuery(query, 
+                                        this.options.params.sup_filter,   //suplementary filter defined in wiz
+                                        this.options.params.add_filter);  //dynaminc addition filter
+
                         
                     }else{
                         //replace with list of ids
@@ -843,7 +977,7 @@ $.widget( "heurist.search_faceted", {
                     __fillQuery(query);                
                     
                     //add other parameters for rectype of this facet
-                    if(this._current_query){
+                    if(this._current_query && false){ //2018-01-09 Do not use other parameters since we use IDS
                         var copyquery = window.hWin.HEURIST4.util.cloneJSON(this._current_query); 
                         var otherparams = __getOtherParameters(copyquery, field['rtid']);
                         if(null!=otherparams){
@@ -865,21 +999,51 @@ $.widget( "heurist.search_faceted", {
                 
                 
                 var step_level = field['selectedvalue']?field['selectedvalue'].step:0;
-                if(field['isfacet']==2){
+                var vocabulary_id = null;
+                if(field['type']=='enum' && field['groupby']=='firstlevel'){
+                    
+                    var detailtypes = window.hWin.HEURIST4.detailtypes.typedefs;
+                    vocabulary_id = detailtypes[field['id']]['commonFields'][detailtypes['fieldNamesToIndex']['dty_JsonTermIDTree']];
+                    //it does work for vocabularies only!
+                    if(isNaN(Number(vocabulary_id)) || !(vocabulary_id>0)){
+                            vocabulary_id = null;
+                            field['groupby'] = null;
+                    }
+                    
+                }                
+                
+                if(field['type']=='freetext'){
+                    if(field['isfacet']==this._FT_SELECT){ //backward support
+                        field['isfacet'] = this._FT_LIST;
+                        field['groupby'] = 'firstchar';
+                    }
+                    if(!field['groupby']){
+                        step_level = 1;
+                    }
+                }else {
                     step_level = 1; //always full value for this type of facet
                 }
-                
+        
+//DEBUG console.log(query);
+
                 var request = {q: query, w: 'a', a:'getfacets',
                                      facet_index: i, 
                                      field:  field['id'],
                                      type:   field['type'],
                                      step:   step_level,
-                                     facet_type: field['isfacet'], //0 search, 1 - first char/slider, 2 - list
-                                     needcount: needcount,
-                                     qname:this.options.query_name, 
+                                     facet_type: field['isfacet'], //0 direct search search, 1 - select/slider, 2 - list inline, 3 - list column
+                                     facet_groupby: field['groupby'], //by first char for freetext, by year for dates, by level for enum
+                                     vocabulary_id: vocabulary_id, //special case for firstlevel group - got it from field definitions
+                                     needcount: needcount,         
+                                     qname:this.options.query_name,
+                                     request_id:this._request_id,
+                                     //DBGSESSID:'425944380594800002;d=1,p=0,c=07', 
                                      source:this.element.attr('id') }; //, facets: facets
 
-
+                if(this.options.ispreview){
+                    request['limit'] = 1000;    
+                }
+                                     
                 // try to find in cache by facet index and query string
                 var hashQuery = window.hWin.HEURIST4.util.hashString(JSON.stringify(request.q));
                 for (var k=0; k<this.cached_counts.length; k++){
@@ -890,8 +1054,14 @@ $.widget( "heurist.search_faceted", {
                         return;
                     }
                 }
+
+//DBG console.log(request);                
                 
                 window.HAPI4.RecordMgr.get_facets(request, function(response){ 
+                    if(response.request_id != that._request_id){
+                        //ignore results of passed sequence
+                        return;
+                    }
                     that._redrawFacets(response, true) 
                 });            
                                 
@@ -906,8 +1076,15 @@ $.widget( "heurist.search_faceted", {
     //
     , _redrawFacets: function( response, keep_cache ) {
         
+                if(!(this.options.params.viewport>0)){
+                    this.options.params.viewport = 50; //default viewport
+                }
+        
                 if(response.status == window.hWin.HAPI4.ResponseStatus.OK){
 
+                    
+//DEBUG if(response.dbg_query) console.log(response.dbg_query);
+                    
                     if(keep_cache){
                         response.q = window.hWin.HEURIST4.util.hashString(JSON.stringify(response.q));
                         this.cached_counts.push(response);
@@ -928,6 +1105,7 @@ $.widget( "heurist.search_faceted", {
                     var $facet_values = $input_div.find('.facets');
                     if( $facet_values.length < 1 ){
                         var dd = $input_div.find('.input-cell');
+                        //'width':'inherit',
                         $facet_values = $('<div>').addClass('facets').css({'padding':'4px 0 10px 10px'}).appendTo( $(dd[0]) );
                     }
                     $facet_values.css('background','none');
@@ -946,11 +1124,37 @@ $.widget( "heurist.search_faceted", {
                         field.history.push(field.selectedvalue);
                     }
                     
+                    function __drawToggler($facet_values, display_mode){
+                        
+                        $('<div class="bor-filter-expand bor-toggler">'
+                            +'<span class="bor-toggle-show-on" style="display:none"><span class="ui-icon ui-icon-circle-arrow-n"></span><span>Show less&nbsp;</span><span class="ui-icon ui-icon-circle-arrow-n"></span></span>'
+                            +'<span class="bor-toggle-show-off"><span class="ui-icon ui-icon-circle-arrow-s"></span><span> Show more&nbsp;</span><span class="ui-icon ui-icon-circle-arrow-s"></span></span>'
+                         +'</div>').click(function(event){ 
+                                            var ele = $(event.target).parents('div.bor-toggler');
+                                            var mode = ele.attr('data-mode');
+                                            if(mode=='on'){
+                                                ele.find('.bor-toggle-show-on').hide();
+                                                ele.find('.bor-toggle-show-off').show();
+                                                d_mode = 'none';
+                                                mode = 'off';
+                                            }else{
+                                                ele.find('.bor-toggle-show-on').show();
+                                                ele.find('.bor-toggle-show-off').hide();
+                                                d_mode = display_mode;
+                                                mode = 'on';
+                                            }
+                                            
+                                            ele.parent().find('div.in-viewport').css('display',d_mode);
+                                            ele.attr('data-mode', mode);
+                                       })
+                         .appendTo($facet_values)
+                    }
+                    
+                    
                
                     var that = this;
                     
-                    if( field['type']=="enum" ){
-
+                    if(field['type']=='enum' && field['groupby']!='firstlevel'){
                         
                         var dtID = field['id'];                        
                         //enumeration
@@ -974,45 +1178,69 @@ $.widget( "heurist.search_faceted", {
                                 return null; //no entries
                         }
                         
+                        var terms_drawn = 0; //it counts all terms as plain list 
+                        
                         //{id:null, text:window.hWin.HR('all'), children:termtree}
                         //draw terms and all its parents    
-                        function __drawTerm(term, level, $container, as_list){
+                        //2 - inline list, 3 - column list
+                        function __drawTerm(term, level, $container, field){
                             
                                 //draw itslef - draw children
                                 if(term.value){
                                     
-                                        if(as_list){                                    
-                                            f_link = that._createFacetLink( facet_index, {text:term.text, value:term.value, count:term.count} );
-                                            $("<div>").css({"display":"inline-block","padding":"0 "+(level*5)+"px"})
+                                        if((field['isfacet']==that._FT_COLUMN) || (field['isfacet']==that._FT_LIST)){                                    
+                                            var display_mode = (field['isfacet']==that._FT_COLUMN)?'block':'inline-block';
+                                            f_link = that._createFacetLink( facet_index, {text:term.text, value:term.value, count:term.count}, display_mode );
+                                            
+                                            terms_drawn++;  //global
+                                            
+                                            var ditem = $("<div>").css({'display':(terms_drawn>that.options.params.viewport?'none':display_mode),
+                                                            'padding':"0 5px 0 "+(level*5)+"px"})
+                                                    .addClass('facet-item')        
                                                     .append(f_link)
                                                     .appendTo($container);
+                                         
+                                            if(terms_drawn>that.options.params.viewport){
+                                                 ditem.addClass('in-viewport');
+                                            }                    
+                                            
                                         }else{
                                             that._createOption( facet_index, level, {text:term.text, value:term.value, count:term.count} ).appendTo($container);
                                         }
                                 }
-                                if(term.children)
-                                for (var k=0; k<term.children.length; k++){
-                                    __drawTerm(term.children[k], level+1, $container, as_list);
+                                if(term.children){
+                                    //sort by count per level
+                                    if(field['orderby']=='count'){
+                                        term.children.sort(function(a, b){ 
+                                            return (Number(a.count)>Number(b.count))?-1:1;
+                                        });
+                                    }
+                                    
+                                    for (var k=0; k<term.children.length; k++){
+                                        __drawTerm(term.children[k], level+1, $container, field);
+                                    }
+                                                   
                                 }
                         }//__drawTerm
                         
                         //
                         //calc number of terms with values
                         //
-                        function __calcTerm(term, level){
+                        function __calcTerm(term, level, groupby){
                             
                             var res_count = 0;
+                            
                             
                             if(window.hWin.HEURIST4.util.isArrayNotEmpty(term.children)){ //is root or has children
 
                                 var k;
                                 if(term.children)
                                 for (k=0; k<term.children.length; k++){
-                                    var cnt = __calcTerm(term.children[k], level+1);
+                                    var cnt = __calcTerm(term.children[k], level+1, groupby);
                                     res_count = res_count + cnt;
                                 }
                                 
-                                //sometimes value my equal to header
+                                //note: sometimes value may be equal to header
                                 var headerData = __checkTerm(term);
                                 if(headerData!=null){
                                         term.value = headerData.value;
@@ -1039,7 +1267,8 @@ $.widget( "heurist.search_faceted", {
                                     } 
                                 }
                                 
-                            }else {
+                            }
+                            else {
                                 var termData =__checkTerm(term);
                                 if(termData!=null){
                                     //leave
@@ -1055,31 +1284,43 @@ $.widget( "heurist.search_faceted", {
                         
                        
                         //calculate the total number of terms with value
-                        var tot_cnt = __calcTerm(term, 0, null);
-                        var as_list = ( field['isfacet']==1 );    //is list
+                        var tot_cnt = __calcTerm(term, 0, field['groupby']);
+                        var as_list = (field['isfacet']==this._FT_COLUMN || field['isfacet']==this._FT_LIST);    //is list
                                             //is dropdown but too many entries
 //this feature is remarked on 2017-01-26 || (field['isfacet']==2 && tot_cnt > that._MIN_DROPDOWN_CONTENT)); 
 
-
                         if(window.hWin.HEURIST4.util.isArrayNotEmpty(field.history)){
                             var $span = $('<span>').css({'display':'inline-block','vertical-align':'middle'});
-                            var f_link = this._createFacetLink(facet_index, term);
+                            var f_link = this._createFacetLink(facet_index, term, 'inline-block');
                             $span.append(f_link).appendTo($facet_values);
                         }                        
 
-                        if(as_list){
-                                __drawTerm(term, 0, $facet_values, true);
+                        if (field['isfacet']==this._FT_COLUMN || field['isfacet']==this._FT_LIST) {
+                                __drawTerm(term, 0, $facet_values, field);
+                                
+                                //show viewport collapse/exand control
+                                if(this.options.params.viewport<terms_drawn){
+                                    var d_mode = field['isfacet']==this._FT_COLUMN ? 'block':'inline-block'; 
+                                    __drawToggler($facet_values, d_mode);
+                                }
+                                
                         }else{
+                            //as dropdown
                                 var $sel = $('<select>').css({"font-size": "0.6em !important", "width":"180px"});
                                 $sel.appendTo( $("<div>").css({"display":"block","padding":"0 5px"}).appendTo($facet_values) );
                                 
                                 that._createOption( facet_index, 0, {text:window.hWin.HR('select...'), value:null, count:0} ).appendTo($sel);
-                                __drawTerm(term, 0, $sel, false);
+                                __drawTerm(term, 0, $sel, field);
                                 
                                 if(field.selectedvalue && field.selectedvalue.value){
                                     var $opt = $sel.find('option[facet_value="'+field.selectedvalue.value+'"]');
                                     $opt.attr('selected',true);
                                 }
+                                
+                                //convert to jquery selectmenu
+                                selObj = window.hWin.HEURIST4.ui.initHSelect($sel, false);
+                                selObj.hSelect( "menuWidget" ).css({'font-size':'0.9em'});
+                                
                                 $sel.change(function(event){ that._onTermSelect(event); });
                         }
                         
@@ -1154,16 +1395,17 @@ $.widget( "heurist.search_faceted", {
                             if(facet_index>=0){
                                 var rtID = cterm[0];
                                 var f_link = this._createFacetLink(facet_index, 
-                                    {text:window.hWin.HEURIST4.rectypes.names[rtID], query:rtID, count:cterm[1]});
-                                $("<div>").css({"display":"inline-block","padding":"0 3px"}).append(f_link).appendTo($facet_values);
+                                    {text:window.hWin.HEURIST4.rectypes.names[rtID], query:rtID, count:cterm[1]}, 'inline-block');
+                                $("<div>").css({"display":"inline-block","padding":"0 3px"})
+                                  .addClass('facet-item')
+                                  .append(f_link).appendTo($facet_values);
                             }
                         }
 
                     }else 
-                    if( ((field['type']=="float" || field['type']=="integer")&& field['isfacet']==1)
-                        || field['type']=="date" || field['type']=="year"){  //add slider
-                    
-//console.log(facet_index);
+                    if ((field['type']=="float" || field['type']=="integer" 
+                        || field['type']=="date" || field['type']=="year") && field['isfacet']==this._FT_SELECT)
+                    {  //add slider
                     
                         $facet_values.parent().css({'display':'block','padding-left':'1em','padding-right':'2em'});
                         //'width':'90%', $facet_values.css({'width':'100%','padding':'1em'});
@@ -1171,7 +1413,7 @@ $.widget( "heurist.search_faceted", {
                         var cterm = response.data[0];
                         
                         if(window.hWin.HEURIST4.util.isArrayNotEmpty(field.history)){
-                                    var f_link = this._createFacetLink(facet_index, {test:'',value:null,step:0});
+                                    var f_link = this._createFacetLink(facet_index, {test:'',value:null,step:0}, 'inline-block');
                                     $('<span>').css({'display':'inline-block','vertical-align':'middle','margin-left':'-15px'})
                                         .append(f_link).appendTo($facet_values);
                         }
@@ -1327,7 +1569,7 @@ $.widget( "heurist.search_faceted", {
                         }
                         }
                     }
-                    else{
+                    else{   //freetext  or enum groupby firstlevel
                         
                         //$facet_values.css('padding-left','5px');
                         
@@ -1343,31 +1585,52 @@ $.widget( "heurist.search_faceted", {
                                     $span.text(cvalue.text).appendTo($facet_values);
                                     //$span.append($('<br>'));
                                 }else{
-                                    var f_link = this._createFacetLink(facet_index, cvalue);
+                                    var f_link = this._createFacetLink(facet_index, cvalue, 'inline-block');
                                     $span.css({'display':'inline-block','vertical-align':'middle'}).append(f_link).appendTo($facet_values);
                                     //$span.append($('<span class="ui-icon ui-icon-carat-1-e" />').css({'display':'inline-block','height':'13px'}));
                                 }
                             }
                         }
-
+                        
+                        //sort by count
+                        if(field['orderby']=='count'){
+                            response.data.sort(function(a, b){ return (Number(a[1])>Number(b[1]))?-1:1;});
+                        }
+                        
+                        var display_mode = (field['isfacet']==this._FT_LIST || (field['groupby']=='firstchar' && step_level==0))
+                                                        ?'inline-block':'block';
+                        
                         for (i=0;i<response.data.length;i++){
                             var cterm = response.data[i];
+                            
+                            //for enum get term label w/o code
+                            if(field['type']=='enum' && cterm[0]>0){
+                                cterm[0] = window.hWin.HEURIST4.ui.getTermValue(cterm[0], false);    
+                            }
 
-                            var f_link = this._createFacetLink(facet_index, {text:cterm[0], value:cterm[2], count:cterm[1]});
-                            $("<div>").css({"display":(i>50?'none':"inline-block"),"padding":"0 3px"})
+                            var f_link = this._createFacetLink(facet_index, {text:cterm[0], value:cterm[2], count:cterm[1]}, display_mode);
+                            
+                            //@todo draw first level for groupby firs tchar always inline
+                            var step_level = (field['groupby']=='firstchar' && field['selectedvalue'])
+                                                ?field['selectedvalue'].step:0;
+                                                                                                      
+                            var ditem = $("<div>").css({'display':(i>this.options.params.viewport-1?'none':display_mode),"padding":"0 3px"})
+                                                .addClass('facet-item')
                                                 .append(f_link).appendTo($facet_values);
-                            if(i==51){
-                                 $("<div>").css({"display":"inline-block","padding":"0 3px",'cursor':'pointer'})
-                                           .html('more...( '+(response.data.length-i)+' results )')
-                                           .click(function(event){ 
-                                                $(event.target).parent().find('div:hidden').css('display','inline-block');
-                                                $(event.target).hide();
-                                           })
-                                           .appendTo($facet_values);
-                            }else if(i>250){ 
+                                                
+                            if(i>this.options.params.viewport-1){
+                                 ditem.addClass('in-viewport');
+                            }                    
+                            if(i>250){ 
                                  $("<div>").css({"display":"none","padding":"0 3px"}).html('still more...( '+(response.data.length-i)+' results )').appendTo($facet_values);
                                  break;       
                             }
+                        }
+
+                        //show viewport collapse/exand control
+                        if(this.options.params.viewport<response.data.length){
+                            var diff = response.data.length-this.options.params.viewport;   
+                            __drawToggler($facet_values, display_mode);
                         }
                     }
 
@@ -1428,7 +1691,7 @@ $.widget( "heurist.search_faceted", {
     }
 
     // cterm - {text, value, count}
-    ,_createFacetLink : function(facet_index, cterm){
+    ,_createFacetLink : function(facet_index, cterm, display_mode){
 
         var field = this.options.params.facets[facet_index];
         //var step = cterm.step;
@@ -1448,6 +1711,10 @@ $.widget( "heurist.search_faceted", {
         }else{
             var f_link_content = $("<span>").text(cterm.text).appendTo(f_link);    
             
+            if(display_mode=='block'){                 
+                f_link_content.css('width',this.facets_list_container.width()*0.6).addClass('truncate');    
+            }
+            
             if(!window.hWin.HEURIST4.util.isempty(currval)){
                 iscurrent = (currval == cterm.value);
                 if(iscurrent) 
@@ -1462,7 +1729,12 @@ $.widget( "heurist.search_faceted", {
         }
         
         if(cterm.count>0){
-            $("<span>").text(" ("+cterm.count+")").appendTo(f_link);
+            //.css('float','right')
+            var dcount = $('<span>').addClass('badge').text(cterm.count).appendTo(f_link);
+            if(display_mode!='inline-block'){
+                 //dcount.css({position:'absolute', right:'4px'});
+                 dcount.css({float:'right'});
+            }
         }
         
         if(!iscurrent){ 
@@ -1522,7 +1794,7 @@ $.widget( "heurist.search_faceted", {
                             rectypeID: field['rtid'],
                             dtID: field['id'],
                             rectypes: window.hWin.HEURIST4.rectypes,
-                            values: '',
+                            values: [''],
                             readonly: false,
                             title:  "<span style='font-weight:bold'>" + field['title'] + "</span>",
                             showclear_button: false,
@@ -1531,15 +1803,16 @@ $.widget( "heurist.search_faceted", {
                             detailtype: field['type']  //overwrite detail type from db (for example freetext instead of memo)
                     };
                     
-               if(isNaN(Number(field['id']))){
+               if(isNaN(Number(field['id']))){ //field id not defined
                    ed_options['dtFields'] = {
                        dty_Type: field['type'],
                        rst_RequirementType: 'optional',
                        rst_MaxValues: 1,
-                       rst_DisplayWidth:0
+                       rst_DisplayWidth: 0
                    };
                }
-
+   
+                //rst_DefaultValue
                  
                 var inpt = $("<div>",{id: "fv_"+field['var'] }).editing_input(   //this is our widget for edit given fieldtype value
                         ed_options

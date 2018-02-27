@@ -10,7 +10,8 @@
         
         "entityTitle": "Field Type Group",
         "entityTitlePlural": "Field Type Groups",
-        "empty_remark": "Please use the search field above to locate relevant group (partial string match on title)",
+        "empty_remark":"None of group defined",
+        "entityDescription": "This form allows you to add/edit field groups to facilitate manipulation of fields. Drag and drop in the list to change display order. Edit name and description. You can remove empty groups. Ian, write more help in defDetailTypeGroups.json",
 
         "sel_actions": [{"key":"edit", "title":"Edit"},
                         {"key":"delete", "title":"Delete"}],
@@ -54,6 +55,7 @@
                     "dtID": "dtg_Order",
                     "dtFields":{
                         "dty_Type":"integer",
+                        "rst_Display":"hidden",
                         "rst_DisplayName":"Order in list:",
                         "rst_DisplayHelpText": "", 
                         "rst_DisplayWidth":20
@@ -64,6 +66,15 @@
                     "dtFields":{
                         "dty_Type":"date",
                         "rst_Display":"hidden"
+                    }
+                },
+                {
+                    "dtID": "dtg_FieldCount",
+                    "dtFields":{
+                        "rst_DisplayName": "Contains fields:",
+                        "rst_Display":"readonly",
+                        "dty_Type":"integer",
+                        "dty_Role":"virtual"
                     }
                 }
                 ]

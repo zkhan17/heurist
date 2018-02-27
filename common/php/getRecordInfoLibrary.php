@@ -46,6 +46,7 @@
 * - getTermTree()
 * - updateTermData()
 * - getChildTerms()
+* - getAllChildren()
 * - setChildDepth()
 * - getTermColNames()
 * - getTerms()
@@ -67,6 +68,7 @@
 * - getRectypeDef()
 * - getRectypeStructureFieldColNames()
 * - getRectypeFields()
+* - getRectypeNames()
 * - getRectypeStructure()
 * - getRectypeStructures()
 * - getAllRectypeStructures()
@@ -115,7 +117,7 @@ function setLastModified() {
 * @uses      MEMCACHED_PORT
 */
 function getCachedData($key) {
-    global $memcache, $lastModified;
+    /*NO MEMCACHE ANYMORE global $memcache, $lastModified;
 
     setLastModified();
 
@@ -125,6 +127,8 @@ function getCachedData($key) {
     }
 
     return $memcache->get($key);
+    */
+    return null;
 }
 /**
 * store object in cache
@@ -136,7 +140,7 @@ function getCachedData($key) {
 * @uses      MEMCACHED_PORT
 */
 function setCachedData($key, $var) {
-    global $memcache, $lastModified;
+    /*NO MEMCACHE ANYMORE global $memcache, $lastModified;
 
     setLastModified();
 
@@ -145,6 +149,7 @@ function setCachedData($key, $var) {
         return $memcache->set($key, $var);
     }catch(Exception $e){
     }
+    */
 }
 /**
 * resolves a recID to any forwarded value and returns resolved recID with any bmkID for user and indicates
@@ -420,15 +425,28 @@ function getAllworkgroupTags($recID) {
 * @param     mixed $terms the array of branches to build the tree
 * @return    object $terms
 */
-function attachChild($parentIndex, $childIndex, $terms) {
-    if (!@count($terms[$childIndex]) || $parentIndex == $childIndex) {//recursion termination
-        return $terms;
-    }
+function attachChild($parentIndex, $childIndex, $terms, $parents) {
+
     if (array_key_exists($childIndex, $terms)) {//check for
         if (count($terms[$childIndex])) {
+            
+            
+            if($parents==null){
+                $parents = array($childIndex);
+            }else{
+                array_push($parents, $childIndex);
+            }
+            
+            
             foreach ($terms[$childIndex] as $gChildID => $n) {
                 if ($gChildID != null) {
-                    $terms = attachChild($childIndex, $gChildID, $terms);//depth first recursion
+
+                    if(array_search($gChildID, $parents)===false){
+                        $terms = attachChild($childIndex, $gChildID, $terms, $parents);//depth first recursion
+                    }else{
+                        error_log('Recursion in '.HEURIST_DBNAME.'.defTerms!!! Tree '.implode('>',$parents)
+                            .'. Can\'t add term '.$gChildID);
+                    }
                 }
             }
         }
@@ -469,7 +487,7 @@ function getTermTree($termDomain, $matching = 'exact') { // termDomain can be em
             //check that we have a child branch
             if ($childID != null && array_key_exists($childID, $terms)) {
                 if (count($terms[$childID])) {//yes then attach it and it's children's branches
-                    $terms = attachChild($parentID, $childID, $terms);
+                    $terms = attachChild($parentID, $childID, $terms, null);
                 } else {//no then it's a leaf in a branch, remove this redundant node.
                     unset($terms[$childID]);
                 }
@@ -478,6 +496,26 @@ function getTermTree($termDomain, $matching = 'exact') { // termDomain can be em
     }
     return $terms;
 }
+
+// 
+//  return all term children as plain array
+//
+function getAllChildren($parentID){
+    
+        $children = array();
+    
+        $res = mysql_query("select trm_ID from trm_ParentTermID = " . $parentID);
+        if ($res) {
+            while ($row = mysql_fetch_row($res)) {
+                array_push($children, $row[0]);
+                $children = array_merge($children, getAllChildren($row[0]));
+            }
+        }
+        
+        return $children;
+}
+
+
 /**
 * calculate depth and child count for each term
 */
@@ -571,13 +609,22 @@ function getTerms($useCachedData = false) {
     $terms = array('termsByDomainLookup' => array('relation' => array(), 'enum' => array()), 
         'commonFieldNames' => array_slice(getTermColNames(), 1), 
         'fieldNamesToIndex' => getColumnNameToIndex(array_slice(getTermColNames(), 1)));
-    $terms['fieldNamesToIndex']['trm_Image'] = count($terms['commonFieldNames']);
-    array_push($terms['commonFieldNames'],'trm_Image');
-        
-    while ($row = mysql_fetch_row($res)) {
-        $terms['termsByDomainLookup'][$row[9]][$row[0]] = array_slice($row, 1);
-        $filename = HEURIST_FILESTORE_DIR . 'term-images/'.$row[0].'.png';
-        array_push($terms['termsByDomainLookup'][$row[9]][$row[0]], file_exists($filename));
+
+    $terms['fieldNamesToIndex']['trm_HasImage'] = count($terms['commonFieldNames']);
+    array_push($terms['commonFieldNames'],'trm_HasImage');        
+
+    if(!$res){
+        if (mysql_error()) {
+            return array("error" => mysql_error());
+        }
+    }else{    
+        $lib_dir = HEURIST_FILESTORE_DIR . 'term-images/';
+        while ($row = mysql_fetch_row($res)) {
+            $terms['termsByDomainLookup'][$row[9]][$row[0]] = array_slice($row, 1);
+
+            $hasImage = file_exists($lib_dir.$row[0].'.png');
+            array_push($terms['termsByDomainLookup'][$row[9]][$row[0]], $hasImage);
+        }
     }
     $terms['treesByDomain'] = array('relation' => getTermTree("relation", "prefix"), 'enum' => getTermTree("enum", "prefix"));
     setCachedData($cacheKey, $terms);
@@ -861,6 +908,9 @@ function getTermOffspringList($termID, $parentlist = null) {
     }
     return $offspring;
 }
+//
+// get tree for domain
+//
 function getTermListAll($termDomain) {
         $terms = array();
         $res = mysql_query('SELECT * FROM defTerms
@@ -918,6 +968,8 @@ function getTermLabels($termIDs) {
     return $labels;
 }
 
+
+
 function getTermByLabel($label){
 
     if ($label) {
@@ -932,7 +984,7 @@ function getTermByLabel($label){
 }
 
 
-function getFullTermLabel($dtTerms, $term, $domain, $withVocab=false){
+function getFullTermLabel($dtTerms, $term, $domain, $withVocab, $parents=null){
 
     $fi = $dtTerms['fieldNamesToIndex'];
     $parent_id = $term[ $fi['trm_ParentTermID'] ];
@@ -949,8 +1001,16 @@ function getFullTermLabel($dtTerms, $term, $domain, $withVocab=false){
                 }
             }
             
-            $parent_label = getFullTermLabel($dtTerms, $term_parent, $domain, $withVocab);    
-            if($parent_label) $parent_label = $parent_label.'.';
+            if($parents==null){
+                $parents = array();
+            }
+            
+            if(array_search($parent_id, $parents)===false){
+                array_push($parents, $parent_id);
+                
+                $parent_label = getFullTermLabel($dtTerms, $term_parent, $domain, $withVocab, $parents);    
+                if($parent_label) $parent_label = $parent_label.'.';
+            }
         }    
     }
     return $parent_label.$term[ $fi['trm_Label']];
@@ -1023,10 +1083,12 @@ function getRectypeDef($rtID) {
 * return array of defRecStructure (fields) table column names
 */
 function getRectypeStructureFieldColNames() {
-    return array("rst_DisplayName", "rst_DisplayHelpText", "rst_DisplayExtendedDescription", "rst_DisplayOrder", "rst_DisplayWidth",
+    return array("rst_DisplayName", "rst_DisplayHelpText", "rst_DisplayExtendedDescription", "rst_DisplayOrder", 
+        "rst_DisplayWidth", "rst_DisplayHeight",
         "rst_DefaultValue", "rst_RecordMatchOrder", "rst_CalcFunctionID", "rst_RequirementType", "rst_NonOwnerVisibility",
         "rst_Status", "rst_OriginatingDBID", "rst_MaxValues", "rst_MinValues", "rst_DisplayDetailTypeGroupID",
-        "rst_FilteredJsonTermIDTree", "rst_PtrFilteredIDs", "rst_OrderForThumbnailGeneration", "rst_TermIDTreeNonSelectableIDs",
+        "rst_FilteredJsonTermIDTree", "rst_PtrFilteredIDs", "rst_CreateChildIfRecPtr",
+        "rst_OrderForThumbnailGeneration", "rst_TermIDTreeNonSelectableIDs",
         "rst_Modified", "rst_LocallyModified", "dty_TermIDTreeNonSelectableIDs", "dty_FieldSetRectypeID", "dty_Type");
 }
 /**
@@ -1035,6 +1097,23 @@ function getRectypeStructureFieldColNames() {
 * @return    object index by detatilType array of field definitions ordered the same as getRectypeStructureFieldColNames()
 */
 function getRectypeFields($rtID) {
+    
+    
+        //verify that required column exists in sysUGrps
+        $query = "SHOW COLUMNS FROM `defRecStructure` LIKE 'rst_CreateChildIfRecPtr'";
+        $res = mysql_query($query);
+        if($res && mysql_num_rows($res)==0){
+            //alter table
+            $query = "ALTER TABLE `defRecStructure` ADD COLUMN `rst_CreateChildIfRecPtr` TINYINT(1) DEFAULT 0 COMMENT 'For pointer fields, flags that new records created from this field should be marked as children of the creating record' AFTER `rst_PtrFilteredIDs`";
+
+            $res = mysql_query($query);
+            if(!$res){
+                error_log('Cannot modify defRecStructure to add rst_CreateChildIfRecPtr');
+            }
+            return false;
+        }
+    
+    
     $rtFieldDefs = array();
     // NOTE: these are ordered to match the order of getRectypeStructureFieldColNames from DisplayName on
     $colNames = array("rst_DetailTypeID",
@@ -1044,7 +1123,7 @@ function getRectypeFields($rtID) {
         "if(dty_Type='separator' OR (rst_DisplayHelpText is not null and CHAR_LENGTH(rst_DisplayHelpText)>0),rst_DisplayHelpText,dty_HelpText) as rst_DisplayHelpText",
         //here we check for an override in the recTypeStrucutre for ExtendedDescription which is a rectype specific ExtendedDescription, use detailType ExtendedDescription as default
         "if(rst_DisplayExtendedDescription is not null and CHAR_LENGTH(rst_DisplayExtendedDescription)>0,rst_DisplayExtendedDescription,dty_ExtendedDescription) as rst_DisplayExtendedDescription",
-        "rst_DisplayOrder", "rst_DisplayWidth", "rst_DefaultValue", "rst_RecordMatchOrder", "rst_CalcFunctionID", "rst_RequirementType",
+        "rst_DisplayOrder", "rst_DisplayWidth", "rst_DisplayHeight", "rst_DefaultValue", "rst_RecordMatchOrder", "rst_CalcFunctionID", "rst_RequirementType",
         "rst_NonOwnerVisibility", "rst_Status", "rst_OriginatingDBID", "rst_MaxValues", "rst_MinValues",
         //here we check for an override in the recTypeStrucutre for displayGroup
         "if(rst_DisplayDetailTypeGroupID is not null,rst_DisplayDetailTypeGroupID,dty_DetailTypeGroupID) as rst_DisplayDetailTypeGroupID",
@@ -1054,6 +1133,7 @@ function getRectypeFields($rtID) {
         //here we check for an override in the recTypeStrucutre for Pointer types which is a subset of the detailType dty_PtrTargetRectypeIDs
         //ARTEM we never use rst_PtrFilteredIDs "if(rst_PtrFilteredIDs is not null and CHAR_LENGTH(rst_PtrFilteredIDs)>0,rst_PtrFilteredIDs,dty_PtrTargetRectypeIDs) as rst_PtrFilteredIDs",
         "dty_PtrTargetRectypeIDs as rst_PtrFilteredIDs",
+        "rst_CreateChildIfRecPtr",
         "rst_OrderForThumbnailGeneration", "rst_TermIDTreeNonSelectableIDs", "rst_Modified", "rst_LocallyModified", "dty_TermIDTreeNonSelectableIDs",
         "dty_FieldSetRectypeID", "dty_Type");
     // get rec Structure info ordered by the detailType Group order, then by recStruct display order and then by ID in recStruct incase 2 have the same order
@@ -1081,6 +1161,25 @@ function getRectypeStructure($rtID) {
     $rectypesStructure['dtFields'] = getRectypeFields($rtID);
     return $rectypesStructure;
 }
+
+/**
+* put your comment there...
+* 
+* @param mixed $rtyIDs
+*/
+function getRecTypeNames($rtyIDs) {
+    $labels = array();
+    if ($rtyIDs) {
+        $res = mysql_query("select rty_ID, rty_Name from defRecTypes where rty_ID in (".implode(",", $rtyIDs).")");
+        if ($res && mysql_num_rows($res)) {
+            while ($row = mysql_fetch_row($res)) {
+                $labels[$row[0]] = $row[1];
+            }
+        }
+    }
+    return $labels;
+}
+
 /**
 * returns an array of RecType Structures for array of ids passed in
 * @param     array [$rtIDs] of recType IDs
@@ -1148,7 +1247,7 @@ function getAllRectypeStructures($useCachedData = false) {
         "if(dty_Type='separator' OR (rst_DisplayHelpText is not null and CHAR_LENGTH(rst_DisplayHelpText)>0),rst_DisplayHelpText,dty_HelpText) as rst_DisplayHelpText",
         //here we check for an override in the recTypeStrucutre for ExtendedDescription which is a rectype specific ExtendedDescription, use detailType ExtendedDescription as default
         "if(rst_DisplayExtendedDescription is not null and CHAR_LENGTH(rst_DisplayExtendedDescription)>0,rst_DisplayExtendedDescription,dty_ExtendedDescription) as rst_DisplayExtendedDescription",
-        "rst_DisplayOrder", "rst_DisplayWidth", "rst_DefaultValue", "rst_RecordMatchOrder", "rst_CalcFunctionID", "rst_RequirementType",
+        "rst_DisplayOrder", "rst_DisplayWidth", "rst_DisplayHeight", "rst_DefaultValue", "rst_RecordMatchOrder", "rst_CalcFunctionID", "rst_RequirementType",
         "rst_NonOwnerVisibility", "rst_Status", "rst_OriginatingDBID", "rst_MaxValues", "rst_MinValues",
         //here we check for an override in the recTypeStrucutre for displayGroup
         "if(rst_DisplayDetailTypeGroupID is not null,rst_DisplayDetailTypeGroupID,dty_DetailTypeGroupID) as rst_DisplayDetailTypeGroupID",
@@ -1158,6 +1257,7 @@ function getAllRectypeStructures($useCachedData = false) {
         //here we check for an override in the recTypeStrucutre for Pointer types which is a subset of the detailType dty_PtrTargetRectypeIDs
         //ARTEM WE NEVER USE "if(rst_PtrFilteredIDs is not null and CHAR_LENGTH(rst_PtrFilteredIDs)>0,rst_PtrFilteredIDs,dty_PtrTargetRectypeIDs) as rst_PtrFilteredIDs",
         "dty_PtrTargetRectypeIDs as rst_PtrFilteredIDs",
+        "rst_CreateChildIfRecPtr",
         "rst_OrderForThumbnailGeneration", "rst_TermIDTreeNonSelectableIDs", "rst_Modified", "rst_LocallyModified", "dty_TermIDTreeNonSelectableIDs",
         "dty_FieldSetRectypeID", "dty_Type");
     $query = "select " . join(",", $colNames) .
@@ -1176,6 +1276,7 @@ function getAllRectypeStructures($useCachedData = false) {
         'commonNamesToIndex' => getColumnNameToIndex(getRectypeColNames()),
         'dtFieldNamesToIndex' => getColumnNameToIndex(getRectypeStructureFieldColNames()),
         'dtFieldNames' => getRectypeStructureFieldColNames());
+    if($res)
     while ($row = mysql_fetch_row($res)) {
         if (!array_key_exists($row[0], $rtStructs['typedefs'])) {
             $rtStructs['typedefs'][$row[0]] = array('dtFields' => array($row[1] => array_slice($row, 2)));

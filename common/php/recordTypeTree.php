@@ -159,7 +159,62 @@ function getRecordTypeTree($recTypeId, $recursion_depth){
             $recTypeId = null;
     }    
     
-
+    
+    
+    //find ALL parent recordtypes
+    $rst_fi = $rtStructs['typedefs']['dtFieldNamesToIndex'];
+    $parent_Rts = array();
+    
+    foreach ($rtStructs['typedefs'] as $rtKey => $recstruct){
+        if($rtKey>0){
+            $details =  @$recstruct['dtFields'];
+            
+            if(!$details){
+//error_log($rtKey.'  '.print_r($recstruct, true));
+                continue;
+            }
+            
+            foreach ($details as $dtKey => $dtValue){
+                
+                if($dtValue[$rst_fi['rst_RequirementType']]=='forbidden') continue;
+                
+                if($dtValue[$rst_fi['dty_Type']]=='resource' && $dtValue[$rst_fi['rst_CreateChildIfRecPtr']]==1){
+                    
+                    $constraint = $dtValue[$rst_fi['rst_PtrFilteredIDs']];
+                    if($constraint && in_array($recTypeId, explode(',',$constraint)) && !in_array($rtKey, $parent_Rts) ){
+                        array_push($parent_Rts, $rtKey);    
+                        //break;
+                    }
+                    
+                }
+            }
+        }
+    }
+    if(count($parent_Rts)>0){
+        //$res['recParent'] = 'Record Parent';
+        $dtKey = DT_PARENT_ENTITY;
+        
+        //create fake rectype structure field
+        $ffr = array();
+        $ffr[$rst_fi['rst_DisplayName']] = 'Parent entity';//'Record Parent ('.$rtStructs['names'][$parent_Rt].')';
+        $ffr[$rst_fi['rst_PtrFilteredIDs']] = implode(',',$parent_Rts);
+        $ffr[$rst_fi['dty_Type']] = 'resource';
+        $ffr[$rst_fi['rst_DisplayHelpText']] = 'Reverse pointer to parent record';
+        $ffr[$rst_fi['rst_RequirementType']] = 'optional';
+              
+        $rtStructs['typedefs'][$recTypeId][DT_PARENT_ENTITY] = $ffr;
+        
+        $res_dt = getDetailSection($dtKey, $ffr, $recursion_depth);
+        if($res_dt){
+           if(is_array($res_dt) && count($res_dt)==1){
+               $res["f".$dtKey] = $res_dt[0];    
+           }else{
+               //multi-constrained pointers or simple variable
+               $res["f".$dtKey] = $res_dt;
+           }
+        }
+    }
+    
     //get the list of details from record structure
     if($recTypeId && @$rtStructs['typedefs'][$recTypeId] && @$rtStructs['typedefs'][$recTypeId]['dtFields'])
     {
@@ -169,7 +224,6 @@ function getRecordTypeTree($recTypeId, $recursion_depth){
 
             $res_dt = getDetailSection($dtKey, $dtValue, $recursion_depth);
             if($res_dt){
-            
                    if(is_array($res_dt) && count($res_dt)==1){
                        $res["f".$dtKey] = $res_dt[0];    
                    }else{
@@ -208,12 +262,13 @@ function getDetailSection($dtKey, $dtValue, $recursion_depth){
     $res = null;
 
     if(true){//}@$dtStructs['typedefs'][$dtKey]){
-                
+    
             $rtNames = $rtStructs['names']; //???need
             $rst_fi = $rtStructs['typedefs']['dtFieldNamesToIndex'];
         
-            $detailType = $dtValue[$rst_fi['dty_Type']];
+            if($dtValue[$rst_fi['rst_RequirementType']]=='forbidden') return null;
         
+            $detailType = $dtValue[$rst_fi['dty_Type']];
             $dt_label   = $dtValue[$rst_fi['rst_DisplayName']];
             $dt_tooltip = $dtValue[$rst_fi['rst_DisplayHelpText']]; //help text
         

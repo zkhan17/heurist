@@ -41,20 +41,24 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
     var overlays_not_in_doc = {};  // main layers(current query) and layers added by user/manually
     var loadingbar = null;         // progress bar - overlay on map 
     var $dlg_edit_layer = null;
+    
+    var loading_mapdoc_list = false;    // flag to prevent repeated request
+    var menu_mapdocuments = null;
 
     /**
     * Performs an API call which contains data - all map documents/layer/dataset related info.
     * The list of map documents will be loaded into selector
     */
-    function _loadMapDocuments(startup_mapdocument) {
+    function _loadMapDocuments(startup_mapdocument, onload_callback) {
 
-        var ele = $("#map-doc-select");
-        if(ele.length>0){
+        loading_mapdoc_list = true;
+        
+        if(menu_mapdocuments!=null) menu_mapdocuments.remove();
             
         if(window.hWin.HEURIST4.util.isempty(window.hWin.HAPI4.sysinfo['dbconst']['RT_MAP_DOCUMENT'])){
-            ele.empty();
-            ele.append("<option value='-1'>Map Document type not defined</option>");
-            ele.prop('title','The record type (Heurist Map Document, Concept 3-1019) has not been defined.')
+            //@todo change label - hide button
+            $('#map-doc-select-lbl').text('Map document not defined');
+            $('#mapSelectorBtn').hide();
             return;
         }
         
@@ -63,30 +67,25 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
         var request = { q: {"t":window.hWin.HAPI4.sysinfo['dbconst']['RT_MAP_DOCUMENT']},
             w: 'a',
             detail: 'header',
-            source: 'map-doc-select'};
+            source: 'mapSelectorBtn'};
 
-        
-            ele.prop('title','');
-            ele.empty();
             var btnMapRefresh = $("#btnMapRefresh");
             var btnMapEdit = $("#btnMapEdit");
             window.hWin.HEURIST4.util.setDisabled(btnMapEdit, true);
             window.hWin.HEURIST4.util.setDisabled(btnMapRefresh, true);
 
-            // select listener - load map documents
-            ele.change(function(e) {
-                //if(current_map_document_id == $(this).val()) return;
-                current_map_document_id = $(this).val();
-                _loadMapDocumentById();
-            });
-
+        
             //perform search
             window.hWin.HAPI4.RecordMgr.search(request, function(response){
 
+                loading_mapdoc_list = false;
+                    
                 if(response.status == window.hWin.HAPI4.ResponseStatus.OK){
                     var resdata = new hRecordSet(response.data);
 
-                    ele.append("<option value='-1'>"+(resdata.length()>0?'select...':'none available')+"</option>");
+                    var mapdocs = '';
+                    //ele.append("<option value='-1'>"+(resdata.length()>0?'select...':'none available')+"</option>");
+                    mapdocs = mapdocs + "<li mapdoc_id='-1'><a>"+(resdata.length()>0?'None':'none available')+"</a></li>";
 
                     var idx, records = resdata.getRecords();
                     for(idx in records){
@@ -96,17 +95,41 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                             var recID  = resdata.fld(record, 'rec_ID'),
                             recName = resdata.fld(record, 'rec_Title');
 
-                            ele.append("<option value='"+recID+"'>"+recName+"</option>");
+                            //ele.append("<option value='"+recID+"'>"+recName+"</option>");
+                            mapdocs = mapdocs + "<li mapdoc_id='"+recID+"'><a>"+recName+"</a></li>";
                         }
                     }//for
+                    
+                    
+                    menu_mapdocuments = $('<ul>'+mapdocs+'</ul>')
+                        .addClass('menu-or-popup')
+                        .css('position','absolute')
+                        .appendTo( $('body') )
+                        .menu({
+                            select: function( event, ui ) {
+                                if(loading_mapdoc_list) return;
+                                current_map_document_id = ui.item.attr('mapdoc_id');
+                                $("#mapSelectorBtn").attr('mapdoc-selected',current_map_document_id).button({label: ui.item.find('a').text() });
+                                _loadMapDocumentById();
+                                menu_mapdocuments.hide();
+                        }});
 
-                    /*ele.click(function(e) {
-                    current_map_document_id = null;
-                    $(this).change();
-                    });*/
-
-                    if(startup_mapdocument > 0){
-                        _loadMapDocumentById_init(startup_mapdocument);
+                    menu_mapdocuments.hide();
+                    
+                    var lt = window.hWin.HAPI4.sysinfo['layout'];   
+                    
+                    if(lt && (lt.indexOf('DigitalHarlem')==0 || lt.indexOf('boro')==0)){
+                        menu_mapdocuments.hide();
+                    }else if($.isFunction(onload_callback)) {
+                        onload_callback.call();
+                    }
+                    
+                    if(startup_mapdocument>=0){
+                        if(startup_mapdocument>0){
+                            _loadMapDocumentById_init(startup_mapdocument);
+                        }
+                    }else{
+                        
                     }
 
                 }else{
@@ -114,8 +137,6 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                 }
             });
 
-        }  //ele.length
-          
     }
 
     //
@@ -123,7 +144,8 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
     //
     function _loadMapDocumentById() {
 
-        console.log('load '+current_map_document_id);    
+//console.log('load '+current_map_document_id);    
+        menu_mapdocuments.hide();
 
         // Clean old data
         $('#map_extents').css('visibility','hidden');
@@ -147,7 +169,7 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                     if(map_data[0].bookmarks==null){
                         map_data[0].bookmarks = [];
                     }
-                    map_data[0].bookmarks.push([window.hWin.HR('World'),-90,90,-30,50,1800,2050]); //default
+                    map_data[0].bookmarks.push([window.hWin.HR('World'),-80,90,-30,50,1800,2050]); //default
                     _loadMapDocumentById_continue();
                 }else{
                     window.hWin.HEURIST4.msg.showMsgErr('Map document #'+current_map_document_id+' not found');
@@ -163,6 +185,11 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
     }
 
     function _getMapDocumentDataById(mapdocument_id) {    
+        
+        if(typeof mapdocument_id==='undefined'){
+              mapdocument_id = current_map_document_id; 
+        }
+        
         //find mapdoc data
         if(mapdocument_id>0 && map_data)
             for(var i=0;i<map_data.length;i++){
@@ -190,6 +217,30 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
 
             map_bookmarks = [];
             window.hWin.HEURIST4.ui.addoption(selBookmakrs, -1, 'bookmarks...');
+
+
+            // Longitude,Latitude centrepoint, Initial minor span
+            // add initial bookmarks based on long lat  minorSpan
+            var cp_long = _validateCoord(doc.long,false);
+            var cp_lat = _validateCoord(doc.lat,true);
+            if(!isNaN(cp_long) && !isNaN(cp_lat) && doc.minorSpan>0){
+                
+                var body = $(this.document).find('body');
+                var prop = body.innerWidth()/body.innerHeight();
+
+                if(isNaN(prop)) prop = 1;
+                
+                if(body.innerWidth()<body.innerHeight()){
+                    span_x = doc.minorSpan;
+                    span_y = doc.minorSpan/prop;
+                }else{
+                    span_x = doc.minorSpan*prop;
+                    span_y = doc.minorSpan;
+                }
+                var init_extent = ['Initial extent', cp_long-span_x/2,cp_long+span_x/2, cp_lat-span_y/2,cp_lat+span_y/2 ];
+                doc.bookmarks.unshift(init_extent);
+            }
+            
 
             for(var i=0;i<doc.bookmarks.length;i++){
 
@@ -243,7 +294,7 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                 if(i==doc.bookmarks.length-2 && map_bookmarks.length>0){
                     break; //skip last default bookmark if user define its own extents
                 }
-            }//for
+            }//for map bookmarks
             if(err_msg_all!=''){
                 window.hWin.HEURIST4.msg.showMsgErr('<div>Map-zoom bookmark is not interpretable, set to Label,xmin,xmax,ymin,ymax,tmin,tmax (tmin,tmax are optional)</div>'
                 +'<br>eg. Harlem, -74.000000,-73.900000,40.764134,40.864134,1915,1930<br/> '
@@ -290,6 +341,7 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
             var overlay_index = 1;
             if(doc.layers.length > 0) {
                 for(var i = 0; i < doc.layers.length; i++) {
+                    if(doc.layers[i].name) doc.layers[i].title = doc.layers[i].name; //use name istead of rec_Title
                     _addLayerOverlay(bounds, doc.layers[i], overlay_index, true);
                     overlay_index++;
                 }
@@ -378,6 +430,8 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
             legendid = overlay_idx;
             overlay = overlays_not_in_doc[overlay_idx];
         }
+        overlay.legendid = legendid;
+        
         if(!overlay) return;
 
         var warning = '';
@@ -429,7 +483,7 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
 
         legenditem.find(".overlay-legend").change(_showHideOverlay);
 
-        if(!ismapdoc){
+        if(true || !ismapdoc){//it is possible to edit mapdoc layers since 2017/07/01
 
             $('<div class="svs-contextmenu ui-icon ui-icon-close" layerid="'+overlay_idx+'"></div>')
             .click(function(event){ 
@@ -439,18 +493,32 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
 
                 window.hWin.HEURIST4.util.stopEvent(event); return false;})
             .appendTo(legenditem);
+            
             $('<div class="svs-contextmenu ui-icon ui-icon-pencil" layerid="'+overlay_idx+'"></div>')
             .click(function(event){ 
 
-                var overlay_id = $(this).attr("layerid");
-                var overlay = overlays[overlay_id] ?overlays[overlay_id] :overlays_not_in_doc[overlay_id];  //overlays[index]
-
+                var overlayid = $(this).attr("layerid");
+                var overlay = overlays[overlayid]? overlays[overlayid] : overlays_not_in_doc[overlayid];
+                
                 if(overlay['editProperties']){
                     overlay.editProperties();
                 }
 
                 window.hWin.HEURIST4.util.stopEvent(event); return false;})
             .appendTo(legenditem);
+            
+            
+            $('<div class="svs-contextmenu ui-icon ui-icon-circle-zoomin" layerid="'+overlay_idx+'"></div>')
+            .click(function(event){ 
+
+                var overlayid = $(this).attr("layerid");
+                var overlay = overlays[overlayid]? overlays[overlayid] : overlays_not_in_doc[overlayid];
+
+                overlay.zoomToOverlay();
+                
+                window.hWin.HEURIST4.util.stopEvent(event); return false;})
+            .appendTo(legenditem);
+            
 
         }
         //add linked layers
@@ -511,7 +579,9 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
     // assign listeners for checkboxes
     //
     function _initLegendListeners() {
-        if(Object.keys(overlays_not_in_doc).length + Object.keys(overlays).length>0){
+        if(mapping.options('legendVisible') &&
+            (Object.keys(overlays_not_in_doc).length + Object.keys(overlays).length)>0){
+                
             $("#map_legend").show();
         }else{
             $("#map_legend").hide();
@@ -533,6 +603,7 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
 
             source.color = layer.color;
             source.title = layer.title;
+            source.iconMarker = layer.iconMarker;
 
             /** MAP IMAGE FILE (TILED) */
             if(source.rectypeID == RT_TILED_IMAGE_SOURCE) {
@@ -562,7 +633,12 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
             }
 
             if(source.rectypeID != RT_MAPABLE_QUERY){
+
                 _addLegendEntryForLayer(index, layer.title, source.rectypeID);
+                
+                if(overlays[index]){
+                    overlays[index].source = source;       
+                }
             }
 
         }
@@ -571,7 +647,8 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
     function _getStubOverlay(){
         return {visible:true,
             setVisibility:function(checked){},
-            removeOverlay: function(){}};
+            removeOverlay: function(){},
+            zoomToOverlay: function(){}};
     }
 
     /**
@@ -651,6 +728,9 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                 },
                 removeOverlay: function(){
                     map.overlayMapTypes.setAt(overlay_index, null);
+                },
+                zoomToOverlay: function(){
+                    map.fitBounds(bounds);
                 }
             };
 
@@ -749,6 +829,11 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
         kmlLayer.removeOverlay = function(){
             kmlLayer.setMap(null);
         };
+        kmlLayer.zoomToOverlay = function(){
+            //map.fitBounds(bounds);
+            console.log('to implement');
+        };
+
 
 
         overlays[index] = kmlLayer;
@@ -784,7 +869,7 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                             dbf: source.dbfFile
                             }, function (data) {
                                 //addGeoJsonToMap(data, index);
-                                deferred.resolve(data, index);
+                                deferred.resolve(source, data, index);
                         });
                         }, 500);
 
@@ -801,7 +886,7 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
     * Adds GeoJson data to the map
     * @param data Data returned by the Shapefile parser
     */
-    function addGeoJsonToMap(data, index) {
+    function addGeoJsonToMap(source, data, index) {
         // Add GeoJson to map
         //console.log(data);
 
@@ -809,23 +894,66 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
             visible:false,
             features: null,
             data: data,
-
+            source: source,
+            
             // Set visibility
             setVisibility: function(checked) {
                 if(this.visible == checked) return;
                 this.visible = checked;
                 if(checked) {
                     this.features = map.data.addGeoJson(data.geojson);
+                    
+                    if(this.source.color){
+                        for (var i = 0; i < this.features.length; i++) {
+                            map.data.overrideStyle(this.features[i], 
+                                {fillColor: this.source.color, strokeColor: this.source.color});
+                        }
+                    }
+                    
                 }else if(this.features!=null) {
+                    
+                    //map.data.setStyle({visible: false});
+                    //Call the revertStyles() method to remove all style overrides.
+                    
                     for (var i = 0; i < this.features.length; i++) {
                         map.data.remove(this.features[i]);
                     }
                     this.features = null;
                 }
+                
+/* Set mouseover event for each feature.
+map.data.addListener('mouseover', function(event) {
+  document.getElementById('info-box').textContent =
+      event.feature.getProperty('letter');
+});*/                
+                
             },
             removeOverlay: function(){
                 this.setVisibility(false);
+            },
+            zoomToOverlay: function(){
+                if(data && data.geojson && data.geojson.bbox){
+                    var swBound = new google.maps.LatLng(data.geojson.bbox[1], data.geojson.bbox[0]);
+                    var neBound = new google.maps.LatLng(data.geojson.bbox[3], data.geojson.bbox[2]);
+                    var bounds = new google.maps.LatLngBounds(swBound, neBound);
+                    map.fitBounds( bounds );
+                }
+                    
+            },
+            editProperties: function(){
+                var that = this;
+                _editLayerOverlayProperties( index, function(colorChanged){
+                    if(colorChanged){
+                        for (var i = 0; i < that.features.length; i++) {
+                            map.data.overrideStyle(that.features[i], 
+                                {fillColor: that.source.color, strokeColor: that.source.color});
+                        }
+                    }
+                } );
+                    
+                    
             }
+            
         };
         overlays[index] = overlay;
         overlay.setVisibility(true);
@@ -889,22 +1017,24 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
 
             
             // Retrieve records for this request
-            window.hWin.HAPI4.SearchMgr.doSearchWithCallback( request, function( recordset, original_recordset ){
+            window.hWin.HAPI4.SearchMgr.doSearchWithCallback( request, 
+            
+                    function( recordset, original_recordset ){
 
-                if(loadingbar)  loadingbar.setMap(null);
+                        if(loadingbar)  loadingbar.setMap(null);
 
-                if(recordset!=null){
-                    source.recordset = recordset;
-                    source.recordset.setMapEnabled( true );
-                    _addRecordsetLayer(source, index);
-                }
-                if( source.callback && $.isFunction(source.callback) ){
-                    source.callback( recordset, original_recordset );     
-                }
+                        if(recordset!=null){
+                            source.recordset = recordset;
+                            source.recordset.setMapEnabled( true );
+                            _addRecordsetLayer(source, index);
+                        }
+                        if( source.callback && $.isFunction(source.callback) ){
+                            source.callback( recordset, original_recordset );     
+                        }
 
-                $('#mapping').css('cursor','auto');
+                        $('#mapping').css('cursor','auto');
 
-            });
+                    });
             
             /*
             window.hWin.HAPI4.RecordMgr.search(request,
@@ -1007,16 +1137,19 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
 
                     //points  DH_RECORDTYPE
                     //change last parameter to 1 - to treat links separately
-                    mapdata = recset.toTimemap(source.id, 99913, source.color, 0); //set to 1 to show main geo only (no links)
+                    mapdata = recset.toTimemap(source.id, 99913, {iconColor:source.color}, 0); //set to 1 to show main geo only (no links)
                     mapdata.id = source.id;
                     mapdata.title = source['title']?source['title']:mapdata.id;
+                    
+                    mapdata.forceZoom = source.forceZoom;
+                    mapdata.min_zoom = source.min_zoom;
 
                     mapdata.depends = [];
 
                     //secondary points  DH_RECORDTYPE_SECONDARY
                     var random_name_for_secondary = "link_"+window.hWin.HEURIST4.util.random();
                     //change last parameter to 1 - to treat links separately
-                    var mapdata3 = recset.toTimemap(random_name_for_secondary, 99914, source.color, 0); //records with type "secondary"
+                    var mapdata3 = recset.toTimemap(random_name_for_secondary, 99914, {iconColor:source.color}, 0); //records with type "secondary"
                     mapdata3.id = random_name_for_secondary;
                     mapdata3.title = 'Secondary locations';
                     //mapdata3.timeenabled = 0;
@@ -1028,7 +1161,7 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                     //residences  DH_RECORDTYPE_RESIDENCES
                     var random_name_for_secondary = "link_"+window.hWin.HEURIST4.util.random();
                     //change last parameter to 1 - to treat links separately
-                    var mapdata4 = recset.toTimemap(random_name_for_secondary, 99915, source.color, 0); //records with type "residence"
+                    var mapdata4 = recset.toTimemap(random_name_for_secondary, 99915, {iconColor:source.color}, 0); //records with type "residence"
                     mapdata4.id = random_name_for_secondary;
                     mapdata4.title = 'Residence of participants';
                     if(mapdata4.mapenabled>0){
@@ -1037,7 +1170,7 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                     
                     /* if we wish show links as separate layer need to unremark this section
                     //links
-                    var mapdata2 = recset.toTimemap(source.id, null, source.color, 2); //rec_Shape only
+                    var mapdata2 = recset.toTimemap(source.id, null, {iconColor:source.color}, 2); //rec_Shape only
                     mapdata2.id = "link_"+window.hWin.HEURIST4.util.random();
                     mapdata2.title = 'Links';
                     mapdata2.timeenabled = 0;
@@ -1049,11 +1182,34 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
 
                 }else{
 
-                    mapdata = recset.toTimemap(source.id, null, source.color);
+                
+                    if(lt=='boro'){ //customized popup for boro
+                        recset.calcfields['rec_Info'] = function(record, fldname){
+                            
+                            var title = this.fld(record, 'rec_Title');
+                            if(title.indexOf('bor-map-infowindow-heading')<0){
+                                title = '<div class="bor-map-infowindow-heading">'+title+'</div>';
+                            }
+                            
+                            return '<div style="display: inline-block; overflow: auto; max-height: 369px; max-width: 260px;">'
+                                    +'<div class="bor-map-infowindow">'
+                                        + title
+                                        + '<a href="'
+                                        + window.hWin.HAPI4.baseURL+'place/'+this.fld(record,'rec_ID')+'/a" '
+                                        + 'onclick="{window.hWin.boroResolver(event);}" class="bor-button bor-map-button">See connections</a>'
+                                    +'</div></div>';                            
+                        }
+                    }
+                    
+                    
+                    mapdata = recset.toTimemap(source.id, null, {iconColor:source.color, iconMarker:source.iconMarker});
                     if(source.color) mapdata.color = source.color;
                     mapdata.id = source.id;
                     mapdata.title = source['title']?source['title']:mapdata.id;
 
+                    mapdata.forceZoom = source.forceZoom;
+                    mapdata.min_zoom = source.min_zoom;
+                    
                     if(recset['limit_warning']){
                         /* @todo - show individual warning per layer
                         var MAXITEMS = window.hWin.HAPI4.get_prefs('search_detail_limit');
@@ -1107,6 +1263,9 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                     mapping.deleteDataset( this.id ); //mapdata.id);
                     this.removeDependentLayers();
                 },
+                zoomToOverlay: function(){
+                    mapping.zoomDataset( this.id );
+                },
                 removeDependentLayers: function(){
                     if(this.dependent_layers){
                         var idx;
@@ -1116,12 +1275,13 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                     }
                 },
                 editProperties: function(){
-                    _editLayerProperties( this.id );    
+                    _editLayerProperties( this.id, this.legendid );    
                 }
             };
+            
             if(index>=0){  //this layer belong to map document
+                //was mapdata.title
                 overlays[index] = overlay;
-
                 _addLegendEntryForLayer(index, mapdata.title, mapdata.color, dependent_layers); //was RT_MAPABLE_QUERY insteadof color
 
             }else{ // this layer is explicitely (by user) added
@@ -1149,13 +1309,16 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
             }
         }
     }
-
+        
+/* NOT USED             
     function _zoomToMapdata( _mapdataid ) {
         var overlay = _getOverlayByMapdataId( _mapdataid );
         if(overlay!=null){
             mapping.zoomDataset( _mapdataid );
         }
     }
+    
+
     //
     //
     //
@@ -1172,7 +1335,7 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
         }
         return null;
     }
-
+*/
     //
     //
     //
@@ -1202,19 +1365,26 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
         }
     }
 
-    var edit_mapdata, edit_callback;
+    var edit_mapdata, edit_callback, overlay_legend_id;
 
+    
+    //
     //open dialog and edit layer/dataset properties - name and color
-    function _editLayerProperties( dataset_id, callback ){
+    //
+    function _editLayerProperties( dataset_id, legend_id, callback ){
 
-        edit_mapdata = mapping.getDataset( dataset_id );
+        overlay_legend_id = legend_id;
         edit_callback = callback;
-        if( !window.hWin.HEURIST4.util.isempty(dataset_id) && window.hWin.HEURIST4.util.isnull(edit_mapdata) ){
-            if (edit_callback) edit_callback(false);
-            return;
-        }
+        
+        if(!window.hWin.HEURIST4.util.isempty(dataset_id)){
+                edit_mapdata = mapping.getDataset( dataset_id );
+                if( window.hWin.HEURIST4.util.isnull(edit_mapdata) ){
+                    if (edit_callback) edit_callback(false);
+                    return;
+                }
+        }  
 
-        function __doSave(){   //save search
+        _openDialogLayerProperties( function(){   //apply color and title
 
             var layer_name = $dlg_edit_layer.find("#layer_name");
             var message = $dlg_edit_layer.find('.messages');
@@ -1233,7 +1403,8 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                 var new_color = $dlg_edit_layer.find('#layer_color').colorpicker('val');
                 var mapdata = edit_mapdata;
 
-                if(window.hWin.HEURIST4.util.isnull(mapdata) && !window.hWin.HEURIST4.util.isnull(window.hWin.HAPI4.currentRecordset)){  //add current record set
+                if(window.hWin.HEURIST4.util.isnull(mapdata) &&
+                 !window.hWin.HEURIST4.util.isnull(window.hWin.HAPI4.currentRecordset)){  //add current record set
 
                     /* load with current result set and new rules
                     _currentRequest??
@@ -1268,10 +1439,25 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                     //change color scheme if required
                     mapping.changeDatasetColor( 'main', new_color, false );
                     //rename dataset for timeline items
+                    /*
+                    var uniqids = {};
                     for (var i=0; i<mapdata.timeline.items.length; i++){
-                        mapdata.timeline.items[i].id = mapdata.id + '-' +  mapdata.timeline.items[i].recID;
+                        if(uniqids[mapdata.timeline.items[i].recID]==undefined){
+                            uniqids[mapdata.timeline.items[i].recID] = 0;
+                        }else{
+                            uniqids[mapdata.timeline.items[i].recID]++;
+                        }
+                        mapdata.timeline.items[i].id = mapdata.id 
+                                        + '-' +  mapdata.timeline.items[i].recID 
+                                        + '-' +uniqids[mapdata.timeline.items[i].recID];
                         mapdata.timeline.items[i].group = mapdata.id 
                     }
+                    */
+                    for (var i=0; i<mapdata.timeline.items.length; i++){
+                        mapdata.timeline.items[i].id = mapdata.timeline.items[i].id.replace('main-',(mapdata.id+'-'));
+                        mapdata.timeline.items[i].group = mapdata.id;
+                    }
+                    
                     //change color for dependent
                     var idx;
                     for (idx in mapdata.depends){
@@ -1291,15 +1477,20 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                     }*/
 
                 }else{
+                    
+                    var overlay_id = mapdata.id;
+                    if(overlay_legend_id){
+                        overlay_id = overlay_legend_id;
+                    }
 
                     if(mapdata.title!=new_title){
                         mapdata.title = new_title;
-                        $("#map_legend .content").find('#'+mapdata.id+' label').html(new_title);
+                        $("#map_legend .content").find('#'+overlay_id+' label').html(new_title);
                         //$('#timeline > div > div.vis-panel.vis-left > div.vis-content > div > div:nth-child(2) > div
                         $('#timeline div[data-groupid="'+mapdata.id+'"]').html(new_title);
                     }
                     if(mapdata.color!=new_color){
-                        $("#map_legend .content").find('#'+mapdata.id+'>div').css('border-color',new_color);
+                        $("#map_legend .content").find('#'+overlay_id+'>div').css('border-color',new_color);
                     }
 
                     var idx;
@@ -1308,15 +1499,59 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                         mapping.changeDatasetColor( dep_mapdata.id, new_color, true);
                     }
                     mapping.changeDatasetColor( mapdata.id, new_color, true );
-
-
                 }
 
                 $dlg_edit_layer.dialog("close"); 
                 if (edit_callback) edit_callback(true);
             }
 
-        }  
+        });  
+
+    }
+    
+    //
+    //
+    //
+    function _editLayerOverlayProperties(overlay_idx, callback){
+        
+        overlay_legend_id = overlay_idx;
+        edit_callback = callback;
+        edit_mapdata = overlays[overlay_idx].source;
+        if(!edit_mapdata.title){
+            edit_mapdata.title = edit_mapdata.name;
+        }
+        
+        _openDialogLayerProperties( function(){
+            
+            var layer_name = $dlg_edit_layer.find("#layer_name");
+            var message = $dlg_edit_layer.find('.messages');
+
+            var bValid = window.hWin.HEURIST4.msg.checkLength( layer_name, "Name", message, 1, 30 );
+
+            if(bValid){
+                var new_title =  layer_name.val();
+                var new_color = $dlg_edit_layer.find('#layer_color').colorpicker('val');
+                var colorChanged = false;
+                if(overlays[overlay_idx].source.title!=new_title){
+                    overlays[overlay_idx].source.title = new_title;
+                    $("#map_legend .content").find('#md-'+overlay_idx+' label').html(new_title);
+                    //$('#timeline > div > div.vis-panel.vis-left > div.vis-content > div > div:nth-child(2) > div
+                    $('#timeline div[data-groupid="'+overlay_idx+'"]').html(new_title);
+                }
+                if(overlays[overlay_idx].source.color!=new_color){
+                    colorChanged = true;
+                    overlays[overlay_idx].source.color = new_color
+                    $("#map_legend .content").find('#md-'+overlay_idx+'>div').css('border-color',new_color);
+                }
+                
+                $dlg_edit_layer.dialog("close"); 
+                if (edit_callback) edit_callback(colorChanged);
+            }            
+        });
+        
+    }
+    
+    function _openDialogLayerProperties( onSaveCallback ){
 
         function __onOpen(){
             var mapdata = edit_mapdata;
@@ -1345,15 +1580,6 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                 resizable: false,
                 title: window.hWin.HR('Define Layer'),
                 //buttons: arr_buttons,
-                buttons: [
-                    {text:window.hWin.HR('Save'), click: function(){
-                        __doSave();   
-                    }},
-                    {text:window.hWin.HR('Cancel'), click: function() {
-                        if (edit_callback) edit_callback(false);
-                        $( this ).dialog( "close" );
-                    }}
-                ],
                 close: function() {
                 },
                 open: function() {
@@ -1366,19 +1592,23 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
                 showOn: "both"  //button, focus
             });
 
-            /*$dlg_edit_layer.find("#layer_color").colorPicker({
-            cssAddon:'.cp-color-picker{z-index:999999999999 !important;background-color:#fff;border-radius: 0px;}',
-            renderCallback: function($elm, toggled){
-            if($elm && !toggled){
-            $(this.$UI).hide();
-            }
-            }
-            });*/
 
-        }       
+        }
+        
+        $dlg_edit_layer.dialog({
+            buttons: [
+                {text:window.hWin.HR('Save'), click: onSaveCallback},
+                {text:window.hWin.HR('Cancel'), click: function() {
+                    if (edit_callback) edit_callback(false);
+                    $( this ).dialog( "close" );
+                }}
+            ]                
+        });    
         $dlg_edit_layer.dialog("open");    
-
+        
     }
+    
+    
 
     // 
     // Data types
@@ -1514,23 +1744,36 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
             _adjustLegendHeight();
             
         });
+        
+        
+        menu_mapdocuments = $('<ul>').appendTo( $('body') ).hide();
 
-        _loadMapDocuments(startup_mapdocument_id);
+        var btn_mapdocs = $("#mapSelectorBtn").button({showLabel:true, label:'Select...',
+                icon:"ui-icon-triangle-1-s", iconPosition:'end'}).css('max-height',22)
+                .click( function(e) {
+                $('.menu-or-popup').hide(); //hide other
+                
+                if(loading_mapdoc_list) return;
+                _loadMapDocuments(null, function(){
+                     menu_mapdocuments.show().position({my: "right top", at: "right bottom", of: $('#mapSelectorBtn') });    
+                });
+                
+                $( document ).one( "click", function() { menu_mapdocuments.hide(); });
+                return false;
+        });
+                
+
+        _loadMapDocuments(startup_mapdocument_id>0?startup_mapdocument_id:0, null);
 
     }
 
     //
     //
     //    
-    function _loadMapDocumentById_init(mapdocument_id){
+    function _loadMapDocumentById_init(mapdocument_id, isforce){
 
-        var ele = $("#map-doc-select");
-        if(ele.length>0){ //load document by selection in list
-            ele.val(mapdocument_id); 
-            //$("#map-doc-select").change();
-        }
         //if selector is hidden - onchange event does not work
-        if(current_map_document_id != mapdocument_id){
+        if(isforce===true || current_map_document_id != mapdocument_id){
             current_map_document_id = mapdocument_id;
             _loadMapDocumentById();      
         }
@@ -1542,8 +1785,14 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
         isA: function (strClass) {return (strClass === _className);},
         getVersion: function () {return _version;},
 
-        loadMapDocumentById: function(mapdocument_id){
-            _loadMapDocumentById_init(mapdocument_id);
+        
+        loadMapDocuments:function(startup_mapdocument){
+            current_map_document_id = 0;
+            _loadMapDocuments(startup_mapdocument, null);
+        },
+        
+        loadMapDocumentById: function(mapdocument_id, isforce){
+            _loadMapDocumentById_init(mapdocument_id, isforce);
         },
 
         getMapDocumentDataById: function(mapdocument_id){
@@ -1558,8 +1807,8 @@ function hMappingControls( mapping, startup_mapdocument_id ) {
             _addRecordsetLayer(params, -1);
         },
 
-        editLayerProperties: function( dataset_id, callback ){
-            _editLayerProperties( dataset_id, callback );
+        editLayerProperties: function( dataset_id, legendid, callback ){
+            _editLayerProperties( dataset_id, legendid, callback );
         }
 
     }

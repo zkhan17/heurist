@@ -96,6 +96,9 @@ function get_config_bytes($val) {
                 background-color: lightblue;
                 padding: 4px;
             }
+            .tberror td{
+                text-align:center;
+            }
             .action_buttons{
                /*position: absolute;
                right:20px;
@@ -141,19 +144,20 @@ If you have missing data for Required fields, you may find it convenient to set 
         
         </div>      
     
-        <h2 style="display:inline-block;padding:5px;width:280px;text-align:right;">Select previously uploaded file</h2>
-            <select id="selImportId" class="text ui-widget-content ui-corner-all"></select>
-            <a href="#" id="btnClearAllSessions"
-                title="All uploaded files will be removed from the sytem. Start this action if you sure that you do not need any import data anymore"
-                            style="margin-left: 10px;">Clear all files</a>        
-
-        <h2 style="padding:10 0 10 120">OR</h2>
-        
         <h2 style="display:inline-block;padding:5px;width:280px;text-align:right;">Upload new file (CSV/TSV)</h2>
             <input type="file" id="uploadFile" style="display:none">
             <div id="btnUploadFile" title="Browse for CSV/TSV file that contains your data to be imported into Heurist database">
                 Upload File</div>
             <span>The first line must have field names with correct number of fields</span>  
+
+        <h2 style="padding:10 0 10 120">OR</h2>
+        
+        <h2 style="display:inline-block;padding:5px;width:280px;text-align:right;">Select previously uploaded file</h2>
+            <select id="selImportId" class="text ui-widget-content ui-corner-all"></select>
+            <a href="#" id="btnClearAllSessions"
+                title="All uploaded files will be removed from the sytem. Start this action if you sure that you do not need any import data anymore"
+                            style="margin-left: 10px;">Clear all files</a>        
+            
         <h2 style="padding:10 0 10 120">OR</h2>
         <h2 style="display:inline-block;padding:5px;width:280px;text-align:right;">Paste delimited data in area below</h2>
         <div id="btnUploadData"
@@ -293,8 +297,8 @@ If you have missing data for Required fields, you may find it convenient to set 
                     <div class="header" style="min-width: 50px;"><label>Line separator:</label></div>
                     <div class="input-cell">        
                         <select id="csv_linebreak" class="text ui-widget-content ui-corner-all" style="width:120px;">
-                            <option selected value="auto">auto detect</option>
-                            <option value="win">Windows</option>
+                            <option value="auto">auto detect</option>
+                            <option selected value="win">Windows</option>
                             <option value="nix">Unix</option>
                             <option value="mac">Mac</option>
                         </select>
@@ -482,11 +486,12 @@ If you have missing data for Required fields, you may find it convenient to set 
             <label for="sa_match0" style="padding-right:3em">Match on column(s)</label>
 
             <input type="radio" name="sa_match" id="sa_match1" value="1" class="text" onchange="{importRecordsCSV.onMatchModeSet()}">&nbsp;
-            <label for="sa_match1" style="padding-right:3em">Use Heurist ID column</label>
+            <label for="sa_match1" id="lbl_sa_match1" style="padding-right:3em">Use Heurist ID column</label>
 
+<!--            
             <input type="radio" name="sa_match" id="sa_match2" value="2" class="text" onchange="{importRecordsCSV.onMatchModeSet()}">&nbsp;
             <label for="sa_match2">Skip matching (all new records)</label>
-
+-->
             <div class="heurist-helper1" id="divMatchingSettingHelp" style="display:block;padding-top:1em;padding-bottom:3px;">
             </div>
         </div>
@@ -508,7 +513,7 @@ If you have missing data for Required fields, you may find it convenient to set 
             <label for="sa_upd1">Add new data only if field is empty (new data ignored for non-empty fields)</label><br>
 
             <input type="radio" name="sa_upd" id="sa_upd2" value="2" class="text" onchange="{importRecordsCSV.onUpdateModeSet()}">&nbsp;
-            <label for="sa_upd2">Add and replace all existing value(s) for the record with new data</label>
+            <label for="sa_upd2">Add and replace all existing value(s) for the fields specified below</label>
             
                     <div style="padding-left: 60px; font-size: 0.9em; vertical-align: top; display: none;" id="divImport2">
                         <input type="radio" checked="" name="sa_upd2" id="sa_upd20" value="0" class="text">&nbsp;
@@ -520,21 +525,21 @@ If you have missing data for Required fields, you may find it convenient to set 
         </div>
 <!-- end radiogroup setting divs -->     
 
-        <div id="divFieldMapping2" style="display:none;padding:0.5em 0;margin-left:2em;">
+        <div id="divFieldMapping2" class="step4" style="display:none;padding:0.5em 0;margin-left:2em;">
             <table class="tbresults" style="display:inline-block">
                 <tbody>
                                     <tr>
-                                        <td rowspan="2" width="250">
+                                        <td rowspan="3" width="250">
                                             <h2 id="mrr_big">Existing: 586  New: 100</h2>
                                         </td>
-                                        <td rowspan="2">
+                                        <td rowspan="3">
                                             <div id="prepareWarnings" 
                                                 style="display:none;padding:2px;background-color:#ffaaaa;border-color:red;margin-left:2em">
                                                 <h2 id="mrr_warning" style="display:inline-block;margin:0 10px;">Warnings: 0</h2>
                                                 <div id="btnShowWarnings"></div>
                                             </div>
                                         </td>
-                                        <td rowspan="2">
+                                        <td rowspan="3">
                                             <div id="prepareErrors" 
                                                 style="display:none;padding:2px;background-color:#ffaaaa;border-color:red;margin-left:2em">
                                                 <h2 id="mrr_error" style="display:inline-block;margin:0 10px;">Errors: 0</h2>
@@ -555,6 +560,13 @@ If you have missing data for Required fields, you may find it convenient to set 
                                         <td width="50" class="mrr_insert"><a href="#" onclick="importRecordsCSV.showRecords2('insert',false)">show</a></td>
                                         <td width="50" class="mrr_insert"><a href="#" onclick="importRecordsCSV.showRecords2('insert',true)">download</a></td>
                                     </tr>
+                                    <tr><td align=left style="padding-left:30px">Blank match fields:</td>
+                                        <td width="50" id="mrr_cnt_ignore"></td>
+                                        <td width="50" class="mrr_ignore">rows:</td>
+                                        <td width="50" class="mrr_ignore" id="mrr_cnt_ignore_rows"></td>
+                                        <td width="50"></td>
+                                        <td width="50"></td>
+                                    </tr>
                 </tbody>
             </table>
 
@@ -566,7 +578,7 @@ If you have missing data for Required fields, you may find it convenient to set 
                 <th style="width:75px;">Use&nbsp;<br/>value</th>
                 <th style="width:75px;">Unique&nbsp;<br/>values</th>
                 <th style="width:300px;">Column</th>
-                <th style="width:300px;">Column to Field Mapping</th>
+                <th style="width:300px;" id="mapping_column_header">Column to Field Mapping</th>
                 <!-- last column allows step through imported data records-->
                 <th style="text-align: left;padding-left: 16px;">
                     <a href="#" class="navigation" style="display: inline-block;"><span data-dest="0" class="ui-icon ui-icon-seek-first"/></a>

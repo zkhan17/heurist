@@ -46,6 +46,7 @@ function RectypeManager() {
     arrDataSources = [];
 
     var currentTipId,
+    _rt_counts = {}, //counts by recorc type
     _rolloverInfo;
 
     var _groups = [],  //for dropdown list
@@ -77,6 +78,7 @@ function RectypeManager() {
     //
     function _init()
     {
+        
         var grpID,
         ind = 0,
         index;
@@ -93,14 +95,7 @@ function RectypeManager() {
             }
         }//for groups
 
-        top.HEURIST.parameters = top.HEURIST.parseParams(this.location.search);
-
-        if(top.HEURIST.parameters){ //to open edit recordtyep structure at once
-            _initRecID = top.HEURIST.parameters.rtID;
-        }
-
-        _rolloverInfo = new HintDiv('inforollover', 260, 170, '<div id="inforollover2"></div>');
-
+        
         tabView.addTab(new YAHOO.widget.Tab({
                     id: "newGroup",
                     label: "<label title='Create new group, edit or delete an existing group' style='font-style:bold'> +/- </label>",
@@ -120,6 +115,16 @@ function RectypeManager() {
                         '</div></div>'+
                         '</div>')
             }));
+        
+        
+        top.HEURIST.parameters = top.HEURIST.parseParams(this.location.search);
+
+        if(top.HEURIST.parameters){ //to open edit recordtype structure at once
+            _initRecID = top.HEURIST.parameters.rtID;
+        }
+
+        _rolloverInfo = new HintDiv('inforollover', 260, 170, '<div id="inforollover2"></div>');
+
         tabView.appendTo("modelTabs");
 
 
@@ -145,9 +150,35 @@ function RectypeManager() {
         YAHOO.util.History.initialize("yui-history-field", "yui-history-iframe");
         } catch (e) {
         }
-        */			initTabView();
+        */			
+        initTabView();
 
         dragDropEnable();
+        
+        
+        if(top.hWin && top.hWin.HAPI4){
+            var request = {
+                'a'       : 'counts',
+                'entity'  : 'defRecTypes',
+                'mode'    : 'record_count'
+                };
+        
+            top.hWin.HAPI4.EntityMgr.doRequest(request, 
+            function(response){
+                if(response.status == top.hWin.HAPI4.ResponseStatus.OK){
+                    _rt_counts = response.data;
+                    //refresh datatable
+                    var _currentTabIndex = tabView.get('activeIndex');
+                    var dt = arrTables[_currentTabIndex];
+                    if(!Hul.isnull(dt)) {
+                        dt.render();
+                    }
+                }else{
+                    top.hWin.HEURIST4.msg.showMsgErr(response);
+                }
+            });
+            
+        }
     }//end _init
 
     /*
@@ -175,7 +206,7 @@ function RectypeManager() {
             grpDescription = "Describe this group!";
         }
 
-        _groups.push({value:grpID, text:grpName});
+        _groups.splice( ind, 0, {value:grpID, text:grpName});
 
         tabView.addTab(new YAHOO.widget.Tab({
                     id: grpID,
@@ -389,7 +420,7 @@ function RectypeManager() {
                     },
                 },
                 */
-                { key: "id", label: "Add", sortable:false, minWidth:30, maxAutoWidth:30, width:30, className:'right',
+                { key: "id", label: "Add", sortable:false, minWidth:20, maxAutoWidth:20, width:20, className:'right',
                     formatter: function(elLiner, oRecord, oColumn, oData) {
                         elLiner.innerHTML = 
                             '<a href="#addrec">'
@@ -397,7 +428,7 @@ function RectypeManager() {
                             +' title="Click this button to insert a new '+oRecord.getData("name")+'"></a>';
                     }
                 },
-                { key: "conceptid", label: "Filter", sortable:false, minWidth:30, maxAutoWidth:30, width:30, className:'right', 
+                { key: "conceptid", label: "Filter", sortable:false, minWidth:20, maxAutoWidth:20, width:20, className:'right', 
                     formatter: function(elLiner, oRecord, oColumn, oData) {
                         elLiner.innerHTML = 
                             '<a href="#search">'
@@ -406,18 +437,25 @@ function RectypeManager() {
                     }
                 },
 
-                { key: "icon", label: "Icon", className:'center', sortable:false,   width:40,
+                { key: "id", label: "n=", sortable:false, minWidth:30, maxAutoWidth:30, width:30, className:'center', 
+                    formatter: function(elLiner, oRecord, oColumn, oData) {
+                        var id = oRecord.getData("id");
+                        elLiner.innerHTML = (_rt_counts[id]>0)?_rt_counts[id]:'';
+                    }
+                },
+                
+                { key: "icon", label: "Icon", className:'center', sortable:false,   width:30,
                     formatter: function(elLiner, oRecord, oColumn, oData) {
                         var id = oRecord.getData("id");
 
                         var str1 = top.HEURIST.iconBaseURL + id + "&t=" + curtimestamp;
                         var thumb = top.HEURIST.iconBaseURL + "thumb/th_" + id + ".png&t=" + curtimestamp;
                         var icon ="<div class=\"rectypeImages\">"+
-                        "<a href=\"#edit_icon\">"+
+                        "<a href=\"#edit_rectype\">"+  //edit_icon
                         "<img src=\"../../../common/images/16x16.gif\" style=\"background-image:url("+str1+")\" id=\"icon"+id+"\">"+
                         "</a>"+
                         "<div id=\"thumb"+id+"\" style=\"background-image:url("+thumb+");\" class=\"thumbPopup\">"+
-                        "<a href=\"#edit_icon\"><img src=\"../../../common/images/16x16.gif\" width=\"75\" height=\"75\"></a>"+
+                        "<a href=\"#edit_rectype\"><img src=\"../../../common/images/16x16.gif\" width=\"75\" height=\"75\"></a>"+ //edit_icon
                         "</div>"+
                         "</div>";
                         elLiner.innerHTML = icon;
@@ -531,7 +569,16 @@ function RectypeManager() {
                     if(elLink.hash === "#search") {
                         window.open(top.HEURIST.baseURL+'?w=all&q=t:'+rectypeID+'&db='+db,'_blank');
                     }else if(elLink.hash === "#addrec") {
-                        window.open(top.HEURIST.baseURL+'records/add/addRecord.php?addref=1&db='+db+'&rec_rectype='+rectypeID,'_blank');
+                        
+                        if(top.HEURIST4){ //window.hWin && window.hWin.HEURIST4){
+                            
+                            var new_record_params = {};
+                            new_record_params['rt'] = rectypeID;
+                            top.HEURIST4.ui.openRecordEdit(-1, null, {new_record_params:new_record_params});
+                        }else{
+                            var url = top.HEURIST.baseURL+'records/add/addRecord.php?addref=1&ver=h3&db='+db+'&rec_rectype='+rectypeID
+                            window.open(url,'_blank');
+                        }
                     }else if(elLink.hash === "#edit_rectype") {
                         _editRecStructure(rectypeID);
                         //2016-06-14 Ian req _onAddEditRecordType(rectypeID, 0);
@@ -707,15 +754,19 @@ function RectypeManager() {
             btnAddRecordType.onclick = function (e) {
                 if(confirm('Before defining new record (entity) types we suggest importing suitable '+
                 'definitions from templates (Heurist databases registered in the Heurist clearinghouse). '+
-                'Those with registration IDs less than 1000 are templates curated by the Heurist team. '+
-                '\n\nUse:  Manage tab > Structure > Browse templates')){
+                'Those with registration IDs less than 1000 are templates curated by the Heurist team. '
+                +'\n\n'
++'This is particularly important for BIBLIOGRAPHIC record types - the definitions in template #6 (Bibliographic definitions) are' 
++'optimally normalised and ensure compatibility with bibliographic functions such as Zotero synchronisation, Harvard format and inter-database compatibility.'                
+                
+                +'\n\nUse:  Manage tab > Structure > Browse templates')){
                     var currentTabIndex = tabView.get('activeIndex');
                     var grpID = tabView.getTab(currentTabIndex).get('id');
                     _onAddEditRecordType(0, grpID);
                 }
             };
             var btnAddRecordType2 = Dom.get('btnAddRecordType'+grpID+'_2');
-            btnAddRecordType2.onclick = btnAddRecordType.onclick;
+            if(btnAddRecordType2) btnAddRecordType2.onclick = btnAddRecordType.onclick;
 
             var body = $(top.document).find('body');
             var dim = {h:body.innerHeight(), w:body.innerWidth()},
@@ -728,7 +779,7 @@ function RectypeManager() {
                 Hul.popupURL(top, sURL, {
                     "close-on-blur": false,
                     "no-resize": false,
-                    title: 'Acquire from databases',
+                    title: 'Browse templates',
                     height: dim.h*0.95,
                     width: dim.w*0.95,
                     //callback: _import_complete
@@ -737,7 +788,7 @@ function RectypeManager() {
 
             };
             btnAddRecordType2 = Dom.get('btnImportFromDb'+grpID+'_2');
-            btnAddRecordType2.onclick = btnAddRecordType.onclick
+            if(btnAddRecordType2) btnAddRecordType2.onclick = btnAddRecordType.onclick
 
             //-------
 /*Remarked temporarely 2016-05-11
@@ -995,7 +1046,7 @@ function RectypeManager() {
         var state = dtable.getState();
         state.sortedBy = {key:'name', dir:YAHOO.widget.DataTable.CLASS_ASC};
 
-        var grpID = _getGroupByIndex(tabIndex);
+        var grpID = _getGroupByIndex(tabView.get('activeIndex'));
 
         _filterText = Dom.get('filter'+grpID).value;
         _filterVisible = Dom.get('filter'+grpID+'vis').checked?1:0;
@@ -1258,12 +1309,12 @@ function RectypeManager() {
         grp; //object in HEURIST
 
         if(Hul.isempty(name)){
-            alert('Group name is required. Please specify it');
+            alert('Group name is required');
             Dom.get('edName').focus();
             return;
         }
         if(Hul.isempty(description)){
-            alert('Group description is required. Please specify it');
+            alert('Group description is required');
             Dom.get('edDescription').focus();
             return;
         }
@@ -1278,8 +1329,11 @@ function RectypeManager() {
         //define new or exisiting
         if(grpID<0) {
             grp = {name: name, description:description};
+            
+            orec.rectypegroups.colNames.push('rtg_Order');
             orec.rectypegroups.defs[-1] = [];
-            orec.rectypegroups.defs[-1].push({values:[name, description]});
+            orec.rectypegroups.defs[-1].push({values:[name, description, 0]});
+            
         }else{
             //for existing - rename
             grp = top.HEURIST.rectypes.groups[top.HEURIST.rectypes.groups.groupIDToIndex[grpID]];
@@ -1306,13 +1360,16 @@ function RectypeManager() {
                     _cloneHEU = null;
 
                     if(grpID<0){
-
-                        _refreshAllTables();
+                        
+                        //insert new group at the beginning of tabview
 
                         grpID = context['0'].result;
                         ind = _groups.length;
-                        _addNewTab(ind, grpID, name, description);
+                        _addNewTab(0, grpID, name, description);
+                        _updateOrderAfterDrag();
                         dragDropEnable();
+                        tabView.set("activeIndex", 0);
+                        _refreshAllTables();
                     }else{
                         //update label
                         for (ind in _groups){
@@ -1323,9 +1380,10 @@ function RectypeManager() {
                                 _groups[ind].text = name;
                                 break;
                         }}
+                        tabView.set("activeIndex", ind);
                         _refreshAllTables();
                     }
-                    tabView.set("activeIndex", ind);
+                    
                 }
             }
         }
@@ -1409,7 +1467,7 @@ function RectypeManager() {
 
         if(!Hul.isnull(grp.types) && grp.types.length>0)
             {
-            alert("This group cannot be deleted as it contains record types - please move them first");
+            alert("This group contains record types. Please move them to another group before deleting.");
         }else{
             var r=confirm("Confirm the deletion of group '"+grp.name+"'");
             if (r) {

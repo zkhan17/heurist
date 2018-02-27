@@ -50,8 +50,8 @@ require_once(dirname(__FILE__).'/../../common/php/utilsMail.php');
 
 if (! @$_REQUEST['w']  &&  ! @$_REQUEST['h']  &&  ! @$_REQUEST['maxw']  &&  ! @$_REQUEST['maxh']) {
     $standard_thumb = true;
-    $x = 100;
-    $y = 100;
+    $x = 200;
+    $y = 200;
     $no_enlarge = false;
 } else {
     $standard_thumb = false;
@@ -75,15 +75,23 @@ if (array_key_exists('ulf_ID', $_REQUEST))
     header("Location: ".HEURIST_THUMB_URL."ulf_".$_REQUEST['ulf_ID'].".png");
     return;
     }*/
-
-    $res = mysql_query('select * from recUploadedFiles where ulf_ObfuscatedFileID = "' . mysql_real_escape_string($_REQUEST['ulf_ID']) . '"');
+    
+    if ($standard_thumb  &&  file_exists($thumbnail_file)) {
+       echo readfile($thumbnail_file);
+       return;
+    }  
+    
+    $res = mysql_query('select recUploadedFiles.*, defFileExtToMimetype.fxm_MimeType '
+    .'from recUploadedFiles, defFileExtToMimetype where (fxm_Extension=ulf_MimeExt) and ulf_ObfuscatedFileID = "' 
+    . mysql_real_escape_string($_REQUEST['ulf_ID']) . '"');
+    
     if (mysql_num_rows($res) != 1) return;
     $file = mysql_fetch_assoc($res);
 
     if ($standard_thumb  &&  $file['ulf_Thumbnail']) {
 
-        //save as file
-        $img = imagecreatefromstring($file['ulf_Thumbnail']);
+        //save as file - recreate from thumb blob from database
+        $img = @imagecreatefromstring($file['ulf_Thumbnail']);
         if($img){
             imagepng($img, $thumbnail_file);
 
@@ -92,9 +100,23 @@ if (array_key_exists('ulf_ID', $_REQUEST))
         }
         return;
     }
-    $fileparams = parseParameters($file['ulf_Parameters']); //from uploadFile.php
-    $type_media	 = (array_key_exists('mediatype', $fileparams)) ?$fileparams['mediatype']:null;
-    $type_source = (array_key_exists('source', $fileparams)) ?$fileparams['source']:null;
+    
+    $type_source = null;
+    if(@$file['ulf_Parameters']){
+        $fileparams = parseParameters($file['ulf_Parameters']); //from uploadFile.php
+        $type_media	 = (array_key_exists('mediatype', $fileparams)) ?$fileparams['mediatype']:null;
+        $type_source = (array_key_exists('source', $fileparams)) ?$fileparams['source']:null;
+    }else{
+        list($type_media, $ext) = explode('/',$file['fxm_MimeType']);
+        
+        if(@$file['ulf_ExternalFileReference']==null || @$file['ulf_ExternalFileReference']==''){
+            $type_source = 'heurist';    
+        }else if( $file['fxm_MimeType'] == 'video/youtube' 
+            || strpos($file['ulf_ExternalFileReference'], 'youtu.be')>0
+            || strpos($file['ulf_ExternalFileReference'], 'youtube.com')>0){ //match('http://(www.)?youtube|youtu\.be')
+            $type_source = 'youtube';
+        }
+    }
 
     if($type_source==null || $type_source=='heurist') {
         if ($file['ulf_FileName']) {
@@ -162,7 +184,7 @@ if (array_key_exists('ulf_ID', $_REQUEST))
                 if(is_array($imageInfo)){
                     if(array_key_exists('channels', $imageInfo) && array_key_exists('bits', $imageInfo)){
                         $memoryNeeded = round(($imageInfo[0] * $imageInfo[1] * $imageInfo['bits'] * $imageInfo['channels'] / 8 + Pow(2,16)) * 1.65); 
-                    }else{
+                    }else{ //width x height
                         $memoryNeeded = round($imageInfo[0] * $imageInfo[1]*3);  
                     } 
                     $mem_usage = memory_get_usage();
@@ -222,6 +244,11 @@ if (array_key_exists('ulf_ID', $_REQUEST))
                     $img = make_file_image($desc); //from string
                     break;
             }
+            
+            //$rv = sendEmail(HEURIST_MAIL_TO_ADMIN, 'Image corruption '.HEURIST_DBNAME, 
+            //        $filename.'. System message: ' .$e->getMessage() , null);
+            
+            
         }
         restore_error_handler();
 
@@ -230,10 +257,41 @@ if (array_key_exists('ulf_ID', $_REQUEST))
         if($type_media=='image'){ //$type_source=='generic' &&
             //@todo for image services (panoramio, flikr) take thumbnails directly
             $img = get_remote_image($file['ulf_ExternalFileReference']);
-        }else if($type_source=='youtube'){
+            
+        }else if($type_source=='youtube' || $file['fxm_MimeType'] == 'video/youtube'){
+            
+//@todo - youtube change the way of retrieving thumbs !!!!
             $url = $file['ulf_ExternalFileReference'];
-            $youtubeid = preg_replace('/^[^v]+v.(.{11}).*/' , '$1', $url);
-            $img = get_remote_image("http://img.youtube.com/vi/".$youtubeid."/0.jpg"); //get thumbnail
+            
+            preg_match("/^(?:http(?:s)?:\/\/)?(?:www\.)?(?:m\.)?(?:youtu\.be\/|youtube\.com\/(?:(?:watch)?\?(?:.*&)?v(?:i)?=|(?:embed|v|vi|user)\/))([^\?&\"'>]+)/", $url, $matches);
+            
+            $youtubeid = $matches[1];
+            
+            $img = get_remote_image('http://img.youtube.com/vi/'.$youtubeid.'/default.jpg');
+            
+            //$youtubeid = preg_replace('/^[^v]+v.(.{11}).*/' , '$1', $url);
+            //$img = get_remote_image("http://img.youtube.com/vi/".$youtubeid."/0.jpg"); //get thumbnail
+        }else if($file['fxm_MimeType'] == 'video/vimeo'){
+
+            $url = $file['ulf_ExternalFileReference'];
+
+            $hash = json_decode(loadRemoteURLContent("http://vimeo.com/api/oembed.json?url=".rawurlencode($url), false), true);
+            $thumb_url = @$hash['thumbnail_url'];
+            if($thumb_url){
+                $img = get_remote_image($thumb_url);    
+            }
+            
+            
+            //it works also - except regex is wrong for some vimeo urls
+            /*
+            if(preg_match('(https?:\/\/)?(www\.)?(player\.)?vimeo\.com\/([a-z]*\/)*([??0-9]{6,11})[?]?.*', $url, $matches)>0){
+                $vimeo_id = $matches[5];
+                $hash = unserialize(file_get_contents("http://vimeo.com/api/v2/video/$vimeo_id.php"));
+                $thumb_url = $hash[0]['thumbnail_medium']; 
+                $img = get_remote_image($thumb_url);
+            }
+            */
+            
         }
     }
 

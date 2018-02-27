@@ -312,7 +312,7 @@ function EditRectypeTitle() {
 
                             var _varname = term.id;
                             
-                            rt_term.label =  '<div style="padding-left:10px;"><b>'+child[k].rt_name + '</b></div>';
+                            rt_term.label =  '<div style="padding-left:10px;"><b>'+child[k].rt_name + '</b>('+child[0]+')</div>';
                             //rt_term.href = "javascript:void(0)";
 
                             var rectypeNode = new YAHOO.widget.TextNode(rt_term, parentNode, false);
@@ -508,6 +508,21 @@ function EditRectypeTitle() {
      */
     function _doSave_Step1_Verification()
     {
+
+        function __loopNodes(node){
+            if(node.children.length===0 && node.highlightState===1){
+                return true;
+            }
+            return false;
+        }
+        
+        var res = _varsTree.getNodesBy(__loopNodes);
+        if(res && res.length>0){
+            alert('You have not yet inserted the selected fields in the title mask. Please click Insert Fields, or unselect the fields in the tree.');
+            return;
+        }
+        
+        
         var mask = document.getElementById('rty_TitleMask').value;
         //var rec_type = top.HEURIST.parameters.rectypeID;
 

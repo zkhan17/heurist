@@ -211,6 +211,11 @@ $enum_bdts = mysql__select_assoc('defDetailTypes', 'dty_ID', 'dty_Name', '(dty_T
                                 if (! array_key_exists($type, $records[$index]['details'])) {
                                     $records[$index]['details'][$type] = array();
                                 }
+                                
+                                if(!in_array($type, array_keys($enum_bdts))){
+                                       $row['trm_Label'] = null;
+                                }
+                                
                                 array_push($records[$index]['details'][$type], $row);
                             }
                         }
@@ -240,7 +245,7 @@ $enum_bdts = mysql__select_assoc('defDetailTypes', 'dty_ID', 'dty_Name', '(dty_T
                                     '" title="Click to select this record as the Master record"'.
                                     ' id="keep'.$record['rec_ID'].
                                     '" onclick="keep_bib('.$record['rec_ID'].');">';
-                                print '<span style="font-size: 120%;"><a target="edit" href="'.HEURIST_BASE_URL.'records/edit/editRecord.html?db='.HEURIST_DBNAME.'&recID='.$record['rec_ID'].'">'.$record['rec_ID'] . ' ' . '<b>'.$record['rec_Title'].'</b></a> - <span style="background-color: #EEE;">'. $rtyNameLookup[$record['rec_RecTypeID']].'</span></span>';
+                                print '<span style="font-size: 120%;"><a target="edit" href="'.HEURIST_BASE_URL.'?fmt=edit&db='.HEURIST_DBNAME.'&recID='.$record['rec_ID'].'">'.$record['rec_ID'] . ' ' . '<b>'.$record['rec_Title'].'</b></a> - <span style="background-color: #EEE;">'. $rtyNameLookup[$record['rec_RecTypeID']].'</span></span>';
                                 print '<table>';
                                 foreach ($record['details'] as $rd_type => $detail) {
                                     if (! $detail) continue;    //FIXME  check if required and mark it as missing and required
@@ -250,7 +255,13 @@ $enum_bdts = mysql__select_assoc('defDetailTypes', 'dty_ID', 'dty_Name', '(dty_T
                                     print '<tr><td style=" color: '.$color .';">'.$bdts[$rd_type].'</td>';
                                     print '<td style="padding-left:10px;">';
                                     foreach($detail as $i => $rg){
-                                        if ($rg['dtl_Value']) {
+
+                                        
+                                        if ($rg['dtl_UploadedFileID']) {
+                                            $rd_temp = mysql_fetch_array(mysql_query('select ulf_OrigFileName from recUploadedFiles where ulf_ID ='.$rg['dtl_UploadedFileID']));
+                                            $rd_temp = $rd_temp[0];
+                                        }else {
+                                            
                                             if ($rg['dtl_Geo']) {
                                                 $rd_temp = $rg['dtl_Geo'];
                                             }
@@ -261,9 +272,7 @@ $enum_bdts = mysql__select_assoc('defDetailTypes', 'dty_ID', 'dty_Name', '(dty_T
                                             else {
                                                 $rd_temp = $rg['dtl_Value'];
                                             }
-                                        }elseif ($rg['dtl_UploadedFileID']) {
-                                            $rd_temp = mysql_fetch_array(mysql_query('select ulf_OrigFileName from recUploadedFiles where ulf_ID ='.$rg['dtl_UploadedFileID']));
-                                            $rd_temp = $rd_temp[0];
+                                                                                     
                                         }
                                         if(! @$temp) $temp=$rd_temp;
                                         elseif(!is_array($temp)){
@@ -305,7 +314,7 @@ $enum_bdts = mysql__select_assoc('defDetailTypes', 'dty_ID', 'dty_Name', '(dty_T
                                     print '<tr><td>References</td><td>';
                                     $i = 1;
                                     foreach ($record["refs"] as $ref) {  //FIXME  check for reference to be a valid record else mark detail for delete and don't print
-                                        print '<a target="edit" href="'.HEURIST_BASE_URL.'records/edit/editRecord.html?db='.HEURIST_DBNAME.'&recID='.$ref.'">'.$i++.'</a> ';
+                                        print '<a target="edit" href="'.HEURIST_BASE_URL.'?fmt=edit&db='.HEURIST_DBNAME.'&recID='.$ref.'">'.$i++.'</a> ';
                                     }
                                     print '</td></tr>';
                                 }
@@ -344,7 +353,7 @@ $enum_bdts = mysql__select_assoc('defDetailTypes', 'dty_ID', 'dty_Name', '(dty_T
                                 if ($is_master) print '<td><div><b>MASTER</b></div></td>';
                                 else print '<td><div><b>Duplicate</b></div></td>';
                                 print '<td style="width: 500px;">';
-                                print '<div style="font-size: 120%;"><a target="edit" href="'.HEURIST_BASE_URL.'records/edit/editRecord.html?db='.HEURIST_DBNAME.'&recID='.$record['rec_ID'].'">'.$record['rec_ID'] . ' ' . '<b>'.$record['rec_Title'].'</b></a> - <span style="background-color: #EEE;">'. $rtyNameLookup[$record['rec_RecTypeID']].'</span></div>';
+                                print '<div style="font-size: 120%;"><a target="edit" href="'.HEURIST_BASE_URL.'?fmt=edit&db='.HEURIST_DBNAME.'&recID='.$record['rec_ID'].'">'.$record['rec_ID'] . ' ' . '<b>'.$record['rec_Title'].'</b></a> - <span style="background-color: #EEE;">'. $rtyNameLookup[$record['rec_RecTypeID']].'</span></div>';
                                 print '<table>';
                                 if ($is_master) $_SESSION['master_details']=$record['details']; // save master details for processing - signals code to do_fix_dupe
                                 foreach ($record['details'] as $rd_type => $detail) {
@@ -423,7 +432,7 @@ $enum_bdts = mysql__select_assoc('defDetailTypes', 'dty_ID', 'dty_Name', '(dty_T
                                     print '<tr><td>References</td><td>';
                                     $i = 1;
                                     foreach ($record["refs"] as $ref) {
-                                        print '<a target="edit" href="'.HEURIST_BASE_URL.'records/edit/editRecord.html?db='.HEURIST_DBNAME.'&recID='.$ref.'">'.$i++.'</a> ';
+                                        print '<a target="edit" href="'.HEURIST_BASE_URL.'?fmt=edit&db='.HEURIST_DBNAME.'&recID='.$ref.'">'.$i++.'</a> ';
                                     }
                                     print '</td></tr>';
                                 }
@@ -458,7 +467,7 @@ $enum_bdts = mysql__select_assoc('defDetailTypes', 'dty_ID', 'dty_Name', '(dty_T
                     print '<input type="button" name="close_window" id="close_window" value="Close Window"   title="Cick here to close this window" onclick="window.close();">';
                 }
                 ?>
-                <input type="hidden" name="db" id="db" value="<?=HEURIST_DBNAME?>">
+                <input type="hidden" name="db" id="db" value="<?php echo HEURIST_DBNAME;?>">
             </form>
         </div>
     </body>
@@ -526,13 +535,13 @@ function detail_str($rd_type, $rd_val) {
         if (is_array($rd_val)) {
             foreach ($rd_val as $val){
                 $title = mysql_fetch_assoc(mysql_query('select rec_Title from Records where rec_ID ='.$val));
-                $rv[] = '<a target="edit" href="'.HEURIST_BASE_URL.'records/edit/editRecord.html?db='.HEURIST_DBNAME.'&recID='.$val.'">'.$title['rec_Title'].'</a>';
+                $rv[] = '<a target="edit" href="'.HEURIST_BASE_URL.'?fmt=edit&db='.HEURIST_DBNAME.'&recID='.$val.'">'.$title['rec_Title'].'</a>';
             }
             return $rv;
         }
         else if($rd_val>0) {
             $title = mysql_fetch_assoc(mysql_query('select rec_Title from Records where rec_ID ='.$rd_val)); //ART HERE
-            return '<a target="edit" href="'.HEURIST_BASE_URL.'records/edit/editRecord.html?db='.HEURIST_DBNAME.'&recID='.$rd_val.'">'.$title['rec_Title'].'</a>';
+            return '<a target="edit" href="'.HEURIST_BASE_URL.'?fmt=edit&db='.HEURIST_DBNAME.'&recID='.$rd_val.'">'.$title['rec_Title'].'</a>';
         }
     }
     /*
@@ -575,8 +584,9 @@ function do_fix_dupe() {
     unset($_SESSION['master_rec_id']);
     $_SESSION['finished_merge'] = 1;  // set state variable for next loop
     $dup_rec_ids=array();
-    if(in_array($master_rec_id,explode(',',$_REQUEST['bib_ids'])))
+    if(in_array($master_rec_id,explode(',',$_REQUEST['bib_ids']))){
         $dup_rec_ids = array_diff(explode(',',$_REQUEST['bib_ids']),array($master_rec_id) );
+    }
     $dup_rec_list = '(' . join(',', $dup_rec_ids) . ')';
     $add_dt_ids = array();   // array of detail ids to insert for the master record grouped by detail type is
     $update_dt_ids = array(); // array of detail ids to get value for updating the master record
@@ -651,11 +661,11 @@ function do_fix_dupe() {
                 $update_detail['dtl_RecID'] = $master_rec_id;   // set this as a detail of the master record
                 mysql__insert('recDetails',$update_detail);
             }
-        }
+        }//foreach
     }
     //process adds
     if($add_dt_ids){
-        $add_details = array();
+        $add_detail = array();
         // for each add detail
         foreach($add_dt_ids as $key => $detail_ids){
             foreach($detail_ids as $detail_id){
@@ -668,13 +678,17 @@ function do_fix_dupe() {
                     unset($add_detail['dtl_ID']); //the id is auto set during insert
                     $add_detail['dtl_RecID'] = $master_rec_id;
                     mysql__insert('recDetails',$add_detail);
-                }
+                #000000
             }
         }
     }
-
+    }
+    
     foreach ($dup_rec_ids as $dup_rec_id) {
         //saw FIXME we should be updating the chain of links
+        //find all references to $dup_rec_id that will be removed
+        mysql_query('update recForwarding set rfw_NewRecID='.$master_rec_id.' where rfw_NewRecID='.$dup_rec_id);
+        
         mysql_query('insert into recForwarding (rfw_OldRecID, rfw_NewRecID) values ('.$dup_rec_id.', '.$master_rec_id.')');
         //saw FIXME  we should update the relationship table on both rr_rec_idxxx  fields
     }
@@ -785,6 +799,6 @@ function do_fix_dupe() {
 
 
     header('Location: combineDuplicateRecords.php?db='.HEURIST_DBNAME.'&bib_ids='.$_REQUEST['bib_ids']);
-}
 
+}
 ?>

@@ -170,8 +170,10 @@ function DetailTypeEditor() {
 
             
             $("#topdiv_closebtn").click(function(){if(_dialogbox) top.HEURIST.util.closePopup(_dialogbox.id);});
+            $('#btnSave').attr('value','Create Field');
         }else{
-        
+            $('#btnSave').attr('value','Save Field');
+            
             //var el = Dom.get("dty_Type");
             //el.val(top.HEURIST.detailTypes.lookups[value]);
             _dty_Type = _detailType[fi.dty_Type];
@@ -726,14 +728,34 @@ function DetailTypeEditor() {
         //take only changed values
         for (i = 0, l = fnames.length; i < l; i++){
             var fname = fnames[i];
-            el = Dom.get(fname);
+            el = $('#'+fname);
+      
+            if( el.length>0 ){
+                if (Hul.isempty(el.val())) {
+                    if(fname=='dty_Status'){
+                        el.val('open');
+                    }else if(fname=='dty_NonOwnerVisibility'){
+                        el.val('viewable');
+                    }
+                }
+
+        
+                if(_dtyID<0 || (el.val()!==String(_detailType[i]) && !(el.val()==="" && _detailType[i]===null)))
+                {
+                    _updatedFields.push(fname);
+                    _updatedDetails.push(el.val());
+                }
+            }
+            
+            
+            /*el = Dom.get(fname);
             if( !Hul.isnull(el) ){
                 if(_dtyID<0 || (el.value!==String(_detailType[i]) && !(el.value==="" && _detailType[i]===null)))
                 {
                     _updatedFields.push(fname);
                     _updatedDetails.push(el.value);
                 }
-            }
+            }*/
         }
 
         // check mandatory fields
@@ -766,7 +788,8 @@ function DetailTypeEditor() {
             var dd = Dom.get("dty_JsonTermIDTree").value;
             if( dd==="" || dd==="{}" ) {
                 if(isShowWarn) {
-                    top.HEURIST.util.showError("For a terms list field you must select at least one term. Please click 'Change vocabulary'");
+                    top.HEURIST.util.showError(
+                        'Please select or add a vocabulary. Vocabularies must contain at least one term.', 'Warning');
                 }
                 _updatedFields = [];
                 return "mandatory";
@@ -1055,7 +1078,7 @@ function DetailTypeEditor() {
 		    	
 		    	
 			var body = $(this.document).find('body');
-            var dim = { h:700, w:980 };//Math.max(900, body.innerWidth()-10) };		    	
+            var dim = { h:530, w:800 };//Math.max(900, body.innerWidth()-10) };		    	
 		    	
             Hul.popupURL(window, top.HEURIST.baseURL +
                 "admin/structure/fields/selectFieldType.html?&db="+_db,

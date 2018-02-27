@@ -94,6 +94,8 @@
     }
 
     //
+    // returns counts for facets for given query
+    //
     // @param mixed $system
     // @param mixed $params - array or parameters
     //      q - JSON query array
@@ -102,6 +104,10 @@
     // @return
     //
     function recordSearchFacets($system, $params){
+        
+        define('_FT_SELECT', 1);
+        define('_FT_LIST', 2);
+        define('_FT_COLUMN', 3);
 
         //for error message
         $savedSearchName = @$params['qname']?"Saved search: ".$params['qname']."<br>":"";
@@ -114,7 +120,15 @@
             $dt_type     = @$params['type'];
             $step_level  = @$params['step'];
             $fieldid     = $params['field'];
-            $facet_type =  @$params['facet_type'];
+            $facet_type =  @$params['facet_type']; //0 direct search search, 1 - select/slider, 2 - list inline, 3 - list column
+            $facet_groupby =  @$params['facet_groupby'];  //by first char for freetext, by year for dates, by level for enum
+            $vocabulary_id =  @$params['vocabulary_id'];  //special case for groupby first level
+            $limit         = @$params['limit']; //limit for preview
+            
+            //special parameter to avoid nested queries - it allows performs correct count for distinct target record type
+            //besides it return correct field name to be used in count function
+            $params['nested'] = (@$params['needcount']!=2); 
+            
 
             //do not include bookmark join
             if(!(strcasecmp(@$params['w'],'B') == 0  ||  strcasecmp(@$params['w'],BOOKMARK) == 0)){
@@ -154,16 +168,92 @@
             if($dt_type=="date"){
 
                     $details_where = $details_where." AND (cast(getTemporalDateString(".$select_field.") as DATETIME) is not null  OR cast(getTemporalDateString(".$select_field.") as SIGNED) is not null)";
+                
+                    //for dates we search min and max values to provide data to slider
+                    //@todo facet_groupby   by year, day, month, decade, century
+                    if($facet_groupby=='year' || $facet_groupby=='decade' || $facet_groupby=='century'){
+                        
+                        $select_field = '(cast(getTemporalDateString('.$select_field.') as SIGNED))';
+                        //'YEAR(cast(getTemporalDateString('.$select_field.') as DATE))';
+                        if($facet_groupby=='decade'){
+                            $select_field = $select_field.' DIV 10 * 10';
+                        }else if($facet_groupby=='century'){
+                            $select_field = $select_field.' DIV 100 * 100';
+                        }
+                        
+                        
+                        $select_clause = "SELECT $select_field as rng, count(*) as cnt ";
+                        if($grouporder_clause==''){
+                            $grouporder_clause = ' GROUP BY rng ORDER BY rng';
+                            //" GROUP BY $select_field ORDER BY $select_field";
+                        }
+                        
+                    }else{    
 
-                    $select_field = "cast(if(cast(getTemporalDateString(".$select_field.") as DATETIME) is null,"
-                        ."concat(cast(getTemporalDateString(".$select_field.") as SIGNED),'-1-1'),"
-                        ."getTemporalDateString(".$select_field.")) as DATETIME)";
+                        $select_field = "cast(if(cast(getTemporalDateString(".$select_field.") as DATETIME) is null,"
+                            ."concat(cast(getTemporalDateString(".$select_field.") as SIGNED),'-1-1'),"
+                            ."getTemporalDateString(".$select_field.")) as DATETIME)";
 
-                    $select_clause = "SELECT min($select_field) as min, max($select_field) as max, count(distinct r0.rec_ID) as cnt ";
+                        $select_clause = "SELECT min($select_field) as min, max($select_field) as max, count(distinct r0.rec_ID) as cnt ";
+                    
+                    }
 
             }
-            else if((($dt_type=="integer" || $dt_type=="float") && $facet_type==1) || $dt_type=="year"){
-
+            else if($dt_type=="enum" && $facet_groupby=='firstlevel' && $vocabulary_id!=null){ 
+            
+                //NOTE - it applies for VOCABULARY only (individual selection of terms is not applicable)
+                
+                // 1. get first level of terms using $vocabulary_id 
+                $first_level = getTermChildren($vocabulary_id, $system, true); //get first level for vocabulary
+                
+//error_log($vocabulary_id.'  '.print_r($first_level, true));                                
+                
+                // 2.  find all children as plain array  [[parentid, child_id, child_id....],.....]
+                $terms = array();
+                foreach ($first_level as $parentID){
+                    $children = getTermChildren($parentID, $system, false); //get first level for vocabulary    
+                    array_unshift($children, $parentID);
+                    array_push($terms, $children);
+                }
+//error_log(print_r($terms, true));                
+                //3.  find distinct count for recid for every set of terms
+                $select_clause = "SELECT count(distinct r0.rec_ID) as cnt ";
+                
+                $data = array();
+                
+                foreach ($terms as $vocab){
+                    $d_where = $details_where.' AND ('.$select_field.' IN ('.implode(',', $vocab).'))';
+                    //count query
+                    $query =  $select_clause.$qclauses['from'].$detail_link.' WHERE '.$qclauses['where'].$d_where;
+                    
+                    /*if($limit>0){
+                        $query = $query.' LIMIT '.$limit;    
+                    }*/
+                    
+//error_log($query);                    
+                    $res = $mysqli->query($query);
+                    if (!$res){
+                        return $system->addError(HEURIST_DB_ERROR, $savedSearchName
+                        .'Facet query error. Parameters:'.print_r($params, true), $mysqli->error);
+                    }else{
+                        $row = $res->fetch_row();
+                        
+                        //firstlevel term id, count, search value (set of all terms)
+                        if($row[0]>0){
+                            array_push($data, array($vocab[0], $row[0], implode(',', $vocab) )); 
+                            $res->close();
+                        }
+                    }
+                
+                }//for
+                return array("status"=>HEURIST_OK, "data"=> $data, "svs_id"=>@$params['svs_id'], 
+                            "request_id"=>@$params['request_id'], //'dbg_query'=>$query,
+                            "facet_index"=>@$params['facet_index'], 'q'=>$params['q'] );
+                
+            }
+            //SLIDER
+            else if((($dt_type=="integer" || $dt_type=="float") && $facet_type==_FT_SELECT) || $dt_type=="year"){
+                    
                     //if ranges are not defined there are two steps 1) find min and max values 2) create select case
                     $select_field = "cast($select_field as DECIMAL)";
 
@@ -176,33 +266,52 @@
 
                     $select_field = "cast($select_field as DECIMAL)";
                     
-                }else if($step_level>0 || !($dt_type=="freetext" || $dt_type=="integer" || $dt_type=="float")){
-
-                }else{
-                    $select_field = "SUBSTRING(trim(".$select_field."), 1, 1)";
+                }else if($step_level==0 && $dt_type=="freetext"){ 
+                    
+                    $select_field = 'SUBSTRING(trim('.$select_field.'), 1, 1)';    //group by first charcter                }
                 }
 
                 if($params['needcount']==1){
 
-                    $select_clause = "SELECT $select_field as rng, count(*) as cnt ";
+                    $select_clause = "SELECT $select_field as rng, count(DISTINCT r0.rec_ID) as cnt ";
                     if($grouporder_clause==""){
                             $grouporder_clause = " GROUP BY $select_field ORDER BY $select_field";
                     }
 
-                }else if($params['needcount']==2){ //count for related
-
-                    $select_clause = "SELECT $select_field as rng, count(distinct r0.rec_ID) as cnt ";
+                }else{ //count for related  if($params['needcount']==2)
+                
+                    /*temp solution for single level linkage only
+                    if(strpos($qclauses["where"],'recLinks rl0_')===false){
+                        if (strpos($qclauses["where"],'rl0x1.rl_SourceID IN')>0){
+                            $select_clause = "SELECT $select_field as rng, count(DISTINCT rl0x1.rl_SourceID) as cnt ";
+                        }else if (strpos($qclauses["where"],'rl0x1.rl_TargetID IN')>0){
+                            $select_clause = "SELECT $select_field as rng, count(DISTINCT rl0x1.rl_TargetID) as cnt ";   
+                        }
+                    }else{
+                        // it counts linked records, thus
+                        // it returns wrong value if there is more than one linked record per target record type
+                        $select_clause = "SELECT $select_field as rng, count(*) as cnt ";
+                    }
+                    */
+                    
+                    $tab = 'r0';
+                    while(strpos($qclauses["from"], 'Records '.$tab.'_0')>0){
+                        $tab = $tab.'_0';
+                    }
+                    $select_clause = "SELECT $select_field as rng, count(DISTINCT ".$tab.".rec_ID) as cnt ";
+                    
                     if($grouporder_clause==""){
                             $grouporder_clause = " GROUP BY $select_field ORDER BY $select_field";
                     }
 
-                }else{ //for fields from related records - search distinc values only
+                }
+                /*else{ //for fields from related records - search distinc values only
 
                     $select_clause = "SELECT DISTINCT $select_field as rng, 0 as cnt ";
                     if($grouporder_clause==""){
                             $grouporder_clause = " ORDER BY $select_field";
                     }
-                }
+                }*/
 
             }
 
@@ -210,10 +319,16 @@
             //count query
             $query =  $select_clause.$qclauses["from"].$detail_link." WHERE ".$qclauses["where"].$details_where.$grouporder_clause;
 
+            /*
+            if($limit>0){
+                $query = $query.' LIMIT '.$limit;    
+            }
+            */
 
             //
-//DEBUG
+//DEBUG     facet search
 //if(@$params['debug']) echo $query."<br>";
+//error_log($query);
 
             $res = $mysqli->query($query);
             if (!$res){
@@ -224,17 +339,31 @@
 
                 while ( $row = $res->fetch_row() ) {
 
-                    if((($dt_type=="integer" || $dt_type=="float") && $facet_type==1)   || $dt_type=="year" || $dt_type=="date"){
-                        $third_element = $row[2];
+                    if((($dt_type=="integer" || $dt_type=="float") && $facet_type==_FT_SELECT)  || 
+                            (($dt_type=="year" || $dt_type=="date") && $facet_groupby==null)  ){
+                        $third_element = $row[2];          // slider - third parameter is MAX for range
+                    }else if ($dt_type=="year" || $dt_type=="date") {
+                        
+                        if($facet_groupby=='decade'){
+                            $third_element = $row[0]+10;
+                            //$row[0] = $row[0].'-01-01';
+                        }else if($facet_groupby=='century'){
+                            $third_element = $row[0]+100;
+                            //$row[0] = $row[0].'-01-01';
+                        }
+                        
+                        $third_element = $row[0];
+                    }else if($step_level==0 && $dt_type=="freetext"){
+                        $third_element = $row[0].'%';      // first character
                     }else if($step_level>0 || $dt_type!='freetext'){
                         $third_element = $row[0];
-                    }else{
-                        $third_element = $row[0].'%';
                     }
-
+                    
+                    //value, count, second value(max for range) or search value for firstchar
                     array_push($data, array($row[0], $row[1], $third_element ));
                 }
                 $response = array("status"=>HEURIST_OK, "data"=> $data, "svs_id"=>@$params['svs_id'], 
+                            "request_id"=>@$params['request_id'], //'dbg_query'=>$query,
                             "facet_index"=>@$params['facet_index'], 'q'=>$params['q'] );
                 $res->close();
             }
@@ -251,35 +380,28 @@
     *
     * @param mixed $system
     * @param mixed $ids -
+    * @param mixed $direction -  1 direct/ -1 reverse/ 0 both
     *
     * @return array of direct and reverse links (record id, relation type (termid), detail id)
     */
-    function recordSearchRelated($system, $ids){
+    function recordSearchRelated($system, $ids, $direction=0){
 
         if(!@$ids){
             return $system->addError(HEURIST_INVALID_REQUEST, "Invalid search request");
         }
         if(is_array($ids)){
-            $ids = explode(",", $ids);
+            $ids = implode(",", $ids);
         }
-
+        if(!($direction==1||$direction==-1)){
+            $direction = 0;
+        }
+        
+        $rel_ids = array();
         $direct = array();
         $reverse = array();
         $headers = array(); //record title and type for main record
 
         $mysqli = $system->get_mysqli();
-        
-        //find all rectitles and record types for main recordset
-        $query = 'SELECT rec_ID, rec_Title, rec_RecTypeID from Records where rec_ID in ('.$ids.')';
-        $res = $mysqli->query($query);
-        if (!$res){
-            return $system->addError(HEURIST_DB_ERROR, "Search query error on search related. Query ".$query, $mysqli->error);
-        }else{
-                while ($row = $res->fetch_row()) {
-                    $headers[$row[0]] = array($row[1], $row[2]);   
-                }
-                $res->close();
-        }
         
         
         //find all target related records
@@ -298,6 +420,8 @@
                     $relation->dtID  = intval($row[3]);
                     $relation->relationID  = intval($row[4]);
                     array_push($direct, $relation);
+                    
+                    array_push($rel_ids, intval($row[1]));
                 }
                 $res->close();
         }
@@ -319,10 +443,29 @@
                     $relation->dtID  = intval($row[3]);
                     $relation->relationID  = intval($row[4]);
                     array_push($reverse, $relation);
+                    
+                    array_push($rel_ids, intval($row[1]));
                 }
                 $res->close();
         }
-
+        
+        
+        //find all rectitles and record types for main recordset AND all related records
+        if(!is_array($ids)){
+            $ids = explode(',',$ids);
+        }
+        $ids = array_merge($ids, $rel_ids);        
+        $query = 'SELECT rec_ID, rec_Title, rec_RecTypeID from Records where rec_ID in ('.implode(',',$ids).')';
+        $res = $mysqli->query($query);
+        if (!$res){
+            return $system->addError(HEURIST_DB_ERROR, "Search query error on search related. Query ".$query, $mysqli->error);
+        }else{
+                while ($row = $res->fetch_row()) {
+                    $headers[$row[0]] = array($row[1], $row[2]);   
+                }
+                $res->close();
+        }
+        
         $response = array("status"=>HEURIST_OK,
                      "data"=> array("direct"=>$direct, "reverse"=>$reverse, "headers"=>$headers));
 
@@ -381,6 +524,7 @@
 
     }
 
+    //-----------------------------------------------------------------------
     /**
     * put your comment there...
     *
@@ -432,39 +576,78 @@
         if(!@$params['detail']){
             $params['detail'] = @$params['f']; //backward capability
         }
+        
 
+        $fieldtypes_in_res = null;
         $istimemap_request = (@$params['detail']=='timemap');
         $istimemap_counter = 0; //total records with timemap data
+        $needThumbField = false;
+        $needThumbBackground = false;
+        $needCompleteInformation = false; //if true - get all header fields and relations
+        $relations = null;
 
+        if(@$params['detail']=='complete'){
+            $params['detail'] = 'detail';
+            $needCompleteInformation = true;
+        }
         
         $fieldtypes_ids = null;
         if($istimemap_request){
              //get date,year and geo fields from structure
              $fieldtypes_ids = dbs_GetDetailTypes($system, array('date','year','geo'), 3);
              if($fieldtypes_ids==null || count($fieldtypes_ids)==0){
+                //this case nearly impossible since system always has date and geo fields 
                 $fieldtypes_ids = array(DT_GEO_OBJECT, DT_DATE, DT_START_DATE, DT_END_DATE); //9,10,11,28';    
              }
              $fieldtypes_ids = implode(',', $fieldtypes_ids);
-             
+             $needThumbField = true;
 //DEBUG error_log('timemap fields '.$fieldtypes_ids);
              
-        }else if(  !in_array(@$params['detail'], array('header','timemap','detail','structure')) ){
+        }else if(  !in_array(@$params['detail'], array('header','timemap','detail','structure')) ){ //list of specific detailtypes
             //specific set of detail fields
             if(is_array($params['detail'])){
                 $fieldtypes_ids = $params['detail'];
             } else {
                 $fieldtypes_ids = explode(',', $params['detail']);
             }
-            if(is_array($fieldtypes_ids) && (count($fieldtypes_ids)>1 || is_numeric($fieldtypes_ids[0])) ){
-                $fieldtypes_ids = implode(',', $fieldtypes_ids);
-                $params['detail'] = 'detail';
+            
+            if(is_array($fieldtypes_ids) && count($fieldtypes_ids)>0)  
+            //(count($fieldtypes_ids)>1 || is_numeric($fieldtypes_ids[0])) )
+            {
+                $f_res = array();
+                
+                foreach ($fieldtypes_ids as $dt_id){
+                    
+                    if(is_numeric($dt_id) && $dt_id>0){
+                        array_push($f_res, $dt_id);
+                    }else if($dt_id=='rec_ThumbnailURL'){
+                        $needThumbField = true;
+                    }else if($dt_id=='rec_ThumbnailBg'){
+                        $needThumbBackground = true;
+                    }
+                }
+                if(count($f_res)>0){
+                    $fieldtypes_ids = implode(',', $f_res);
+                    $params['detail'] = 'detail';
+                    $needThumbField = true;
+                }else{
+                    $fieldtypes_ids = null;
+                }
+                
             }else{
                 $fieldtypes_ids = null;
                 $params['detail'] = 'ids';
             }
 
+        }else{
+            $needThumbField = true;
         }
-
+        
+       
+        //specific for boro parameters - returns prevail bg color for thumbnail image
+        $needThumbBackground = $needThumbBackground || (@$params['thumb_bg']==1); 
+        
+        
         $is_count_only = ('count'==$params['detail']);
         $is_ids_only = ('ids'==$params['detail']);
         $return_h3_format = (@$params['vo']=='h3' &&  $is_ids_only);
@@ -507,11 +690,20 @@
             .'rec_Title,'
             .'rec_OwnerUGrpID,'
             .'rec_NonOwnerVisibility,'
+            .'rec_Modified,'
             .'bkm_PwdReminder ';
             /*.'rec_URLLastVerified,'
             .'rec_URLErrorMessage,'
             .'bkm_PwdReminder ';*/
 
+            
+            if($needCompleteInformation){
+            $select_clause = $select_clause
+            .',rec_Added'
+            .',rec_AddedByUGrpID'
+            .',rec_ScratchPad'
+            .',bkm_Rating ';
+            }
         }
 
         if($currentUser && @$currentUser['ugr_ID']>0){
@@ -568,7 +760,11 @@
             
             $resSearch = recordSearch($system, $params);
 
-            $keepMainSet = true;
+            $keepMainSet = (@$params['rulesonly']!=1);
+            
+            if(is_array($resSearch) && $resSearch['status']!=HEURIST_OK){
+                return $resSearch;
+            }
             
             if($keepMainSet){
                 //find main query results
@@ -577,10 +773,15 @@
                 $flat_rules[0]['results'] = $is_ids_only ?$fin_result['data']['records'] 
                                                      :array_keys($fin_result['data']['records']); //get ids
             }else{
-                //empty main result set
-                
                 //remove from $fin_result! but keep in $flat_rules[0]['results']?
+                $flat_rules[0]['results'] = $is_ids_only ?$resSearch['data']['records'] 
+                                                     :array_keys($resSearch['data']['records']); //get ids
                 
+                //empty main result set
+                $fin_result = $resSearch;
+                $fin_result['data']['records'] = array();
+                $fin_result['data']['reccount'] = 0;
+                $fin_result['data']['count'] = 0;
             }
 
             $is_get_relation_records = (@$params['getrelrecs']==1); //get all related and relationship records
@@ -607,6 +808,8 @@
                         //$params3['detail'] = 'ids';  //no need in details for preliminary results  ???????
                     }
 
+//DEBUg  error_log(print_r($params3,true));                    
+                    
                     $response = recordSearch($system, $params3);
 
                     if($response['status'] == HEURIST_OK){
@@ -616,27 +819,34 @@
 
                                 $fin_result['data']['records'] = array_merge_unique($fin_result['data']['records'], 
                                                                              $response['data']['records']);
-                                                                             
+
                             }else{
                                 $fin_result['data']['records'] = mergeRecordSets($fin_result['data']['records'], 
                                                                                  $response['data']['records']);
 
+                                $fin_result['data']['fields_detail'] = array_merge_unique($fin_result['data']['fields_detail'], 
+                                                                             $response['data']['fields_detail']);
+                                                                                 
+                                $fin_result['data']['rectypes'] = array_merge_unique($fin_result['data']['rectypes'], 
+                                                                             $response['data']['rectypes']);
+                                                                                 
                                 $fin_result['data']['order'] = array_merge($fin_result['data']['order'], 
                                                                         array_keys($response['data']['records']));
+                                                                        /*
                                 foreach( array_keys($response['data']['records']) as $rt){
                                     $rectype_id = @$rt['4'];
                                     if($rectype_id){
-                                        /*if(@$fin_result['data']['rectypes'][$rectype_id]){
-                                            $fin_result['data']['rectypes'][$rectype_id]++;
-                                        }else{
-                                            $fin_result['data']['rectypes'][$rectype_id]=1;
-                                        }*/
+                                        //if(@$fin_result['data']['rectypes'][$rectype_id]){
+                                        //    $fin_result['data']['rectypes'][$rectype_id]++;
+                                        //}else{
+                                        //    $fin_result['data']['rectypes'][$rectype_id]=1;
+                                        //}
                                         if(!array_key_exists($rectype_id, $fin_result['data']['rectypes'])){
                                             $fin_result['data']['rectypes'][$rectype_id] = 1;
                                         }
                                     }
-
                                 }
+                                */
                             }
 
                             if(!$is_last){ //add top ids for next level
@@ -772,7 +982,7 @@
 
             
 
-            if($is_count_only || ($is_ids_only && @$params['needall'])){
+            if($is_count_only || ($is_ids_only && @$params['needall']) || !$system->has_access() ){ //not logged in
                 $search_detail_limit = PHP_INT_MAX;
                 $aquery["limit"] = '';
             }else{
@@ -788,7 +998,9 @@
 
         }
         
-//error_log($istimemap_request.' Q='.$query);                
+//error_log(' Q='.$query);                
+//DEBUG 
+//return $system->addError(HEURIST_INVALID_REQUEST,  'DEBUG:'.$query);
 
 //error_log($istimemap_request.' limit '.$aquery["limit"]);
 
@@ -801,7 +1013,7 @@
         }else if($is_count_only){
         
                 $total_count_rows = $res->fetch_row();
-                $total_count_rows = (int)$row[0];
+                $total_count_rows = (int)$total_count_rows[0];
                 $res->close();
                 
                 $response = array('status'=>HEURIST_OK,
@@ -847,6 +1059,7 @@
                         $response = array('status'=>HEURIST_OK,
                             'data'=> array(
                                 'queryid'=>@$params['id'],  //query unqiue id
+                                'entityName'=>'Records',
                                 'count'=>$total_count_rows,
                                 'offset'=>get_offset($params),
                                 'reccount'=>count($records),
@@ -875,13 +1088,20 @@
                     foreach($_flds as $fld){
                         array_push($fields, $fld->name);
                     }
-                    array_push($fields, 'rec_ThumbnailURL');
+                    if($needThumbField) array_push($fields, 'rec_ThumbnailURL');
+                    if($needThumbBackground) array_push($fields, 'rec_ThumbnailBg');
                     //array_push($fields, 'rec_Icon'); //last one -icon ID
 
                     
                     // load all records
                     while ($row = $res->fetch_row()) {
-                        array_push( $row, ($fieldtypes_ids)?'':fileGetThumbnailURL($system, $row[2]) );
+
+                        if($needThumbField) {
+                            $tres = fileGetThumbnailURL($system, $row[2], $needThumbBackground);   
+                            array_push( $row, $tres['url'] );
+                            if($needThumbBackground) array_push( $row, $tres['bg_color'] );
+                        }
+                        
                         //array_push( $row, $row[4] ); //by default icon if record type ID
                         $records[$row[2]] = $row;
                         array_push($order, $row[2]);
@@ -907,7 +1127,8 @@
                                     $rectypes = array();
                                     $istimemap_counter = 0;
                             }
-                     
+                            
+                    $fieldtypes_in_res = array(); //reset
                      
 //error_log('total '.$res_count.'  '.$istimemap_request);                     
 $loop_cnt=1;                            
@@ -921,7 +1142,6 @@ $loop_cnt=1;
 
                             //search for specific details
                             if($fieldtypes_ids!=null && $fieldtypes_ids!=''){
-
                                 $detail_query =  'select dtl_RecID,'
                                 .'dtl_DetailTypeID,'     // 0
                                 .'dtl_Value,'            // 1
@@ -931,15 +1151,22 @@ $loop_cnt=1;
                                 .' and dtl_DetailTypeID in ('.$fieldtypes_ids.')';
                                 
                             }else{
+                                
+                                if($needCompleteInformation){
+                                    $ulf_fields = 'f.ulf_OrigFileName,f.ulf_ExternalFileReference,f.ulf_ObfuscatedFileID,'
+                                                    .'f.ulf_MimeExt, f.ulf_Parameters';  //4,5,6,7,8
+                                }else{
+                                    $ulf_fields = 'f.ulf_ObfuscatedFileID, f.ulf_Parameters';  //4,5
+                                }
+                                
                                 $detail_query = 'select dtl_RecID,'
                                 .'dtl_DetailTypeID,'     // 0
                                 .'dtl_Value,'            // 1
                                 .'AsWKT(dtl_Geo),'    // 2
                                 .'dtl_UploadedFileID,'   // 3
-                                .'recUploadedFiles.ulf_ObfuscatedFileID,'   // 4
-                                .'recUploadedFiles.ulf_Parameters '         // 5
-                                .'from recDetails
-                                  left join recUploadedFiles on ulf_ID = dtl_UploadedFileID
+                                .$ulf_fields   
+                                .' from recDetails
+                                  left join recUploadedFiles as f on f.ulf_ID = dtl_UploadedFileID
                                 where dtl_RecID in (' . join(',', $chunk_rec_ids) . ')';
 
                             }
@@ -947,7 +1174,6 @@ $loop_cnt=1;
 $loop_cnt++;                          
                             // @todo - we may use getAllRecordDetails
                             $res_det = $mysqli->query( $detail_query );
-
 
                             if (!$res_det){
                                 $response = $system->addError(HEURIST_DB_ERROR, 
@@ -967,13 +1193,31 @@ $loop_cnt++;
                                     
                                     if($row[2]){
                                         $val = $row[1].' '.$row[2];     //dtl_Geo @todo convert to JSON
-                                    }else if($row[3]){
-                                        $val = array($row[4], $row[5]); //obfuscated value for fileid
-                                    }else if(@$row[1]) {
+                                    }else if($row[3]){ //uploaded file
+                                    
+                                        if($needCompleteInformation){
+
+                                            $params = fileParseParameters($row[8]);//ulf_Parameters
+                                            
+                                            $val = array('ulf_ID'=>$row[3],
+                                                         'ulf_OrigFileName'=>$row[4],
+                                                         'ulf_ExternalFileReference'=>$row[5],
+                                                         'ulf_ObfuscatedFileID'=>$row[6],
+                                                         'ulf_MimeExt'=>$row[7],
+                                                         'mediaType'=>$params['mediaType'],
+                                                         'remoteSource'=>$params['remoteSource']);
+
+                                            
+                                        }else{
+                                            $val = array($row[4], $row[5]); //obfuscated value for fileid and parameters
+                                        }
+                                    
+                                    }else if(@$row[1]!=null) {
                                         $val = $row[1];
                                     }
                                     
-                                    if($val){
+                                    if($val!=null){
+                                        $fieldtypes_in_res[$dtyID] = 1;
                                         if( !array_key_exists($dtyID, $records[$recID]['d']) ){
                                             $records[$recID]['d'][$dtyID] = array();
                                         }
@@ -1044,11 +1288,21 @@ $loop_cnt++;
                             //error_log('maptime. total '.count($records).'  toclnt='.count($tm_records).' tot_tm='.$istimemap_counter);                                   
                                    $records = $tm_records;
                                    $total_count_rows = $istimemap_counter;
+                            }else
+                            if($needCompleteInformation){
+                                $relations = recordSearchRelated($system, $all_rec_ids);
+                                if($relations['status']==HEURIST_OK){
+                                    $relations = $relations['data'];
+                                }
+                                //array("direct"=>$direct, "reverse"=>$reverse, "headers"=>$headers));
                             }
+            
+                            
+                            
                     }//$need_details
 
                         $rectypes = array_keys($rectypes);
-                        if( $params['detail']=='structure' && count($rectypes)>0){ //rarely used in editing.js
+                        if( @$params['detail']=='structure' && count($rectypes)>0){ //rarely used in editing.js
                               //description of recordtype and used detail types
                               $rectype_structures = dbs_GetRectypeStructures($system, $rectypes, 1); //no groups
                         }
@@ -1058,18 +1312,24 @@ $loop_cnt++;
                             'data'=> array(
                                 //'query'=>$query,
                                 'queryid'=>@$params['id'],  //query unqiue id
+                                'pageno'=>@$params['pageno'],  //to sync page 
+                                'entityName'=>'Records',
                                 'count'=>$total_count_rows,
                                 'offset'=>get_offset($params),
                                 'reccount'=>count($records),
                                 'tmcount'=>$istimemap_counter,
                                 'fields'=>$fields,
+                                'fields_detail'=>array(),
                                 'records'=>$records,
                                 'order'=>$order,
                                 'rectypes'=>$rectypes,
                                 'limit_warning'=>$limit_warning,
                                 'memory_warning'=>$memory_warning));
-                        if($fieldtypes_ids){
-                              $response['data']['fields_detail'] =  explode(',', $fieldtypes_ids);
+                        if(is_array($fieldtypes_in_res)){
+                              $response['data']['fields_detail'] =  array_keys($fieldtypes_in_res);
+                        }
+                        if(is_array($relations)){
+                                $response['data']['relations'] =  $relations;
                         }
 
                 }//$is_ids_only
@@ -1153,6 +1413,25 @@ $loop_cnt++;
     function _getTimemapRecords($res){
         
         
+    }
+
+    //backward capability - remove as soon as old uploadFileOrDefineURL get rid of use
+    function fileParseParameters($params){
+        $res = array();
+        if($params){
+            $pairs = explode('|', $params);
+            foreach ($pairs as $pair) {
+                if(strpos($pair,'=')>0){
+                    list($k, $v) = explode("=", $pair); //array_map("urldecode", explode("=", $pair));
+                    $res[$k] = $v;
+                }
+            }
+        }
+        
+        $res["mediaType"] = (array_key_exists('mediatype', $res))?$res['mediatype']:null;
+        $res["remoteSource"] = (array_key_exists('source', $res))?$res['source']:null;
+        
+        return $res;
     }
     
 ?>

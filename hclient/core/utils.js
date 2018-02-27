@@ -97,13 +97,18 @@ window.hWin.HEURIST4.util = {
           }
           $.each(element, function(idx, ele){
               ele = $(ele);
-              if (mode) {
-                    ele.prop('disabled', 'disabled');
-                    ele.addClass('ui-state-disabled');
-              }else{
-                    ele.removeProp('disabled');
-                    ele.removeClass('ui-state-disabled');
-              }
+              
+              //if(mode !== (ele.prop('disabled')=='disabled')){
+              
+                  if (mode) {
+                        ele.prop('disabled', 'disabled');
+                        ele.addClass('ui-state-disabled');
+                  }else{
+                        ele.removeProp('disabled');
+                        ele.removeClass('ui-state-disabled ui-button-disabled');
+                  }
+              
+              //}
           });
       }
     },
@@ -177,7 +182,9 @@ window.hWin.HEURIST4.util = {
                 if(!window.hWin.HEURIST4.util.isempty(query_request.rules)){
                     //@todo simplify rules array - rempove redundant info
                     query_string = query_string + '&rules=' + 
-                        (encode?encodeURIComponent(query_request.rules):query_request.rules);
+                        (encode?encodeURIComponent(query_request.rules):query_request.rules) + 
+                        ((query_request.rulesonly==1 || query_request.rulesonly==true)?'&rulesonly=1':'');
+                        
                 }
             }else{
                 query_string = query_string + '&w=all';
@@ -185,34 +192,98 @@ window.hWin.HEURIST4.util = {
             return query_string;        
     },
 
-    composeHeuristQuery2: function(params){
-        if(params)
-            return window.hWin.HEURIST4.util.composeHeuristQuery(params.q, params.w, params.rules, params.notes);
-        else
+    composeHeuristQuery2: function(params, encode){
+        if(params){
+        
+            var rules = params.rules;
+            rules = window.hWin.HEURIST4.util.cleanRules(rules);  
+            if(rules!=null){ 
+                rules = JSON.stringify(rules);
+            }
+        
+            return window.hWin.HEURIST4.util.composeHeuristQuery(params.q, 
+                                        params.w, rules, params.rulesonly, params.notes, encode);
+        }else
             return '?';
     },
 
-    composeHeuristQuery: function(query, domain, rules, notes){
+    composeHeuristQuery: function(query, domain, rules, rulesonly, notes, encode){
             var query_to_save = [];
             if(!(window.hWin.HEURIST4.util.isempty(domain) || domain=="all")){
                 query_to_save.push('w='+domain);
             }
             if(!window.hWin.HEURIST4.util.isempty(query)){
-               query_to_save.push('q='+query);
+                
+               if($.isArray(query) || $.isPlainObject(query)){
+                  query = JSON.stringify(query);
+               }  
+               query_to_save.push('q='+ (encode?encodeURIComponent(query):query) );
             }
             if(!window.hWin.HEURIST4.util.isempty(rules)){
-               query_to_save.push('rules='+rules);
+              query_to_save.push('rules='+ (encode?encodeURIComponent(rules):rules));
+              if(rulesonly==1 || rulesonly==true){
+                  query_to_save.push('rulesonly=1');
+              }
             }
             if(!window.hWin.HEURIST4.util.isempty(notes)){
-               query_to_save.push('notes='+notes);
+               query_to_save.push('notes='+ (encode?encodeURIComponent(notes):notes));
             }
             return '?'+query_to_save.join('&');
+    },
+    
+    
+    cleanRules: function(rules){
+        
+        if(window.hWin.HEURIST4.util.isempty(rules)){
+            return null;
+        }
+        
+        if(typeof rules==='string'){
+            try{
+                rules = JSON.parse(rules);
+            }catch(ex){
+                return null;
+            }
+        }
+        
+        for(var k=0; k<rules.length; k++){
+            delete rules[k]['codes'];
+            var rl = null;
+            if(rules[k]['levels'] && rules[k]['levels'].length>0){
+                var rl = window.hWin.HEURIST4.util.cleanRules(rules[k]['levels']);
+            }
+            if(rl==null){
+                delete rules[k]['levels'];    
+            }else{
+                rules[k]['levels'] = rl;    
+            }
+            
+        }
+        
+        return rules;        
     },
 
     //
     // both parameter should be JSON array or Object
     //
-    mergeHeuristQuery: function(query1, query2){
+    mergeHeuristQuery: function(){
+        
+        var res_query = [];
+        
+        if(arguments.length>0){
+
+            var idx=1, len = arguments.length;
+            
+            res_query = arguments[0];
+            for (;idx<len;idx++){
+                   res_query = window.hWin.HEURIST4.util.mergeTwoHeuristQueries(res_query, arguments[idx]);
+            }     
+        }   
+        
+        return res_query;
+    },
+
+    mergeTwoHeuristQueries: function(query1, query2){
         
         if(jQuery.type(query1) === "string"){
             var notJson = true;
@@ -273,16 +344,17 @@ window.hWin.HEURIST4.util = {
     //
     parseHeuristQuery: function(qsearch)
     {
-        var domain = null, rules = '', notes = '';
+        var domain = null, rules = '', rulesonly = 0, notes = '';
         if(qsearch && qsearch.indexOf('?')==0){
             domain  = window.hWin.HEURIST4.util.getUrlParameter('w', qsearch);
             rules   = window.hWin.HEURIST4.util.getUrlParameter('rules', qsearch);
+            rulesonly = window.hWin.HEURIST4.util.getUrlParameter('rulesonly', qsearch);
             notes   = window.hWin.HEURIST4.util.getUrlParameter('notes', qsearch);
             qsearch = window.hWin.HEURIST4.util.getUrlParameter('q', qsearch);
         }
         domain = (domain=='b' || domain=='bookmark')?'bookmark':'all';
 
-        return {q:qsearch, w:domain, rules:rules, notes:notes};
+        return {q:qsearch, w:domain, rules:rules, rulesonly:rulesonly, notes:notes};
     },
 
     //
@@ -291,8 +363,10 @@ window.hWin.HEURIST4.util = {
     isJSON: function(value){
         
             try {
-                var r = $.parseJSON(value);
-                if($.isArray(r) || $.isPlainObject(r)){
+                if(typeof value === 'string'){
+                    value = $.parseJSON(value);    
+                }
+                if($.isArray(value) || $.isPlainObject(value)){
                     return true;
                 }
             }
@@ -331,7 +405,7 @@ window.hWin.HEURIST4.util = {
     },
     
     //
-    //
+    // Extract parameter from given URL or from current window.location.search
     //
     getUrlParameter: function getUrlParameter(name, query){
 
@@ -346,7 +420,12 @@ window.hWin.HEURIST4.util = {
         if( results == null ) {
             return null;
         } else {
-            return results[1];
+            try{
+                return decodeURIComponent(results[1]);
+            }catch (ex){
+                return results[1];
+                //console.log('cant decode '+name+'='+results[1]);
+            }
         }
     },
 
@@ -359,9 +438,23 @@ window.hWin.HEURIST4.util = {
         return Object.prototype.toString.apply(a) === '[object Array]';
     },
 
+    /*
     htmlEscape: function(s) {
         return s?s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/'/g, "&#39;").replace(/"/g, "&#34;"):'';
     },
+    */
+    
+    htmlEscape: function (text) {
+      var map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',  //&#34
+        "'": '&#039;'
+      };
+
+      return text? (''+text).replace(/[&<>"']/g, function(m) { return map[m]; }):'';
+    },    
 
     isObject: function (a)
     {
@@ -374,12 +467,14 @@ window.hWin.HEURIST4.util = {
         if (e) {
             e.cancelBubble = true;
             if (e.stopPropagation) e.stopPropagation();
+            e.preventDefault();
         }
         return e;
     },
 
     //
-    // we have to reduce the usage to minimum. Need to implement method in hapi
+    // we have to reduce the usage to minimum. Need to implement method in hapi via central controller
+    // this method is used for call H3 scripts in H4 code
     //
     sendRequest: function(url, request, caller, callback){
 
@@ -623,8 +718,12 @@ window.hWin.HEURIST4.util = {
 
     // @todo change temporal to moment.js for conversion
     parseDates: function(start, end){
-         if(window['Temporal'] && start){   
+         if(window['Temporal'] && (start || end)){   
                 //Temporal.isValidFormat(start)){
+                if(start==null && end!=null){
+                    start = end;
+                    end = null;
+                }
                 
                             // for VISJS timeline
                             function __forVis(dt){
@@ -789,11 +888,76 @@ window.hWin.HEURIST4.util = {
       }
       return null;
     },
+
+    getMediaServerFromURL:function(filename){
+        filename = filename.toLowerCase();
+        if(filename.indexOf('youtu.be')>=0 || filename.indexOf('youtube.com')>=0){
+            return 'youtube';
+        }else if(filename.indexOf('vimeo.com')>=0){
+            return 'vimeo';
+        }else if(filename.indexOf('soundcloud.com')>=0){
+            return 'soundcloud';            
+        }else{
+            return null;
+        }
+    },
+    
+    getFileExtension:function(filename){
+        // (/[.]/.exec(filename)) ? /[^.]+$/.exec(filename)[0] : undefined;
+        // filename.split('.').pop();
+        //filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 2);
+        var res = filename.match(/\.([^\./\?]+)($|\?)/);
+        return (res && res.length>1)?res[1]:'';
+    },
+    
+    wktValueToDescription:function(wkt){
+        
+        // parse a well-known-text value and return the standard description (type + summary)
+        var matches = wkt.match(/^(p|c|r|pl|l) (?:point|polygon|linestring)\s?\(?\(([-0-9.+, ]+?)\)/i);
+        if(matches && matches.length>1){
+            
+        var typeCode = matches[1];
+
+        var pointPairs = matches[2].split(/,/);
+        var X = [], Y = [];
+        for (var i=0; i < pointPairs.length; ++i) {
+            var point = pointPairs[i].split(/\s+/);
+            X.push(parseFloat(point[0]));
+            Y.push(parseFloat(point[1]));
+        }
+
+        if (typeCode == "p") {
+            return { type: "Point", summary: X[0].toFixed(5)+", "+Y[0].toFixed(5) };
+        }
+        else if (typeCode == "l") {
+            return { type: "Path", summary: "X,Y ("+ X.shift().toFixed(5)+","+Y.shift().toFixed(5)+") - ("+X.pop().toFixed(5)+","+Y.pop().toFixed(5)+")" };
+        }
+        else {
+            X.sort();
+            Y.sort();
+
+            var type = "Unknown";
+            if (typeCode == "pl") type = "Polygon";
+            else if (typeCode == "r") type = "Rectangle";
+                else if (typeCode == "c") type = "Circle";
+                    else if (typeCode == "l") type = "Path";
+
+            var minX = X[0];
+            var minY = Y[0];
+            var maxX = X.pop();
+            var maxY = Y.pop();
+            return { type: type, summary: "X "+minX.toFixed(5)+","+maxX.toFixed(5)+" Y "+minY.toFixed(5)+","+maxY.toFixed(5) };
+        }
+        }else{
+            return {type:'',summary:''};
+        }
+        
+    },
     
      versionCompare: function(v1, v2, options) {
          // determines if the version in the cache (v1) is older than the version in configIni.php (v2)
          // used to detect change in version so that user is prompted to clear cache and reload
-         // returns -1 if cached version is older, -2 if cached version is newer, +1 if they are the same
+         // returns -1 if v1 is older, -2 v1 is newer, +1 if they are the same
         var lexicographical = options && options.lexicographical,
             zeroExtend = options && options.zeroExtend,
             v1parts = v1.split('.'),
@@ -838,7 +1002,45 @@ window.hWin.HEURIST4.util = {
         }
 
         return 0;
-    }    
+    },
+    
+    uniqueArray: function(arr){
+        
+            var n = {},r=[];
+            for(var i = 0; i < arr.length; i++) 
+            {
+                if($.isPlainObject(arr[i])){
+                    r.push(arr[i]);
+                }else if (!n[arr[i]]) 
+                {
+                    n[arr[i]] = true; 
+                    r.push(arr[i]); 
+                }
+            }
+            return r;            
+    },
+    
+    //not strict search - valuable for numeric vs string 
+    findArrayIndex: function(elt, arr /*, from*/)
+    {
+        var len = arr.length;
+
+        var from = Number(arguments[2]) || 0;
+        from = (from < 0)
+        ? Math.ceil(from)
+        : Math.floor(from);
+        if (from < 0)
+            from += len;
+
+        for (; from < len; from++)
+        {
+            if (from in arr &&
+                arr[from] == elt)
+                return from;
+        }
+        return -1;
+    }
+        
 
 }//end util
 
@@ -847,6 +1049,12 @@ String.prototype.htmlEscape = function() {
 }
 String.prototype.capitalize = function() {
     return this.charAt(0).toUpperCase() + this.slice(1);
+}
+String.prototype.lpad = function(padString, length) {
+    var str = this;
+    while (str.length < length)
+        str = padString + str;
+    return str;
 }
 
 if (!Array.prototype.indexOf)
@@ -872,8 +1080,33 @@ if (!Array.prototype.indexOf)
     };
 }
 
-}
 
+
+/*
+if (!Array.prototype.unique){
+
+    Array.prototype.unique = function()
+    {
+        
+        //return $.grep(this, function(el, index) {
+        //    return index === $.inArray(el, this);
+        //});
+        
+        
+            var n = {},r=[];
+            for(var i = 0; i < this.length; i++) 
+            {
+                if (!n[this[i]]) 
+                {
+                    n[this[i]] = true; 
+                    r.push(this[i]); 
+                }
+            }
+            return r;        
+    };
+}
+*/
+}
 
 
 $.getMultiScripts = function(arr, path) {
@@ -887,3 +1120,4 @@ $.getMultiScripts = function(arr, path) {
 
     return $.when.apply($, _arr);
 }
+

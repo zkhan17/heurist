@@ -78,13 +78,13 @@
 
         $response = recordSearchMinMax($system, $_REQUEST);
 
-    }else if(@$_REQUEST['a'] == 'getfacets'){ //returns
+    }else if(@$_REQUEST['a'] == 'getfacets'){ //returns counts for facets for given query
 
         $response = recordSearchFacets($system, $_REQUEST);
 
     }else if(@$_REQUEST['a'] == 'related'){
 
-        $response = recordSearchRelated($system, $_REQUEST['ids']);
+        $response = recordSearchRelated($system, $_REQUEST['ids'], @$_REQUEST['direction']);
 
     }else {
 

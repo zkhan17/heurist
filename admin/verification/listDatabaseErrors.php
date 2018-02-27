@@ -135,17 +135,30 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
             <h2>Check for invalid definitions and data (invalid pointers, terms, missing required, excess values etc.)</h2>
         </div>
 
-        <div><br/><br/>
+        <div style="padding-top:20px">
             These checks look for errors in the structure of the database and errors in the data within the database. These are generally not serious, but are best eliminated.
             <br /> Click the hyperlinked record ID at the start of each row to open an edit form to change the data for that record.
             <br />Look for red warning texts or pointer fields in the record which do not display data or which display a warning.
-            <p>
+            
+            <hr style="margin-top:15px">
+            <div id="linkbar" style="padding-top:10px">
+                <label><b>Go to:</b></label>
+                <a href="#field_type" style="white-space: nowrap;padding-right:10px">Field types</a>
+                <a href="#pointer_targets" style="white-space: nowrap;padding-right:10px">Pointer targets</a>
+                <a href="#target_types" style="white-space: nowrap;padding-right:10px">Target types</a>
+                <a href="#empty_fields" style="white-space: nowrap;padding-right:10px">Empty fields</a>
+                <a href="#date_values" style="white-space: nowrap;padding-right:10px">Date values</a>
+                <a href="#term_values" style="white-space: nowrap;padding-right:10px">Term values</a>
+                <a href="#expected_terms" style="white-space: nowrap;padding-right:10px">Expected terms</a>
+                <a href="#single_value" style="white-space: nowrap;padding-right:10px">Single value fields</a>
+                <a href="#required_fields" style="white-space: nowrap;padding-right:10px">Required fields</a>
+                <a href="#nonstandard_fields" style="white-space: nowrap;padding-right:10px">Non-standard fields</a>
+                <a href="#origin_differences" style="white-space: nowrap;padding-right:10px">Differences with Core Definitions</a>
+            </div>
         </div>
-        <hr>
-
-
-        <div id="page-inner" style="top:80px">
-
+        
+        <div id="page-inner" style="top:110px">
+            
 
             <!-- CHECK FOR FIELD TYPE ERRORS -->
 
@@ -154,6 +167,8 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
 
 
             <?php
+            flush_buffers();
+            
             if (count(@$dtysWithInvalidTerms)>0 || 
                 count(@$dtysWithInvalidNonSelectableTerms)>0 || 
                 count(@$dtysWithInvalidRectypeConstraint)>0){
@@ -200,13 +215,15 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                     }
                 </script>
 
+
+                <a name="field_type"/>
                 <br/><p><br/></p><h3>Warning: Inconsistent field definitions</h3><br/>&nbsp;<br/>
 
                 The following field definitions have inconsistent data (unknown codes for terms and/or record types). This is nothing to be concerned about, unless it reoccurs, in which case please advise Heurist developers<br/><br/>
                 To fix the inconsistencies, please click here: <button onclick="repairFieldTypes()">Auto Repair</button>  <br/>&nbsp;<br/>
                 You can also look at the individual field definitions by clicking on the name in the list below<br />&nbsp;<br/>
                 <hr/>
-                <?php
+                <?php 
                 foreach ($dtysWithInvalidTerms as $row) {
                     ?>
                     <div class="msgline"><b><a href="#" onclick='{ onEditFieldType(<?= $row['dty_ID'] ?>); return false}'><?= $row['dty_Name'] ?></a></b> field (code <?= $row['dty_ID'] ?>) has
@@ -288,6 +305,8 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                 $ids[$row['dtl_RecID']] = 1;
             }
 
+            print '<a name="pointer_targets"/>';
+                
             if(count($bibs)==0){
                 print "<div><h3>All record pointers point to a valid record</h3></div>";
                 if($wasdeleted>1){
@@ -316,9 +335,10 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                         ?>
                         <tr>
                             <td><input type=checkbox name="recCB" value=<?= $row['dtl_RecID'] ?>></td>
-                            <td><a target=_new
-                                    href='../../records/edit/editRecord.html?db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'>
+                            <td style="white-space: nowrap;"><a target=_new
+                                    href='<?=HEURIST_BASE_URL?>?fmt=edit&db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'>
                                     <?= $row['dtl_RecID'] ?>
+                                    <img src='../../common/images/external_link_16x16.gif' title='Click to edit record'>
                                 </a></td>
                             <td><?= $row['rec_Title'] ?></td>
                             <td><?= $row['dty_Name'] ?></td>
@@ -355,6 +375,7 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
 
             
             <div>
+                <a name="target_types"/>
                 <?php
                 if (count($bibs == 0)) {
                     print "<h3>All record pointers point to the correct record type</h3>";
@@ -370,9 +391,9 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                         foreach ($bibs as $row) {
                             ?>
                             <tr>
-                                <td><a target=_new
-                                        href='../../records/edit/editRecord.html?db=<?= HEURIST_DBNAME?>&recID=
-                                        <?= $row['dtl_RecID'] ?>'><?= $row['dtl_RecID'] ?>
+                                <td style="white-space: nowrap;"><a target=_new
+href='<?=HEURIST_BASE_URL?>?fmt=edit&db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'><?= $row['dtl_RecID'] ?>
+                                        <img src='../../common/images/external_link_16x16.gif' title='Click to edit record'>
                                     </a></td>
                                 <td><?= $row['dty_Name'] ?></td>
                                 <td>points to</td>
@@ -422,6 +443,8 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                 }
             }
             
+            
+            print '<a name="empty_fields"/>';
             if($total_count_rows<1){
                  print '<div><h3>All records don\'t have empty fields</h3></div>';
             }
@@ -441,8 +464,7 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                    
                     <div>To REMOVE empty fields, please click here:
                         <button
-                            onclick="{document.getElementById('page-inner').style.display = 'none';
-                                window.open('listDatabaseErrors.php?db=<?= HEURIST_DBNAME?>&fixempty=1','_self')}">
+onclick="{document.getElementById('page-inner').style.display = 'none';window.open('listDatabaseErrors.php?db=<?= HEURIST_DBNAME?>&fixempty=1','_self')}">
                             Remove all null values</button>
                     </div>
                 </div>
@@ -457,9 +479,10 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                     ?>
                     <tr>
                         <td><input type=checkbox name="recCB6" value=<?= $row['dtl_RecID'] ?>></td>
-                        <td><a target=_new
-                                href='../../records/edit/editRecord.html?db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'>
+                        <td style="white-space: nowrap;"><a target=_new
+                                href='<?=HEURIST_BASE_URL?>?fmt=edit&db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'>
                                 <?= $row['dtl_RecID'] ?>
+                                <img src='../../common/images/external_link_16x16.gif' title='Click to edit record'>
                             </a></td>
                         <td><?= substr($row['rec_Title'],0,50) ?></td>
                         <td><?= $row['dty_Name'] ?></td>
@@ -476,7 +499,7 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
             }
             ?>
             
-            <hr/>
+            <hr>
 
             <?php
             // ----- Fields of type "Date" with  wrong values -------------------
@@ -523,6 +546,7 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
             }
 
 
+            print '<a name="date_values"/>';
             if(count($bibs)==0){
                 print '<div><h3>All records have recognisable Date values</h3></div>';
                 if($wascorrected>1){
@@ -534,16 +558,15 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                 ?>
 
                 <div>
-                    <h3>Records with wrong Date fields</h3>
+                    <h3>Records with incorrect Date fields</h3>
                     <span>
                         <a target=_new href='<?=HEURIST_BASE_URL.'?db='.HEURIST_DBNAME?>&w=all&q=ids:<?= implode(',', array_keys($ids)) ?>'>
                             (show results as search)</a>
                         <a target=_new href='#' id=selected_link onClick="return open_selected_by_name('recCB5');">(show selected as search)</a>
                     </span>
-                    <div>To fix faulty date values as suggested, please click here:
+                    <div>To fix faulty date values as suggested, mark desired records and please click here:
                         <button
-                            onclick="{document.getElementById('page-inner').style.display = 'none';
-                                window.open('listDatabaseErrors.php?db=<?= HEURIST_DBNAME?>&fixdates=1','_self')}">
+onclick="{document.getElementById('page-inner').style.display = 'none';window.open('listDatabaseErrors.php?db=<?= HEURIST_DBNAME?>&fixdates=1','_self')}">
                             Correct</button>
                     </div>
                 </div>
@@ -553,14 +576,18 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                 foreach ($bibs as $row) {
                     ?>
                     <tr>
-                        <td><input type=checkbox name="recCB5" value=<?= $row['dtl_RecID'] ?>></td>
-                        <td><a target=_new
-                                href='../../records/edit/editRecord.html?db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'>
+                        <td><?php if($row['new_value']) 
+                             print '<input type=checkbox name="recCB5" value='.$row['dtl_RecID'].'>';
+                            ?>
+                        </td>
+                        <td style="white-space: nowrap;"><a target=_new
+                                href='<?=HEURIST_BASE_URL?>?fmt=edit&db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'>
                                 <?= $row['dtl_RecID'] ?>
+                                <img src='../../common/images/external_link_16x16.gif' title='Click to edit record'>
                             </a></td>
                         <td><?= substr($row['rec_Title'],0,50) ?></td>
                         <td><?= @$row['dtl_Value']?$row['dtl_Value']:'empty' ?></td>
-                        <td><?= $row['new_value'] ?></td>
+                        <td><?= $row['new_value']?('=>&nbsp;&nbsp;'.$row['new_value']):'' ?></td>
                     </tr>
                     <?php
                 }
@@ -568,7 +595,7 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
             }
             ?>
 
-            <hr />
+            <hr>
 
 
 
@@ -610,6 +637,7 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                 array_push($dtl_ids, $row['dtl_ID']);
             }
 
+            print '<a name="term_values"/>';
             if(count($bibs)==0){
                 print "<div><h3>All records have recognisable term values</h3></div>";
                 if($wasdeleted>1){
@@ -639,9 +667,10 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                     ?>
                     <tr>
                         <td><input type=checkbox name="recCB1" value=<?= $row['dtl_RecID'] ?>></td>
-                        <td><a target=_new
-                                href='../../records/edit/editRecord.html?db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'>
+                        <td style="white-space: nowrap;"><a target=_new
+                                href='<?=HEURIST_BASE_URL?>?fmt=edit&db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'>
                                 <?= $row['dtl_RecID'] ?>
+                                <img src='../../common/images/external_link_16x16.gif' title='Click to edit record'>
                             </a></td>
                         <td><?= substr($row['rec_Title'],0,50) ?></td>
                         <td><?= $row['dty_Name'] ?></td>
@@ -652,12 +681,13 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
             }
             ?>
 
-            <hr/>
+            <hr>
             <div>
 
 
             <!--  Records containing fields with terms not in the list of terms specified for the field   -->
 
+            <a name="expected_terms"/>
             <?php
 
             $res = mysql_query('select dtl_ID, dtl_RecID, dty_Name, dtl_Value, dty_ID, dty_JsonTermIDTree, dty_TermIDTreeNonSelectableIDs, rec_Title, rec_RecTypeID, rty_Name, trm_Label
@@ -684,11 +714,11 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                     if($is_first){
                         $is_first = false;
                     ?>
-                    <h3>Records with terms not in the list of terms specified for the field</h3>
+                    <h3 style="padding-left:2px">Records with terms not in the list of terms specified for the field</h3>
                     <span><a target=_new href="javascript:void(0)" onclick="{document.getElementById('link_wrongterms').click(); return false;}">(show results as search)</a></span>
                     <table>
                     <tr>
-                        <th style="width: 30px;">Record</th>
+                        <th style="width: 30px;text-align:left">Record</th>
                         <th style="width: 15ex;">Field</th>
                         <th style="width: 25ex;">Term</th>
                         <th>Record title</th>
@@ -698,9 +728,9 @@ $dtysWithInvalidRectypeConstraint = @$lists["rt_contraints"];
                     }
                     ?>
                         <tr>
-                            <td style="width:50px; padding-left: 5px;">
-                                <a target=_new
-                                    href='../../records/edit/editRecord.html?db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'>
+                            <td style="width:50px;">
+                                <a target=_new  title='Click to edit record'
+                                    href='<?=HEURIST_BASE_URL?>?fmt=edit&db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'>
 <img class="rft" style="background-image:url(<?php echo HEURIST_ICON_URL.$row['rec_RecTypeID']?>.png)" 
 title="<?php echo $row['rty_Name']?>" 
 src="<?php echo HEURIST_BASE_URL.'common/images/16x16.gif'?>">&nbsp;<?= $row['dtl_RecID'] ?>
@@ -737,6 +767,7 @@ src="<?php echo HEURIST_BASE_URL.'common/images/16x16.gif'?>">&nbsp;<?= $row['dt
             <!--  single value fields containing excess values  -->
 
 
+            <a name="single_value"/>
             <?php
 
             $res = mysql_query('select dtl_RecID, rec_RecTypeID, dtl_DetailTypeID, rst_DisplayName, rec_Title, count(*)
@@ -780,9 +811,10 @@ src="<?php echo HEURIST_BASE_URL.'common/images/16x16.gif'?>">&nbsp;<?= $row['dt
                                 <td>
                                     <input type=checkbox name="recCB2" value=<?= $row['dtl_RecID'] ?>>
                                 </td>
-                                <td>
-                                    <a target=_blank href='../../records/edit/editRecord.html?db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'>
+                                <td style="white-space: nowrap;">
+                                    <a target=_blank href='<?=HEURIST_BASE_URL?>?fmt=edit&db=<?= HEURIST_DBNAME?>&recID=<?= $row['dtl_RecID'] ?>'>
                                     <?= $row['dtl_RecID'] ?></a>
+                                    <img src='../../common/images/external_link_16x16.gif' title='Click to edit record'>
                                 </td>
                                 <td><?= $row['rec_Title'] ?>
                                 </td>
@@ -810,7 +842,7 @@ src="<?php echo HEURIST_BASE_URL.'common/images/16x16.gif'?>">&nbsp;<?= $row['dt
 
 
             <!--  records with missing required values  -->
-
+            <a name="required_fields"/>
             <?php
 
             $res = mysql_query("select rec_ID, rst_RecTypeID, rst_DetailTypeID, rst_DisplayName, dtl_Value, rec_Title, dty_Type
@@ -855,10 +887,11 @@ src="<?php echo HEURIST_BASE_URL.'common/images/16x16.gif'?>">&nbsp;<?= $row['dt
                                 <td>
                                     <input type=checkbox name="recCB3" value=<?= $row['rec_ID'] ?>>
                                 </td>
-                                <td>
+                                <td style="white-space: nowrap;">
                                     <a target=_new
-                                        href='../../records/edit/editRecord.html?db=<?= HEURIST_DBNAME?>&recID=<?= $row['rec_ID'] ?>'>
+                                        href='<?=HEURIST_BASE_URL?>?fmt=edit&db=<?= HEURIST_DBNAME?>&recID=<?= $row['rec_ID'] ?>'>
                                         <?= $row['rec_ID'] ?>
+                                        <img src='../../common/images/external_link_16x16.gif' title='Click to edit record'>
                                     </a>
                                 </td>
                                 <td>
@@ -886,7 +919,7 @@ src="<?php echo HEURIST_BASE_URL.'common/images/16x16.gif'?>">&nbsp;<?= $row['dt
 
 
             <!--  Records with non-standard fields (not listed in recstructure)  -->
-
+            <a name="nonstandard_fields"></a>
             <?php
 
             $res = mysql_query("select rec_ID, rec_RecTypeID, dty_ID, dty_Name, dtl_Value, rec_Title
@@ -929,10 +962,11 @@ src="<?php echo HEURIST_BASE_URL.'common/images/16x16.gif'?>">&nbsp;<?= $row['dt
                                 <tr>
                                     <td><input type=checkbox name="recCB4" value=<?= $row['rec_ID'] ?>>
                                     </td>
-                                    <td>
+                                    <td style="white-space: nowrap;">
                                         <a target=_new
-                                            href='../../records/edit/editRecord.html?db=<?= HEURIST_DBNAME?>&recID=<?= $row['rec_ID'] ?>'>
+                                            href='<?=HEURIST_BASE_URL?>?fmt=edit&db=<?= HEURIST_DBNAME?>&recID=<?= $row['rec_ID'] ?>'>
                                             <?= $row['rec_ID'] ?>
+                                            <img src='../../common/images/external_link_16x16.gif' title='Click to edit record'>
                                         </a>
                                     </td>
                                     <!-- td><?= $row['rec_RecTypeID'] ?></td -->
@@ -959,6 +993,18 @@ src="<?php echo HEURIST_BASE_URL.'common/images/16x16.gif'?>">&nbsp;<?= $row['dt
                 ?>
             </div>
 
+            <hr/>
+            
+            <a name="origin_differences"></a>
+            <div>
+                <h3>The database structure is cross-checked against the core and bibliographic definitions curated by the Heurist team</h3>
+                <?php
+                    $_REQUEST['verbose'] = 1;
+                    $_REQUEST['filter_exact']  = DATABASE;
+                    include(dirname(__FILE__).'/verifyForOrigin.php');
+                ?>
+            </div>
+            
             <hr/>
 
         </div>
