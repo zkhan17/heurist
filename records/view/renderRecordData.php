@@ -93,9 +93,6 @@ if(!$is_map_popup){
         <!-- script type="text/javascript" src="../../external/js/simple_js_viewer/script/core/Simple_Viewer_beta_1.1.js"></script>
         <script type="text/javascript" src="../../records/files/initViewer.js"></script -->
         <script type="text/javascript" src="../../common/js/hintDiv.js"></script> <!-- for mapviewer roolover -->
-<!--
-        <script type="text/javascript" src="../../ext/yoxview/yoxview-init.js"></script>
--->        
         <script type="text/javascript">
 
             //find heurist object in parent windows or init new one if current window is a top most
@@ -273,9 +270,6 @@ if(!$is_map_popup){
                 }
                 }catch(e){
                 }
-                
-                //init image viewer
-                //$('.mediacontent').yoxview({ skin: "top_menu", allowedUrls: /\?db=(?:\w+)&id=(?:\w+)$/i});
                 
             }
 

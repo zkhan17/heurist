@@ -84,8 +84,6 @@ $.widget( "heurist.manageRecUploadedFiles", $.heurist.manageEntity, {
             this.recordList.resultList('option','onPageRender',function(){
                 //$(that.recordList.find('.ent_content_full'))
                 var ele = $(that.recordList.find('.ent_content_full')); //.find('a')
-                
-//@todo repalce with fancybox                ele.yoxview({ skin: "top_menu", allowedUrls: /\?db=(?:\w+)&file=(?:\w+)$/i});
             });
         }
         
