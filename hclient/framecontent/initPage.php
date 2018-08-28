@@ -337,6 +337,7 @@ if($_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0.0.1'){
         var layoutid = '<?=@$_REQUEST['ll']?>';
         if(window.hWin.HEURIST4.util.isempty(layoutid)){
             layoutid = window.hWin.HAPI4.get_prefs('layout_id');
+            if(layoutid == "H5Default") layoutid = "H4Default";
             if(window.hWin.HEURIST4.util.isempty(layoutid)){
                 layoutid = "H4Default";
             }
