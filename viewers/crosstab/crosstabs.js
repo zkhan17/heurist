@@ -446,15 +446,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
 
         var $container = $('#'+name+'Intervals');
         var $modalDialogBody = $('#'+name+'IntervalsBody'); //Hosts the entire body of modal
-        var $rowDiv;  //First row within the modal.
-        var $leftColDiv;   //Left column of div 
-        var $rightColDiv;   //Right column of div
-        var $firstRowDiv;  
-        var $buttons;
-        var $bodyDiv;
-        var $addIntervalBtn;
-        var $btnDiv;
-        var $intervalHeadRow;
+        var detailtype = fields3[name].type;
 
         $modalDialogBody.empty();
         $container.empty();
@@ -465,8 +457,18 @@ function CrosstabsAnalysis(_query, _query_domain) {
             return;
         }
 
-        if(fields3[name].values && fields3[name].values.length>0)
+        if((fields3[name].values && fields3[name].values.length>0) && (detailtype=="enum" || detailtype=="resource" || detailtype=="relationtype"))
         {
+            var $rowDiv;  //First row within the modal.
+            var $leftColDiv;   //Left column of div 
+            var $rightColDiv;   //Right column of div
+            var $firstRowDiv;  
+            var $buttons;
+            var $bodyDiv;
+            var $addIntervalBtn;
+            var $btnDiv;
+            var $intervalHeadRow;
+
             $('#'+name+'Header').text('Assign intervals for: ' + fields3[name].fieldname.toUpperCase());
 
             //Creates entire element in modal
@@ -554,129 +556,237 @@ function CrosstabsAnalysis(_query, _query_domain) {
             $('<div class="col-md">')
             .append('<h6>Value</h6>')
             .appendTo($intervalHeadRow);
-        }
+    
+            //Render main interval values
+            var idx;
+            var intervals = fields3[name].intervals;
 
-        var idx;
-        var intervals = fields3[name].intervals;
+            $('#'+name+'IntCount').val(intervals.length)
 
-        $('#'+name+'IntCount').val(intervals.length)
+            for (idx=0; idx<intervals.length; idx++){
 
-        for (idx=0; idx<intervals.length; idx++){
+                var interval = intervals[idx];
 
-            var interval = intervals[idx];
+                $intdiv = $(document.createElement('div'))
+                .addClass('intervalDiv list row')
+                .attr('id', name+idx )
+                .appendTo($rightColDiv);
 
-            $intdiv = $(document.createElement('div'))
-            .addClass('intervalDiv list row')
-            .attr('id', name+idx )
-            .appendTo($rightColDiv);
-
-            $('<div class="col-md-1 bg-white">')
-            .attr('id', name+idx+'ArrowPlacement')
-            .appendTo($intdiv);
-
-            $('<div class="col-md-4">')
-            //.css({'width':'160px','display':'inline-block'})
-            .html(interval.name)
-            .css({'font-weight':'bold'} )
-            .dblclick(function(event){
-                //Collect the interval number of the clicked row
-                var intervalElement = $(this).parent();
-                var intervalPosition = intervalElement.attr('id').replace(name, '');
-
-                intervalPosition = parseInt(intervalPosition);
-
-                if(intervalPosition >= fields3[name].values.length){
-                    //Create input box to change name
-                    $(this).html('<input id="changeNameBox" value="'+interval.name+'">');
-                    //When user clicks out of input box edit name
-                    $('#changeNameBox').blur(function(){
-                        var nameChanged = $('#changeNameBox').val();
-                        $(this).parent().html(nameChanged);
-
-                        fields3[name].intervals[intervalPosition].name = nameChanged;
-                        _doRender();    //Apply to table
-                    });
-                }
-            })
-            .appendTo($intdiv);
-
-            if(intervals[idx].values.length > 1){
-                var splitDescription = interval.description.split("+");
-                var listGroup = $('<ul class="list-group list-group-flush"></ul>');
-            
-                for(x=0;x<(splitDescription.length-1); x++){
-                    var listItem = $('<li class="list-group-item p-0 bg-transparent">')
-                    .html(splitDescription[x])
-                    .appendTo(listGroup);
-                }
-
-                $('<div class="col-md">')
-                .append(listGroup)
+                $('<div class="col-md-1 bg-white">')
+                .attr('id', name+idx+'ArrowPlacement')
                 .appendTo($intdiv);
 
-            }
-            else{
-                $('<div class="col-md">')
-                .html(interval.description)
-                //.css({'max-width':'250px','width':'250px','display':'inline-block','padding-left':'1.5em'})
-                .appendTo($intdiv);    
-            }
+                $('<div class="col-md-4">')
+                //.css({'width':'160px','display':'inline-block'})
+                .html(interval.name)
+                .css({'font-weight':'bold'} )
+                .dblclick(function(event){
+                    //Collect the interval number of the clicked row
+                    var intervalElement = $(this).parent();
+                    var intervalPosition = intervalElement.attr('id').replace(name, '');
 
-            /*
-            var editbuttons = '<div class="saved-search-edit">'+
-            '<img title="edit" src="' +window.hWin.HAPI4.baseURL+'common/images/edit_pencil_9x11.gif" '+
-            'onclick="{top.HEURIST.search.savedSearchEdit('+sid+');}">';
-            editbuttons += '<img  title="delete" src="'+window.hWin.HAPI4.baseURL+'common/images/delete6x7.gif" '+
-            'onclick="{top.HEURIST.search.savedSearchDelete('+sid+');}"></div>';
-            $intdiv.append(editbuttons);
-            */
+                    intervalPosition = parseInt(intervalPosition);
 
-            if(idx >= fields3[name].values.length){
-                $bodyDiv = $('<div class="col-md-2"></div>')
+                    if(intervalPosition >= fields3[name].values.length){
+                        //Create input box to change name
+                        $(this).html('<input id="changeNameBox" value="'+interval.name+'">');
+                        //When user clicks out of input box edit name
+                        $('#changeNameBox').blur(function(){
+                            var nameChanged = $('#changeNameBox').val();
+                            $(this).parent().html(nameChanged);
+
+                            fields3[name].intervals[intervalPosition].name = nameChanged;
+                            _doRender();    //Apply to table
+                        });
+                    }
+                })
                 .appendTo($intdiv);
 
-                $('<button>')
-                .attr('intid', idx)
-                //.button({icons: {primary: "ui-icon-pencil"}, text: false })
-                .addClass('btn btn-warning border-dark')
-                .append('<i class="bi bi-pencil"></i>')
-                //css({'background-image': 'url('+window.hWin.HAPI4.baseURL+'common/images/edit_pencil_9x11.gif)'})
+                if(intervals[idx].values.length > 1){
+                    var splitDescription = interval.description.split("+");
+                    var listGroup = $('<ul class="list-group list-group-flush"></ul>');
+                
+                    for(x=0;x<(splitDescription.length-1); x++){
+                        var listItem = $('<li class="list-group-item p-0 bg-transparent">')
+                        .html(splitDescription[x])
+                        .appendTo(listGroup);
+                    }
+
+                    $('<div class="col-md">')
+                    .append(listGroup)
+                    .appendTo($intdiv);
+
+                }
+                else{
+                    $('<div class="col-md">')
+                    .html(interval.description)
+                    //.css({'max-width':'250px','width':'250px','display':'inline-block','padding-left':'1.5em'})
+                    .appendTo($intdiv);    
+                }
+
+                /*
+                var editbuttons = '<div class="saved-search-edit">'+
+                '<img title="edit" src="' +window.hWin.HAPI4.baseURL+'common/images/edit_pencil_9x11.gif" '+
+                'onclick="{top.HEURIST.search.savedSearchEdit('+sid+');}">';
+                editbuttons += '<img  title="delete" src="'+window.hWin.HAPI4.baseURL+'common/images/delete6x7.gif" '+
+                'onclick="{top.HEURIST.search.savedSearchDelete('+sid+');}"></div>';
+                $intdiv.append(editbuttons);
+                */
+
+                if(idx >= fields3[name].values.length){
+                    $bodyDiv = $('<div class="col-md-2"></div>')
+                    .appendTo($intdiv);
+
+                    $('<button>')
+                    .attr('intid', idx)
+                    //.button({icons: {primary: "ui-icon-pencil"}, text: false })
+                    .addClass('btn btn-warning border-dark')
+                    .append('<i class="bi bi-pencil"></i>')
+                    //css({'background-image': 'url('+window.hWin.HAPI4.baseURL+'common/images/edit_pencil_9x11.gif)'})
+                    .click(function( event ) {
+                        renderIntervals(name); //Refresh intervals to remove existing arrows and create a clean display.
+                        editInterval( name,  $(this).attr('intid'), false);
+                    })
+                    .appendTo($bodyDiv);
+        
+                    $('<button>')
+                    //.button({icons: {primary: "ui-icon-close"}, text: false })
+                    .attr('intid', idx)
+                    .addClass('btn btn-danger border-dark')
+                    .append('<i class="bi bi-trash"></i>')
+                    //.css({'background-image': 'url('+window.hWin.HAPI4.baseURL+'common/images/delete6x7.gif)'})
+                    .click(function( event ) {
+                        removeInterval( name, $(this).attr('intid') );
+                    })
+                    .appendTo($bodyDiv);
+                }
+            }
+
+            $btnDiv = $('<div class="row my-2"></div>')
+                .appendTo($rightColDiv);
+
+            $addIntervalBtn = $('<button>',{class: "btn btn-success w-100"})
+                //.button({icons: {primary: "ui-icon-plus"}} )
                 .click(function( event ) {
                     renderIntervals(name); //Refresh intervals to remove existing arrows and create a clean display.
-                    editInterval( name,  $(this).attr('intid'), false);
+                    editInterval( name, -1, true);
                 })
-                .appendTo($bodyDiv);
-    
-                $('<button>')
-                //.button({icons: {primary: "ui-icon-close"}, text: false })
-                .attr('intid', idx)
-                .addClass('btn btn-danger border-dark')
-                .append('<i class="bi bi-trash"></i>')
-                //.css({'background-image': 'url('+window.hWin.HAPI4.baseURL+'common/images/delete6x7.gif)'})
-                .click(function( event ) {
-                    removeInterval( name, $(this).attr('intid') );
-                })
-                .appendTo($bodyDiv);
-            }
+                .html('<i class="bi bi-plus"></i> Add Interval')
+                .attr('id','addInterval');
+
+            $('<div class="col-1">').appendTo($btnDiv);
+
+            $('<div class="col-11">')
+                .append($addIntervalBtn)
+                .appendTo($btnDiv);
         }
+        else if((fields3[name].values && fields3[name].values.length>0) && (detailtype=="float" || detailtype=="integer"))
+        {
+            var $resetDiv;  //First row within the modal.
+            var $roundDiv;
+            var $intervalRow;
+            var $buttons = $('<button>',{text: "Apply",class: "btn btn-secondary"})
+                .click(function( event ) {
+                    calculateIntervals(name, parseInt($('#'+name+'IntCount').val()) );
+                }).css('margin-right',"1rem");
 
-        $btnDiv = $('<div class="row my-2"></div>')
-            .appendTo($rightColDiv);
+            $('#'+name+'Header').text('Assign intervals for: ' + fields3[name].fieldname.toUpperCase());
 
-        $addIntervalBtn = $('<button>',{class: "btn btn-success w-100"})
-            //.button({icons: {primary: "ui-icon-plus"}} )
-            .click(function( event ) {
-                renderIntervals(name); //Refresh intervals to remove existing arrows and create a clean display.
-                editInterval( name, -1, true);
-            })
-            .html('<i class="bi bi-plus"></i> Add Interval')
-            .attr('id','addInterval');
+            //Creates entire element in modal
+            $intdiv = $(document.createElement('div'))
+            .css({'padding':'0.4em'})
+            .attr('intid', 'b0' )
+            .addClass('container-fluid')
+            .appendTo($modalDialogBody);
 
-        $('<div class="col-1">').appendTo($btnDiv);
+            //Creating reset row
+            $resetDiv = $(document.createElement('div'))
+            .addClass('row '+name)
+            .appendTo($intdiv);
 
-        $('<div class="col-11">')
-            .append($addIntervalBtn)
-            .appendTo($btnDiv);
+            $('<div>')
+            .addClass('col-2')
+            .append('<h6>Reset Intervals:</h6>')
+            .appendTo($resetDiv);
+
+            $('<div>')
+            .addClass('col')
+            .append('<input id="'+name+'IntCount" size="6" value="'+keepCount+'">'+
+                '<span>intervals from</span><input size ="6"></input><span>to</span><input size="6"></input>')
+            .append($buttons)
+            .appendTo($resetDiv);
+     
+            //Rounding row is created.
+            $roundDiv = $(document.createElement('div'))
+            .addClass('row')
+            .appendTo($intdiv);
+
+            $('<div>')
+            .addClass('col-2')
+            .append('<h6>Rounding: </h6>')
+            .appendTo($roundDiv);
+
+            $('<div>')
+            .addClass('col')
+            .append('<select></select>')
+            .appendTo($roundDiv);
+
+            //Intervals section of popup
+            $intervalRow = $(document.createElement('div'))
+            .addClass('row')
+            .appendTo($intdiv);
+
+            $('<div>')
+            .addClass('col-2')
+            .append('<h6>Intervals: </h6>')
+            .appendTo($intervalRow);
+
+            //Render the intervals for the integer and float values
+            /*
+            var idx;
+            var intervals = fields3[name].intervals;
+
+            for (idx=0; idx<intervals.length; idx++){
+
+                var interval = intervals[idx];
+
+                $intdiv = $(document.createElement('div'))
+                .addClass('intervalDiv list row')
+                .attr('id', name+idx )
+                .appendTo($rightColDiv);
+
+                $('<div class="col-md-1 bg-white">')
+                .attr('id', name+idx+'ArrowPlacement')
+                .appendTo($intdiv);
+
+                $('<div class="col-md-4">')
+                //.css({'width':'160px','display':'inline-block'})
+                .html(interval.name)
+                .css({'font-weight':'bold'} )
+                .dblclick(function(event){
+                    //Collect the interval number of the clicked row
+                    var intervalElement = $(this).parent();
+                    var intervalPosition = intervalElement.attr('id').replace(name, '');
+
+                    intervalPosition = parseInt(intervalPosition);
+
+                    if(intervalPosition >= fields3[name].values.length){
+                        //Create input box to change name
+                        $(this).html('<input id="changeNameBox" value="'+interval.name+'">');
+                        //When user clicks out of input box edit name
+                        $('#changeNameBox').blur(function(){
+                            var nameChanged = $('#changeNameBox').val();
+                            $(this).parent().html(nameChanged);
+
+                            fields3[name].intervals[intervalPosition].name = nameChanged;
+                            _doRender();    //Apply to table
+                        });
+                    }
+                })
+                .appendTo($intdiv);
+            }
+            */
+        }
     }
 
     /**
