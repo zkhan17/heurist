@@ -1322,11 +1322,30 @@ function CrosstabsAnalysis(_query, _query_domain) {
                 "info" : false,
                 dom:"Bfrtip",
                 buttons:[
-                    {extend: 'csv', footer: true }, {extend:'pdf',footer: true}, {extend:'print', footer: true}
-                ]
-            }
+                    {extend: 'csv', footer: true }, {extend:'pdf',, title: 'Customized PDF Title',footer: true,filename: 'Table results', customize: function(pdfDocument) {
+                        pdfDocument.content[1].table.headerRows = 5;
+                        var firstHeaderRow = [];
+                        $(".resultsTable").find("thead>tr:first-child>th").each(
+                          function(index, element) {
+                            var colSpan = element.getAttribute("colSpan");
+                            firstHeaderRow.push({
+                              text: element.innerHTML,
+                              style: "tableHeader",
+                              colSpan: colSpan
+                            });
+                            for (var i = 1; i < colSpan - 1; i++) {
+                              firstHeaderRow.push({});
+                            }
+                          });
+                        pdfDocument.content[1].table.body.unshift(firstHeaderRow);
+            
+                    }}, {extend:'print', footer:true,filename: 'Table results'}
+                ],
+       
+            },
             );
         });
+        
         
         //console.log($.fn.dataTable.isDataTable("table#resultsTable"));
 
