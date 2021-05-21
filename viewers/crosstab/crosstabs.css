@@ -161,14 +161,14 @@ div .selected, div .selected:hover{
 
 .crosstab-header0{
     /*font-size: 200em;*/
-    font-weight: bold;
+    font-weight: normal;
     text-transform:uppercase;
     border-top :1px solid black;
     border-right: 1px solid black;
 }
 
 .crosstab-header1{
-    font-weight: bold;
+    font-weight: normal;
     text-transform:uppercase;
     border-right :1px solid black;
 }
@@ -187,7 +187,7 @@ div .selected, div .selected:hover{
     font-size: 1em;
     min-width:4em;
     text-align:right;
-    font-weight: bold;
+    font-weight: normal;
     border-right: 1px solid black;
     border-bottom: 1px solid black;
 }
