@@ -70,7 +70,7 @@ require_once(dirname(__FILE__) . '/../../hclient/framecontent/initPage.php');
                                 <fieldset>
                                     <!-- Dataset selection -->
                                     <div class="row">
-                                        <div class="col-3">
+                                        <div class="col-3 w-100 padding-0">
                                             <!-- <label for="cbRectypes"> -->
                                             Show fields for
                                             <!-- </label> -->
