@@ -89,7 +89,7 @@ table.dataTable.display tbody tr:first-child td {
 }
 table.dataTable.cell-border tbody th, table.dataTable.cell-border tbody td {
   border-top: 1px solid #ddd;
-  border-right: 1px solid #ddd;
+  border-right: 1px solid black;
 }
 table.dataTable.cell-border tbody tr th:first-child,
 table.dataTable.cell-border tbody tr td:first-child {
