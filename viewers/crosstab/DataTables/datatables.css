@@ -846,7 +846,7 @@ a.dt-button.processing:after {
   content: " ";
   border: 2px solid #282828;
   border-radius: 50%;
-  border-left-color: transparent;
+  border-left-color: black;
   border-right-color: transparent;
   animation: dtb-spinner 1500ms infinite linear;
   -o-animation: dtb-spinner 1500ms infinite linear;
