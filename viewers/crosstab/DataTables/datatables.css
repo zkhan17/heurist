@@ -91,6 +91,7 @@ table.dataTable.cell-border tbody th, table.dataTable.cell-border tbody td {
   border-top: 1px solid #ddd;
   border-right: 1px solid black;
   background-color:#d4dbea;
+  border-color:black;
 }
 table.dataTable.cell-border tbody tr th:first-child,
 table.dataTable.cell-border tbody tr td:first-child {
@@ -145,7 +146,7 @@ table.dataTable.display tbody tr.odd.selected > .sorting_3, table.dataTable.orde
   background-color: #a9b7d1;
 }
 table.dataTable.display tbody tr.even > .sorting_1, table.dataTable.order-column.stripe tbody tr.even > .sorting_1 {
-  background-color: #fafafa;
+  background-color: #d4dbea;
 }
 table.dataTable.display tbody tr.even > .sorting_2, table.dataTable.order-column.stripe tbody tr.even > .sorting_2 {
   background-color: #fcfcfc;
