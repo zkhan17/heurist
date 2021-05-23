@@ -295,22 +295,26 @@ table.dataTable td {
   padding: 4px;
 }
 .dataTables_wrapper .dataTables_filter {
-  float: right;
-  text-align: right;
+  float: none;
+  text-align: left;
+  text-indent:10px;
+  padding-top:6px;
 }
 .dataTables_wrapper .dataTables_filter input {
-  border: 1px solid #aaa;
-  border-radius: 3px;
+  border-color:black;
+  margin-left:20px;
+  width:45%;
   background-color: transparent;
 }
 .dataTables_wrapper .dataTables_info {
   clear: both;
-  float: left;
+  float: none;
+  text-align: center;
   padding-top: 0.755em;
 }
 .dataTables_wrapper .dataTables_paginate {
-  float: right;
-  text-align: right;
+  float: none;
+  text-align: center;
   padding-top: 0.25em;
 }
 .dataTables_wrapper .dataTables_paginate .paginate_button {
