@@ -74,6 +74,10 @@ if (@$_REQUEST['rty'] || @$_REQUEST['dty'] || @$_REQUEST['trm']){
 }else if (@$_REQUEST['file'] || @$_REQUEST['thumb'] || @$_REQUEST['rurl']){
     header( 'Location: hsapi/controller/file_download.php?'.$_SERVER['QUERY_STRING'] );
     return;
+}else if (@$_REQUEST['template']){
+    header( 'Location: viewers/smarty/showReps.php?'.$_SERVER['QUERY_STRING'] );
+    return;    
+    
 }else if (@$_REQUEST['logo']){
     $host_logo = realpath(dirname(__FILE__)."/../organisation_logo.jpg");
     if(file_exists($host_logo)){
@@ -261,6 +265,11 @@ $(document).on('focusin', function(e) {
      echo 'window.hWin.HAPI4.sysinfo.db_workset_count = '.$db_workset_count.';';
 ?>
                 
+                var lt = window.hWin.HAPI4.sysinfo['layout'];
+                if(lt=='DigitalHarlem' || lt=='DigitalHarlem1935'){
+                    $('#layout_panes').css({'height':'100%'});
+                }
+                
                 //
                 // init layout
                 //
@@ -322,7 +331,8 @@ _time_debug = new Date().getTime() / 1000;
                
                 var lt = window.hWin.HAPI4.sysinfo['layout'];
                 if(! (lt=='Beyond1914' ||  lt=='UAdelaide' ||
-                    lt=='DigitalHarlem' || lt=='DigitalHarlem1935' || lt=='WebSearch' )){                
+                    lt=='DigitalHarlem' || lt=='DigitalHarlem1935' || lt=='WebSearch' ))
+                {                
 
                     if( window.hWin.HAPI4.SystemMgr.versionCheck() ) {
                         //version is old 
@@ -388,6 +398,9 @@ _time_debug = new Date().getTime() / 1000;
                             }
 */
                         }
+                        
+                        $('body').css({'overflow':'hidden'});   
+                        
                 }
                 
                 
@@ -482,9 +495,9 @@ if(strpos('heuristplus', $_SERVER["SERVER_NAME"])===false){
 
          
     </head>
-    <body style="background-color:#c9c9c9;overflow:hidden;">
+    <body style="background-color:#c9c9c9;">
 
-        <div id="layout_panes" style="height:100%">
+        <div id="layout_panes">
             &nbsp;
         </div>
 

@@ -61,7 +61,8 @@ $.widget( "heurist.manageRecords", $.heurist.manageEntity, {
     _init: function() {
         
         if(!this.options.default_palette_class){
-            this.options.default_palette_class = this.options.edit_structure?'ui-heurist-design':'ui-heurist-populate';   
+            this.options.default_palette_class = 'ui-heurist-populate';  
+            //since 2021-05-05 there is no difference this.options.edit_structure?'ui-heurist-design':'ui-heurist-populate';   
         }
         
         if(this.options.layout_mode=='short'){
@@ -288,6 +289,10 @@ $.widget( "heurist.manageRecords", $.heurist.manageEntity, {
                                             inpt.find('input,textarea,button,.ui-selectmenu-button').css('border','1px dotted red');
                                         }
                                         
+										/* Hide Help Text if 'Show Help' isn't checked, help text is shown by default */
+                                        if(!that.element.find('.chb_show_help').is(':checked')){
+                                            $('.heurist-helper1').hide();
+                                        }
                                         
                                     }else{
                                         window.hWin.HEURIST4.msg.showMsgErr(response);
@@ -696,14 +701,64 @@ $.widget( "heurist.manageRecords", $.heurist.manageEntity, {
                               ];    
                 }else if(this.options.edit_structure==true){
 
-                        btns = [ 
-                            {text:window.hWin.HR('Save'), id:'btnRecSave', //AndClose
-                              css:{'margin-left':'0.5em'},
-                              click: function() { that._saveEditAndClose( null, 'none' ); }}, //'close'
-                            {text:window.hWin.HR('Close'), 
-                              click: function() { 
-                                  that.closeEditDialog();
-                            }}];
+                    function checkTitleMask(){ // Check if title mask is the default, request user to change it
+                        var title_mask = $Db.rty(that._currentEditRecTypeID, 'rty_TitleMask');
+
+                        if(title_mask == 'record [ID]'){
+
+                            window.hWin.HEURIST4.msg.showMsgDlg(
+                                'The title mask is used to construct the record title from the data in the record.<br/>'
+                                    + 'Constructed record titles are very important: they are used to represent the record in<br/>'
+                                    + 'search results and record pointer fields, and can also be used in record filters and<br/>'
+                                    + 'custom report formats.<br/><br/>'
+                                    + 'To avoid an uninformative title we strongly recommend having at least one required field in<br/>'
+                                    + 'the title mask or several fields of which one will always be filled in.<br/><br/>'
+                                    + 'Please define the title mask before exiting.', 
+                                function(){ that.editRecordTypeTitle(); that.closeEditDialog(); },
+                                {title:'Default title mask', yes:'OK', no:'Cancel'});
+
+                            return;
+                        }
+
+                        that.closeEditDialog();
+                    }
+
+                    btns = [ 
+                        {text:window.hWin.HR('Save'), id:'btnRecSave', //AndClose
+                          css:{'margin-left':'0.5em'},
+                          click: function() { that._saveEditAndClose( null, 'none' ); }}, //'close'
+                        {text:window.hWin.HR('Close'), 
+                          click: function() { 
+                            var recset = $Db.rst(that._currentEditRecTypeID);
+                            var hasField = false;
+
+                            recset.each2(function(id, f){
+                                if(f.rst_DefaultValue == 'tabs' || f.rst_DefaultValue == 'group'){ return; }
+                                hasField = true;
+                            });
+
+                            if(!hasField){ // check if any fields have been added to rectype
+
+                                var btns = {};
+                                btns[window.hWin.HR('Continue editing')] = function(){
+                                    var $dlg = window.hWin.HEURIST4.msg.getMsgDlg();
+                                    $dlg.dialog('close');
+                                };
+                                btns[window.hWin.HR('Exit with no fields')] = function(){
+                                    var $dlg = window.hWin.HEURIST4.msg.getMsgDlg();
+                                    $dlg.dialog('close');
+                                    titleMaskCheck();
+                                };
+                                window.hWin.HEURIST4.msg.showMsgDlg('You need to define fields to make this record type usable.', 
+                                    btns, 
+                                    {title:'No fields defined', no:window.hWin.HR('Continue editing'), yes:window.hWin.HR('Exit with no fields')}); 
+                            }
+                            else{
+								checkTitleMask();
+                            } 
+                          }
+                        }
+                    ];
                     
                 }else{
                 
@@ -1924,22 +1979,10 @@ $.widget( "heurist.manageRecords", $.heurist.manageEntity, {
         
         var rty_ID = this._currentEditRecTypeID;
         var maskvalue = $Db.rty(rty_ID, 'rty_TitleMask')
-
-        var sURL = window.hWin.HAPI4.baseURL +
-            "admin/structure/rectypes/editRectypeTitle.html?rectypeID="+rty_ID
-            +"&mask="+encodeURIComponent(maskvalue)+"&db="+window.hWin.HAPI4.database;
-            
-        window.hWin.HEURIST4.msg.showDialog(sURL, {    
-                "no-resize": true,
-                title: 'Record Type Title Mask Edit',
-                height: 800,
-                width: 800,
-                default_palette_class: 'ui-heurist-design',
-                callback: function(newvalue) {
-                    if(newvalue){
-                    }
-                }
-        });
+        
+        window.hWin.HEURIST4.ui.showRecordActionDialog('rectypeTitleMask',
+                {rty_ID:this._currentEditRecTypeID, rty_TitleMask:maskvalue, path: 'widgets/entity/popups/',
+                 onClose: function(newvalue){}});
     },
 
     //
@@ -2026,58 +2069,6 @@ $.widget( "heurist.manageRecords", $.heurist.manageEntity, {
             }
                 
         }
-        else if(false && is_inline){ //OLD OPTION: show as widget on full width/height with its own preview 
-            //create new widget manageDefRecStructure
-            var $structure_editor = this.element.find('.editStructure');
-            if($structure_editor.length==0){
-                $structure_editor = $('<div class="editStructure" style="display:none"/>').appendTo(this.element);
-            }else{
-                $structure_editor.empty();
-            }
-            
-            var popup_options = {
-                isdialog: false,
-                container: $structure_editor,
-                select_mode: 'manager',
-                rty_ID: that._currentEditRecTypeID,
-                rec_ID_sample: that._currentEditID,
-                external_toolbar: this._toolbar,  //send toolbar to structure editor to replace buttons
-                onClose: function()
-            {
-                //restore native toolbar
-                //$structure_editor.manageDefRecStructure('toolbarOverRecordEditor');
-                that._toolbar.find('.rts_editor').empty().remove();
-                that._toolbar.find('.ui-dialog-buttonset').show();
-                
-                $structure_editor.hide().remove();
-                $structure_editor = null;
-                that.element.find('.editor').show();
-                //remove rts_editor toolbar
-                
-                that._initEditForm_step3(that._currentEditID); //reload form    
-            }};
-            
-            this.element.find('.editor').hide();
-            $structure_editor.show();
-            window.hWin.HEURIST4.ui.showEntityDialog('DefRecStructure', popup_options); 
-            
-        }else{ //POPUP rts editor
-            var url = window.hWin.HAPI4.baseURL + 'admin/structure/fields/editRecStructure.html?db='+window.hWin.HAPI4.database
-                +'&rty_ID='+that._currentEditRecTypeID;
-
-            var body = $(window.hWin.document).find('body');
-                
-            window.hWin.HEURIST4.msg.showDialog(url, {
-                height: body.innerHeight()*0.9,
-                width: 960,
-                padding: '0px',
-                title: window.hWin.HR('Edit record structure'),
-                afterclose: function(){
-                    that._initEditForm_step3(that._currentEditID); //reload form    
-                }
-            });        
-        }
-        
 
         
     },
@@ -3539,10 +3530,10 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
             
             sheader = sheader  
             +'<span style="display:inline-block;padding:5 10px 5px 0;vertical-align:middle">'
-            +'Modify record structure for</span>'
+            +'Modifying record structure for</span>'
             +'<h3 style="display:inline-block;max-width:900;vertical-align:middle;margin:0">'
             +$Db.rty(this._currentEditRecTypeID,'rty_Name')
-            +'&nbsp;&nbsp;( ID: '+this._currentEditRecTypeID+'  Code: '+$Db.getConceptID('rty',this._currentEditRecTypeID)+' )'
+            +'&nbsp;&nbsp;( '+this._currentEditRecTypeID+' / '+$Db.getConceptID('rty',this._currentEditRecTypeID)+' )'
             +'</h3>';
             
         }else{
@@ -3678,6 +3669,10 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
             //switch on optional fields and disable checckbox
             this.element.find('.chb_opt_fields').prop('checked',true).attr('disabled', true).change();
             
+            //show the attributes and title mask dialog
+            this.element.find('.btn-edit-rt').show();
+            this.element.find('.btn-edit-rt-titlemask').show();			
+			
             //hide message about forbidden fields
             $(this.element).find('.hidden_field_warning').hide();
             
@@ -3693,6 +3688,10 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
             $(this.element).find('.separator').css({width: '80%', display: 'inline-block'});
             $(this.element).find('.separator-hidden').css({width: '80%', display: 'inline-block'});
             
+            //display message at bottom
+            $('<div id="mod-struct-help" style="font-size:1.2em;margin-top:30px;">Use the gearwheel <span class="ui-icon-gear"></span> to add/edit fields and headings</div>')
+            .appendTo(this.editForm.last('.editForm.recordEditor'));			
+			
             //if record type has been changed - reload rts_editor
             this._reloadRtsEditor();
             
@@ -3705,6 +3704,8 @@ $Db.rty(rectypeID, 'rty_Name') + ' is defined as a child of <b>'+names.join(', '
             this.element.find('.chb_opt_fields').attr('disabled', false);
             this.element.find('.lbl_opt_fields').show();
             
+            this.element.find('.btn-edit-rt').hide();
+            this.element.find('.btn-edit-rt-titlemask').hide();  
             
             $(this.element).find('div.forbidden').parent().css({'display':'none'} ); 
 

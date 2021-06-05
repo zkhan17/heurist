@@ -105,12 +105,11 @@ $.widget( "heurist.searchBuilder", {
                 },
     */            
                 buttons: [
-                    {text:window.hWin.HR('Preview'), id:'btnSave',
+                    /*{text:window.hWin.HR('Preview'), id:'btnSave',
                         click: function() {
                             that._doSaveSearch()
-                            //that.navigateWizard(1);
-                    }},
-                    {text:window.hWin.HR('Search'), id:'btnSearch',
+                    }},*/
+                    {text:window.hWin.HR('Filter'), id:'btnSearch',
                         class:'ui-button-action', 
                         click: function() {
                             that._doSearch()
@@ -196,7 +195,6 @@ $.widget( "heurist.searchBuilder", {
         if(this.field_array.length==0){
             this.btnAddFieldItem.click();
         }else{
-            this.pnl_Items.find('.field_header').css('visibility','hidden');
             this.pnl_Items.find('.field_header:first').css('visibility','visible');
         }
         if(this.field_array.length>1){
@@ -423,7 +421,9 @@ $.widget( "heurist.searchBuilder", {
                     });
                     
                     if(this.field_array.length>1){
-                        ele.find('.field_header').css('visibility','hidden');
+                        var conjunct = (this.search_conjunction.val()=='any')?'OR':'AND';
+
+                        ele.find('.field_header').text(conjunct).attr('title', 'Change value in dropdown above fields');
                     }
                 }
                 
@@ -754,7 +754,7 @@ $.widget( "heurist.searchBuilder", {
 
                 //'title','modified',
                 var allowed_fieldtypes = ['header_ext','enum','freetext','blocktext',
-                                'geo','year','date','integer','float','resource','relmarker'];
+                                'geo','year','date','integer','float','resource','relmarker','relationtype','file'];
                       
 /*              
                             {key:'title',title:'Title (constructed)', depth:1},
@@ -809,9 +809,29 @@ $.widget( "heurist.searchBuilder", {
                                                 title: node.title
                                                        +'<span style="font-size:0.8em"> (record pointer)</span>',
                                                 code:codes.join(':')});                                        
+                                            node.title = ' fields'; //node.title + 
+                                            node.extraClasses = 'green-triangle';
                                             i++;                       
                                         }
+                                    }else if(node.type=='relmarker'){
+
+                                        var codes = node.code.split(':');
+                                        var dtid = codes[codes.length-1];
+                                        var linktype = dtid.substr(0,2);
+                                        if(linktype=='rt'){
+                                            codes[codes.length-1] = dtid.substr(2);                        
+                                            tdata.splice(i, 0, 
+                                                {key:node.key, type:'relmarker',
+                                                title: node.title
+                                                       +'<span style="font-size:0.8em"> (related record)</span>',
+                                                code:codes.join(':')});                                        
+                                            node.title = ' fields'; //node.title + 
+                                            node.extraClasses = 'green-triangle';
+                                            i++;                       
+                                        }
+                                        
                                     }
+
                                     i++;    
                                 }
                                 
@@ -1143,19 +1163,24 @@ console.log(aCodes);
                     for(var k=1; k<codes.length-1; k++){
                         if(k%2 == 0){ //rectype
                             //key = 't:'+codes[k];    
-                            var not_found = true;
-                            $.each(branch,function(m,item){
-                               if(item['t']){
-                                    not_found = false; 
-                                    if(item['t'].split(',').indexOf(codes[k])<0){
-                                        item['t'] = item['t']+','+codes[k];
-                                    }
-                                    return false;
-                               }
-                            });
-                            
-                            if(not_found){
-                                branch.push({t:codes[k]});    
+                            if(codes[k]!=''){ //unconstrainded
+                                var not_found = true;
+                                $.each(branch,function(m,item){
+                                   if(item['t']==codes[k]){
+                                       not_found = false; 
+                                       return false;
+                                   }else if(item['t']){
+                                        not_found = false; 
+                                        if(item['t'].split(',').indexOf(codes[k])<0){
+                                            item['t'] = item['t']+','+codes[k];
+                                        }
+                                        return false;
+                                   }
+                                });
+                                
+                                if(not_found){
+                                    branch.push({t:codes[k]});    
+                                }
                             }
                         }else{
                             var dtid = codes[k];
@@ -1256,9 +1281,15 @@ console.log(aCodes);
             });
             
             this.pnl_Result.text( JSON.stringify(mainquery) );    
+        } 
+        
+        var conjunct = (this.search_conjunction.val()=='any')?'OR':'AND';
+        var $fields_headers = $('.field_header');
+        var cnt = $fields_headers.length;
+
+        for(var i=1; i<cnt; i++){
+            $($fields_headers[i]).text(conjunct);
         }
-        
-        
         
     }
 });

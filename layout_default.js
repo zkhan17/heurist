@@ -58,6 +58,8 @@ var cfg_widgets = [
 
     {id:'heurist_Graph', name:'Network Diagram', widgetname:'connections', script:'hclient/widgets/viewers/connections.js'},
 
+    {id:'heurist_recordAddButton', name:'Add Record', widgetname:'recordAddButton', script:'hclient/widgets/record/recordAddButton.js'},
+    
     // DIGITAL HARLEM APPS
     {id:'dh_search', name:'Search Forms', widgetname:'dh_search', script:'hclient/widgets/digital_harlem/dh_search.js'},
     {id:'dh_maps', name:'Saved Maps', widgetname:'dh_maps', script:'hclient/widgets/digital_harlem/dh_maps.js'},
@@ -159,7 +161,8 @@ var cfg_layouts = [
     
         }
     },
-        
+
+    // old version - search panel on top, center - result list, east - tabs        
     {id:'SearchAnalyze2', name:'Search Analyze Publish2', theme:'heurist', type:'cardinal',
         north:{size:'8em', resizable:false, overflow:'hidden',
             apps:[
@@ -203,9 +206,9 @@ var cfg_layouts = [
         }
     },
 
-
+    // Heurist v6 version. It is inited in mainMenu6.js
     {id:'SearchAnalyze3', name:'Search Analyze Publish2', theme:'heurist', type:'cardinal',
-        center:{Xminsize:300, dropable:false, apps:[{appid:'heurist_resultList', hasheader:false,
+        center:{minsize:156, dropable:false, apps:[{appid:'heurist_resultList', hasheader:false,
                      dockable:false, dragable:false, css:{'background-color':'white','font-size':'0.9em'}, //AO 2020-01-30 ,'font-size':'12px'
                      options:{empty_remark:null, show_menu:true, support_collection:true, is_h6style:true,
                      XXXrecordDivEvenClass: 'ui-widget-content',

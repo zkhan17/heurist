@@ -74,7 +74,7 @@ if(true || $_SERVER["SERVER_NAME"]=='localhost'||$_SERVER["SERVER_NAME"]=='127.0
 
         <script type="text/javascript">
 
-            var mapping, initial_wkt, imageurl, imageOverlay=null, 
+            var mapping, initial_wkt, initial_tool, imageurl, imageOverlay=null, 
                 need_screenshot = false, is_geofilter=false,
                 menu_datasets, btn_datasets, zoom_with_delay = true,
                 sMsgDigizeSearch = 'Digitise search area as a rectangle or polygon';
@@ -181,15 +181,25 @@ console.log('load google map api')
                     
                     $('#get-coordinates-helper').show();
                     $('#set-coordinates-helper').hide();
-                    $('#geodata_textarea').css({top:'2em'});
+                    $('#geodata_textarea').css({top:'4em'});
                     
                     $('#get-coord-wkt').change();
                     
-                    var $dlg = window.hWin.HEURIST4.msg.showElementAsDialog({window:top, 
+                    var $dlg;
+
+                    var titleYes = window.hWin.HR('[Add to Map]');
+                    var button={};
+                    button[titleYes] = function() {
+                        mapping.mapping( 'drawLoadGeometry', $dlg.find('#geodata_textarea').val());
+                        $dlg.dialog( "close" );
+                    };
+
+                    $dlg = window.hWin.HEURIST4.msg.showElementAsDialog({window:top, 
                         element: document.getElementById( "get-set-coordinates" ),
                         resizable: false,
                         width:690, height:400,
-                        title:window.hWin.HR('Copy the result')
+                        title:window.hWin.HR('Copy the result'),
+                        buttons:button
                 
                     });
                 });
@@ -366,6 +376,12 @@ console.log('load google map api')
                 }else{
                     imageurl = null;
                 }
+
+                if(params && params['start_tool']){
+                    initial_tool = params['start_tool'];
+                }else{
+                    initial_tool = null;
+                }                
                 
                 is_geofilter = params && params['geofilter'];
                 need_screenshot = params && params['need_screenshot'];
@@ -412,8 +428,12 @@ console.log('load google map api')
                                 refreshImageOverlay( true );
                         }, 2000);
                     }
-                    
+
+                    $('.leaflet-control-geocoder').removeClass('leaflet-control-geocoder-expanded'); // hide search box  
                 }else{
+
+                    $('.leaflet-control-geocoder').addClass('leaflet-control-geocoder-expanded'); // expand search box
+
                     $('#cbAllowMulti').prop('checked',false);
                     mapping.mapping( 'drawClearAll' );
                     
@@ -425,6 +445,44 @@ console.log('load google map api')
                     if(is_geofilter){
                         window.hWin.HEURIST4.msg.showMsgFlash(sMsgDigizeSearch, 2000);
                     }
+                }
+
+                if(!window.hWin.HEURIST4.util.isempty(initial_tool) && initial_tool != null){ // check if only one type of drawing tool is allowed
+                    if(initial_tool == 'rectangle'){ // only the rectangle tool is allowed
+                        $('.leaflet-draw-draw-marker').hide();
+                        $('.leaflet-draw-draw-circle').hide();
+                        $('.leaflet-draw-draw-circle').hide();
+                        $('.leaflet-draw-draw-rectangle').show();                        
+                        $('.leaflet-draw-draw-polygon').hide();
+                        $('.leaflet-draw-draw-polyline').hide();
+                    }
+                }else{
+                    $('.leaflet-draw-draw-marker').show();
+                    $('.leaflet-draw-draw-circle').show();
+                    $('.leaflet-draw-draw-circle').show();
+                    $('.leaflet-draw-draw-rectangle').show();
+                    $('.leaflet-draw-draw-polygon').show();
+                    $('.leaflet-draw-draw-polyline').show();
+                }
+
+                var that = this;
+                
+                if(!window.hWin.HEURIST4.util.isnull(this.map_geocoder)){
+                    this.map_geocoder.on('markgeocode', function(e){ // Add map marker on top of search mark
+                        
+                        e.target._map.eachLayer(function(layer){ 
+                            if(layer._icon){
+                                var map = {};
+                                map['layer'] = layer; 
+
+                                onMapDrawAdd();
+
+                                that.drawnItems.addLayer(layer);
+
+                                that.options.ondrawend.call(that, map);
+                            }
+                        }); 
+                    });
                 }
                 
                 //define draw controls for particular needs
@@ -579,7 +637,7 @@ console.log('load google map api')
                     <button id="view-button">Remember view</button>
                 </div>
                 <div style="padding-top:20px">
-                    <button class="save-button" style="font-weight:bold;font-size:1.1em">Save</button>
+                    <button class="save-button ui-button-action" style="font-weight:bold;font-size:1.1em">Save</button>
                 </div> 
                 
                 <div style="position:absolute;bottom:5;text-align:left;padding:10px;">
@@ -612,11 +670,11 @@ console.log('load google map api')
             <!--
             -->
             <div id="set-coordinates-helper">
-                <label>Paste geo data as Simple points, GeoJSON or WKT</label>
+                <label>Paste geo data as Simple points (X,Y or X Y), GeoJSON or WKT</label>
                 <div class="heurist-helper1" style="padding:5px 0">
-                    WKT:  Point (x y)   Linestring (x1 y1, x2 y2, x3 y3)   Polygon ((x1 y1, x2 y2, x3 y3)) see 
+                    WKT:  POINT(x y)   LINESTRING(x1 y1, x2 y2, x3 y3)   POLYGON((x1 y1, x2 y2, x3 y3)) see 
                     <a href="https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry" target="_blank">wikipedia</a> for more.<br>
-                    Simple points can be represented as: Y X or Y,X. Coordinates in decimal lat/long or UTM (first easting then northing)<br>
+                    Coordinates in decimal lat/long or UTM (x/easting then y/northing). Easting in W hemisphere starts at -180, northing in S Hemisphere starts at -90.<br>
                 </div>
             </div>
             <div id="get-coordinates-helper">
@@ -625,7 +683,7 @@ console.log('load google map api')
                 <label><input type="radio" name="get-coord-format" id="get-coord-wkt">WKT</label>
             </div>
             <textarea cols="" rows="" id="geodata_textarea"
-                style="position:absolute;top:2em;bottom:0;width:97%;resize:none"></textarea>
+                style="position:absolute;top:4em;bottom:0;width:97%;resize:none"></textarea>
         </div>
 
     </body>

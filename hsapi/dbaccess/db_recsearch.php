@@ -194,6 +194,8 @@ function recordSearchFacets($system, $params){
         }else if($fieldid=='recTitle' || $fieldid=='title'){
             $select_field = "r0.rec_Title";
             $dt_type = "freetext";
+        }else if($fieldid=='recAdded' || $fieldid=='added'){
+            $select_field = "r0.rec_Added";
         }else if($fieldid=='recModified' || $fieldid=='modified'){
             $select_field = "r0.rec_Modified";
         }else{
@@ -220,8 +222,18 @@ function recordSearchFacets($system, $params){
             .'cast(getTemporalDateString('.$select_field.') as SIGNED) !=0) )';
 
             //for dates we search min and max values to provide data to slider
-            //@todo facet_groupby   by year, day, month, decade, century
-            if($facet_groupby=='year' || $facet_groupby=='decade' || $facet_groupby=='century'){
+            //facet_groupby   by year, day, month, decade, century
+            if ($facet_groupby=='month') {
+                
+                $select_field = 'LAST_DAY(cast(getTemporalDateString('.$select_field.') as DATE))';
+                //"DATE_SUB(d,INTERVAL DAYOFMONTH(d)-1 DAY) "; first day
+                //date_add(date_add(LAST_DAY(@date),interval 1 DAY),interval -1 MONTH) AS first_day
+                $select_clause = "SELECT $select_field as rng, count(*) as cnt ";
+                if($grouporder_clause==''){
+                    $grouporder_clause = ' GROUP BY rng ORDER BY rng';
+                }
+                
+            }else if ($facet_groupby=='year' || $facet_groupby=='decade' || $facet_groupby=='century') {
 
                 $select_field = '(cast(getTemporalDateString('.$select_field.') as SIGNED))';
                 //'YEAR(cast(getTemporalDateString('.$select_field.') as DATE))';
@@ -231,7 +243,6 @@ function recordSearchFacets($system, $params){
                     $select_field = $select_field.' DIV 100 * 100';
                 }
 
-
                 $select_clause = "SELECT $select_field as rng, count(*) as cnt ";
                 if($grouporder_clause==''){
                     $grouporder_clause = ' GROUP BY rng ORDER BY rng';
@@ -240,9 +251,9 @@ function recordSearchFacets($system, $params){
 
             }else{    
 
-                $select_field = "cast(if(cast(getTemporalDateString(".$select_field.") as DATETIME) is null,"
-                ."concat(cast(getTemporalDateString(".$select_field.") as SIGNED),'-1-1'),"
-                ."getTemporalDateString(".$select_field.")) as DATETIME)";
+                $select_field = "cast(if(cast(getTemporalDateString( $select_field ) as DATETIME) is null,"
+                ."concat(cast(getTemporalDateString( $select_field ) as SIGNED),'-1-1'),"  //year
+                ."getTemporalDateString( $select_field )) as DATETIME)";
 
                 $select_clause = "SELECT min($select_field) as min, max($select_field) as max, count(distinct r0.rec_ID) as cnt ";
 
@@ -1036,7 +1047,7 @@ function recordSearchMenuItems($system, $menuitems, &$result, $ids_only=false){
 
                 if($isWebPage){
                     return recordSearch($system, array('q'=>array('ids'=>$root_rec_id), 
-                        'detail'=>array(DT_NAME,DT_SHORT_SUMMARY,DT_CMS_TARGET,DT_CMS_CSS,DT_CMS_PAGETITLE,DT_EXTENDED_DESCRIPTION,DT_CMS_TOP_MENU,DT_CMS_MENU), //'detail' 
+                        'detail'=>array(DT_NAME,DT_SHORT_SUMMARY,DT_CMS_TARGET,DT_CMS_CSS,DT_CMS_PAGETITLE,DT_EXTENDED_DESCRIPTION,DT_CMS_TOP_MENU,DT_CMS_MENU,DT_THUMBNAIL), //'detail' 
                         'w'=>'e', 'cms_cut_description'=>1));
                 }else{
                     //find parent home record
@@ -1096,7 +1107,7 @@ function recordSearchMenuItems($system, $menuitems, &$result, $ids_only=false){
         }else{
             //return recordset
             return recordSearch($system, array('q'=>array('ids'=>$result), 
-                'detail'=>array(DT_NAME,DT_SHORT_SUMMARY,DT_CMS_TARGET,DT_CMS_CSS,DT_CMS_PAGETITLE,DT_EXTENDED_DESCRIPTION,DT_CMS_TOP_MENU,DT_CMS_MENU), //'detail' 
+                'detail'=>array(DT_NAME,DT_SHORT_SUMMARY,DT_CMS_TARGET,DT_CMS_CSS,DT_CMS_PAGETITLE,DT_EXTENDED_DESCRIPTION,DT_CMS_TOP_MENU,DT_CMS_MENU,DT_THUMBNAIL), //'detail' 
                 'w'=>'e', 'cms_cut_description'=>1));
         }
     }

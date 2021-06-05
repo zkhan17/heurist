@@ -389,7 +389,7 @@ $.widget( "heurist.searchBuilderItem", {
                     
                     ed_options['dtFields'] = dtFields;
             }
-            ed_options['detailtype'] = field_type;
+            ed_options['detailtype'] = (field_type=='blocktext' || field_type=='file')?'freetext':field_type;
             ed_options['dtID'] = this.options.dty_ID;
 
         }
@@ -499,7 +499,7 @@ Whole value = EQUAL
                 {key:'=',title:'whole value'}    //cs
             ];
 
-            if(this.options.dty_ID>0 || this.options.dty_ID=='title'){
+            if(field_type!='file' && (this.options.dty_ID>0 || this.options.dty_ID=='title')){
                 eqopts = eqopts.concat([
                     {key:'@++',title:'all of the words'}, //full text
                     {key:'@',title:'any of the words'},  //full text
@@ -512,9 +512,16 @@ Whole value = EQUAL
                 {key:'ends',title:'ends with'}
                 //{key:'<>',title:'between'}
                 ]);
+                
+            if(field_type=='file'){
+            eqopts = eqopts.concat([
+                {key:'<=^',title:'size(kb)<='},
+                {key:'>=^',title:'size(kb)>='}
+                ]);
+            }
         }
 
-        if(this.options.dty_ID>0 && field_type!='relmarker'){  
+        if((this.options.dty_ID>0 || this.options.dty_ID=='notes' || this.options.dty_ID=='url')){  // && field_type!='relmarker'
             eqopts.push({key:'', title:'──────────', disabled:true});
             eqopts.push({key:'any', title:'any value (exists)'});
             eqopts.push({key:'NULL', title:'no data (missing)'});
@@ -534,10 +541,12 @@ Whole value = EQUAL
 
             var cval = this.select_comparison.val();
             if(cval=='NULL' || cval=='any' ){
+                if(this._predicate_reltype_ele) this._predicate_reltype_ele.hide();
                 this._predicate_input_ele.hide();
                 this.select_conjunction.hide();
                 this.cb_negate.hide();
             }else{
+                if(this._predicate_reltype_ele) this._predicate_reltype_ele.show();
                 this._predicate_input_ele.show();
                 this._manageConjunction();
                 //this.cb_negate.show();
@@ -575,10 +584,23 @@ Whole value = EQUAL
             // relation type selector and resource record selector
             ed_options['detailtype'] = 'relationtype';
             ed_options['dtID'] = 'r';
+            var dtFields = {dty_Type:'relationtype', 
+                            rst_DisplayName: $Db.dty(this.options.dty_ID,'dty_Name'),
+                            rst_FilteredJsonTermIDTree: $Db.dty(this.options.dty_ID,'dty_JsonTermIDTree'),
+                            rst_DefaultValue: '',
+                            rst_MaxValues:100};
+            ed_options['dtFields'] = dtFields;
+            
             this._predicate_reltype_ele = $("<div>").editing_input(ed_options).appendTo(this.values_container);
+            var ele = this._predicate_reltype_ele.find('.editint-inout-repeat-button')
+                        .css({'margin-left':'22px','min-width':'16px'});
+            var ele = ele.parent();
+            ele.css('min-width','44px');
 
+            
             ed_options['detailtype'] = 'resource';
             ed_options['dtID'] = this.options.dty_ID;
+            ed_options['dtFields'] = null;
             
         } 
         

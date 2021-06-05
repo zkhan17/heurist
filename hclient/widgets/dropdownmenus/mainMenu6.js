@@ -624,7 +624,7 @@ $.widget( "heurist.mainMenu6", {
 //23-12                ele.find('.menu-text').css('text-decoration','underline');
                 hasAction = ele.attr('data-action-popup');
                 
-                if(hasAction=='search_recent') {
+                if(hasAction=='search_recent' || hasAction=='nev_msg') {
                     hasAction = false;   
                     return;
                 }
@@ -1274,19 +1274,37 @@ $.widget( "heurist.mainMenu6", {
             });
             this._updateDefaultAddRectype();
 
+            
+            this._on(this.element.find('li[data-action-popup="nev_msg"]'),{
+                click: function(){
+                    window.hWin.HEURIST4.msg.showMsgDlg('May 2021: We have removed the duplicate navigation icons which used to be here.<br />'
+                        + 'Please use the identical functions at the top of the Explore menu and/or add them to<br />'
+                        + 'the Shortcuts bar (Design > Setup > Shortcuts bar).<br /><br />'
+                        + 'If you find that you really miss them, please email '
+                        + '<a href="mailto:support@heuristnetwork.org" style="color:blue">support@heuristnetwork.org</a> and we<br />'
+                        + 'will reinstate them as a configurable option.');
+                }
+            });
+
+            var exp_img = $(this.element.find('img[data-src="gs_explore_cb.png"]')[0]);
+            exp_img.attr('src', window.hWin.HAPI4.baseURL+'hclient/assets/v6/' + exp_img.attr('data-src'));
+
+
             this._on(this.element.find('li[data-action-popup="search_recent"]'),{
-                click: function(event){
+                click: function(){
                     var q = '?w=a&q=sortby:-m';
+                    var qname = 'All records';
                     if(!$(event.target).attr('data-search-all')){
                          q = q + ' after:"1 week ago"';
+                         qname = 'Recent changes';
                     }
-                    var request = window.hWin.HEURIST4.util.parseHeuristQuery( q );
-                    request.qname = 'Recent changes';
+                    var request = window.hWin.HEURIST4.util.parseHeuristQuery(q); 
+                    request.qname = qname;
                     window.hWin.HAPI4.SearchMgr.doSearch( this, request );
                 }
             });
 
-            
+           
             //init 
             this._switch_SvsList( 0 );
             //this.svs_list = this._init_SvsList(this.menues['explore'].find('#svs_list'));  
@@ -1719,16 +1737,20 @@ $.widget( "heurist.mainMenu6", {
         +'<div style="display:inline-block"><img width="110" height="60" alt="" src="'
             +window.hWin.HAPI4.baseURL+'hclient/assets/v6/gs_'+section+'.png"></div>'
             
-        +'<span class="ui-heurist-title header" style="display: inline-block; font-weight: normal;padding-left:20px">'
-            +'<span class="ui-icon ui-icon-help"/>&nbsp;Introductory guide</span>'            
+        +'<span class="ui-heurist-title header" id="menu-guide" style="display: inline-block; font-weight: normal;padding-left:20px;cursor: pointer">'
+            +'<span class="ui-icon ui-icon-help"/>&nbsp;Menu guide</span>'            
             
+        +'<span class="ui-heurist-title header" id="start-hints" style="display: inline-block; font-weight: normal;padding-left:20px;cursor: pointer">'
+            +'<span class="ui-icon ui-icon-help"/>&nbsp;Startup hints</span>' 			
+			
         +'<div class="ui-heurist-title" style="font-size: large !important;width: 80px;padding-top: 6px;">'+sname+'</div>'
         +'</div></div>')            
                 .addClass('ui-menu6-container ui-heurist-'+section)
                 .css({'background':'none'})
                 .appendTo( this.element );
                 
-            this._on(this.introductions[section].find('.gs-box'),{click:this._loadIntroductoryGuide});    
+		this._on(this.introductions[section].find('#menu-guide'),{click:this._loadIntroductoryGuide});  
+		this._on(this.introductions[section].find('#start-hints'),{click:this._loadStartHints});			
                 
             if(section=='design' && window.hWin.HEURIST4.util.getUrlParameter('welcome', window.hWin.location.search))
             {
@@ -1771,6 +1793,10 @@ $.widget( "heurist.mainMenu6", {
                         img.attr('src',window.hWin.HAPI4.baseURL+'hclient/assets/v6/'+img.attr('data-src'));
                     });
                     
+                    that.introductions[section].find('div.gs-box.ui-heurist-'+section)
+                    .prepend( '<span class="ui-heurist-title header" id="start-hints" style="padding-top:57px;font-weight:normal;padding-left:20px;cursor:pointer">'
+                                +'<span class="ui-icon ui-icon-help"/>&nbsp;Startup hints</span>' ).click(function(){ that._loadStartHints(null); });					
+					
                     that.introductions[section].find('.gs-box')
                         .css({position:'absolute', left:10, right:10, top:10, 'min-width':700, margin:0}) //,'padding-left':20
                         .show();
@@ -1788,7 +1814,67 @@ $.widget( "heurist.mainMenu6", {
                     
         this.containers[section].hide();
         
-    }    
+    },    
+  
+    closeContainer: function(section){
+        this.containers[section].empty().hide();
+    },
     
-    
+    _loadStartHints: function(e){
+
+        var section = this._active_section;
+
+        this._off(this.introductions[section].find('#start-hints'),'click');
+        this.introductions[section].find('#start-hints').hide();
+
+        var that = this;
+
+        this.introductions[section]
+                .load(window.hWin.HAPI4.baseURL+'startup/getting_started.html div.gs-box.ui-heurist-'+section,
+                    function(){
+                        // Display Section Img, hide link to YouTube video
+                        that.introductions[section].find('img').each(function(i,img){
+                            img = $(img);
+                            if(img.attr('data-src') == 'PresentationThumbnailIanJohnsonPlay-1.png'){
+                                $(img[0].parentNode.parentNode).hide();
+                                return;
+                            }
+                            img.attr('src',window.hWin.HAPI4.baseURL+'hclient/assets/v6/'+img.attr('data-src'));
+                        });
+
+                        // Link to Menu Guide
+                        that.introductions[section].find('div.gs-box.ui-heurist-'+section)
+                        .prepend( '<span class="ui-heurist-title header" id="menu-guide" style="padding-top:57px;font-weight:normal;padding-left:20px;cursor:pointer">'
+                                    +'<span class="ui-icon ui-icon-help"/>&nbsp;Menu guide</span>' ).click(function(){ that._loadIntroductoryGuide(null); });
+
+                        // Display Content
+                        that.introductions[section].find('.gs-box')
+                                .css({position:'absolute', left:10, right:10, top:10, 'min-width':700, margin:0}) //,'padding-left':20
+                                .show();
+                        that.introductions[section].find('.gs-box > div:first').css('margin','23px 0');
+                        
+                        that.introductions[section].find('.gs-box .ui-heurist-title.header')
+                                .css({position:'absolute', left:160, top:40, right:400, 'max-width':'540px'});
+
+                        // Load Welcome Content
+                        $container = $('<div class="gs-box">')
+                            .css({position:'absolute', left:10, right:10, top:180, bottom:10, 'min-width':400, overflow: 'auto'})
+                            .load(window.hWin.HAPI4.baseURL+'hclient/widgets/dropdownmenus/welcome.html', function(){
+                                
+                                // Bookmark Link
+                                var url = window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database;
+                                $('.bookmark-url').html('<a href="#">'+url+'</a>').click(function(e){
+                                    window.hWin.HEURIST4.util.stopEvent(e);
+                                    window.hWin.HEURIST4.msg.showMsgFlash('Press Ctrl+D to bookmark this page',1000);
+                                    return false;
+                                });
+                            })
+                            .appendTo( that.introductions[section] );
+                    })
+                .css({left:'304px',right: '4px',top:'2px',bottom:'4px',width:'auto',height:'auto'})  //,'z-index':104
+                .show();
+
+        this.containers[section].hide();
+    }
+	
 });

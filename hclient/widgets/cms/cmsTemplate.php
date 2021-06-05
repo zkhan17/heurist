@@ -66,7 +66,7 @@
 ?>
 <html>
 <head>
-    <title><?php print htmlspecialchars($website_title);?></title>
+    <title><?php print htmlspecialchars(strip_tags($website_title));?></title>
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
     <meta name="keywords" content="Heurist, Digital Humanities, Humanities Data, Research Data, Database Management, Academic data, Open Source, Free software, FOSS, University of Sydney,<?php echo $meta_keywords;?>">
     <meta name="description" content="<?php echo $meta_description;?>">
@@ -101,6 +101,13 @@
     padding: 0.5em;
     padding-bottom:0;
 }
+#main-title > h2{
+    font-size:1.7em;
+    margin-top:4px;
+    padding:0 10px;
+    max-height:80px;
+    overflow: hidden;    
+}
 #main-menu .horizontalmenu > li.ui-menu-item > a{
    font-weight:bold !important; 
    font-size:1.3em !important;
@@ -114,6 +121,7 @@
     right: 0;
     /*background: white;*/
     min-height: 19px;
+    display:none;
 }
 /*
 .horizontalmenu > li.ui-menu-item > a{
@@ -129,6 +137,7 @@
     font-weight:bold;
     color:blue;
 }
+
 </style>
 </head>
 <body>
@@ -174,13 +183,13 @@ if($isWebPage){
         print $page_header;        
     } else {
 ?>                        
-        <div id="main-logo" class="mceNonEditable header-element" style="position:absolute;top:20;left:10;max-height:90px;max-width:270px;border:2px none red;"></div>
+        <div id="main-logo" class="mceNonEditable header-element" style="position:absolute;top:20px;left:10px;max-height:90px;max-width:270px;border:2px none red;"></div>
         
-        <div id="main-logo-alt" class="mceNonEditable header-element" style="position:absolute;top:20;right:10;height:70px;width:270px;border:2px none red;"></div>
+        <div id="main-logo-alt" class="mceNonEditable header-element" style="position:absolute;top:20px;right:10px;height:70px;width:270px;border:2px none red;"></div>
         
-        <div id="main-title" class="mceNonEditable header-element" style="position:absolute;top:20;left:280;right:280;max-height:90px;border:2px none green;"></div>
+        <div id="main-title" class="mceNonEditable header-element" style="position:absolute;top:20px;left:280px;right:280px;max-height:90px;"></div>
         
-        <div id="main-menu" class="mceNonEditable header-element" style="position:absolute;top:110;width:100%;min-height:40px;border:2px none yellow;color:black;font-size:1.1em;" data-heurist-app-id="heurist_Navigation" data-generated="1">
+        <div id="main-menu" class="mceNonEditable header-element" style="position:absolute;top:110px;width:100%;min-height:40px;border:2px none yellow;color:black;font-size:1.1em;" data-heurist-app-id="heurist_Navigation" data-generated="1">
             <?php print $page_header_menu; ?>
         </div>
 
@@ -194,7 +203,7 @@ if($isWebPage){
     ?>  
         <div id="main-pagetitle" class="ui-heurist-bg-light">loading...</div>       
     </div>
-    <div class="ent_content_full ui-heurist-bg-light"  id="main-content-container"
+    <div class="ent_content_full  ui-heurist-bg-light"  id="main-content-container"
             style="top:152;<?php echo ($is_page_footer_fixed?'bottom:'.$page_footer_height.'px;':''); ?>padding: 5px;">
         <div id="main-content" data-homepageid="<?php print $home_page_record_id;?>" 
             <?php print ($open_page_on_init>0)?'data-initid="'.$open_page_on_init.'"':''; ?> 

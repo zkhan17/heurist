@@ -29,6 +29,9 @@ require_once (dirname(__FILE__).'/dbaccess/db_users.php');
 require_once (dirname(__FILE__).'/utilities/utils_file.php');
 require_once (dirname(__FILE__).'/structure/dbsImport.php');
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 /**
 *  Class that contains mysqli (dbconnection), current user and system settings
 *
@@ -313,7 +316,11 @@ error_log(print_r($_REQUEST, true));
             $res = $this->mysqli->query('select rty_ID as localID,
             rty_OriginatingDBID as dbID, rty_IDInOriginatingDB as id from defRecTypes order by dbID');
             if (!$res) {
-                echo "Unable to build internal record-type lookup table. Please ".CONTACT_SYSADMIN." for assistance. MySQL error: " . mysql_error();
+                $this->addError(HEURIST_DB_ERROR, 'Unable to build internal record-type lookup table', $this->mysqli->error);
+                
+                echo "Unable to build internal record-type lookup table. Please "
+                    . CONTACT_SYSADMIN." for assistance. MySQL error: " 
+                    . $this->mysqli->error;
                 exit();
             }
             
@@ -468,16 +475,38 @@ error_log(print_r($_REQUEST, true));
         return $folders;
     }        
     
-    public function getSystemFolders($is_for_backup=false){
+    //
+    // $is_for_backup - 0 no, 1 - archive backup, 2 - delete backup
+    //
+    public function getSystemFolders($is_for_backup=false, $database_name=null){
         
         $folders = $this->getArrayOfSystemFolders();
         
         $system_folders = array();
         
+        if($database_name==null){
+            $dbfolder = HEURIST_FILESTORE_DIR;
+        }else{
+            $dbfolder = HEURIST_FILESTORE_ROOT.$database_name.'/';
+        }
+        
         foreach ($folders as $folder_name=>$folder){        
             if(!$is_for_backup || @$folder[3]===true){
-                array_push($system_folders, HEURIST_FILESTORE_DIR.$folder_name.'/');
+
+                if($is_for_backup==2 && $folder_name=='documentation_and_templates') continue;
+                
+                if($is_for_backup==2){
+                    $folder_name = str_replace('\\', '/', realpath($dbfolder.$folder_name));
+                }else{
+                    $folder_name = $dbfolder.$folder_name;
+                }
+                
+                array_push($system_folders, $folder_name.'/');
             }
+        }
+        
+        if($is_for_backup==2){
+            array_push($system_folders, str_replace('\\', '/', realpath($dbfolder.'file_uploads')).'/');
         }
 
         //special case - these folders can be defined in sysIdentification and be outisde database folder            
@@ -770,6 +799,7 @@ error_log(print_r($_REQUEST, true));
         }
     }
     
+    // NOT USED
     public function setErrorEmail($val){
         $this->send_email_on_error = $val;
     }
@@ -782,30 +812,72 @@ error_log(print_r($_REQUEST, true));
         if($status==HEURIST_REQUEST_DENIED && $sysmsg==null){
             $sysmsg = $this->get_user_id();
         }
-        
+
         if($status!=HEURIST_INVALID_REQUEST && $status!=HEURIST_NOT_FOUND && 
-           $status!=HEURIST_REQUEST_DENIED && $status!=HEURIST_ACTION_BLOCKED){
-               
-                $Title = 'Heurist Error type: '.$status
-                    .' User: '.$this->get_user_id()
-                            .' '.@$this->current_User['ugr_FullName']
-                            .' <'.@$this->current_User['ugr_eMail'].'>'
-                    .' Database: '.$this->dbname();
-               
-                $sMsg = 'Message: '.$message."\n"
-                .($sysmsg?'System message: '.$sysmsg."\n":'')
-                .'Request: '.substr(print_r($_REQUEST, true),0,2000)."\n"
-                .'Script: '.@$_SERVER['REQUEST_URI']."\n";
-                //.'User: '.$this->get_user_id().' '.@$this->current_User['ugr_FullName']."\n"
-                //.'Database: '.$this->dbname();
-                if($this->send_email_on_error==1){  //.',osmakov@gmail.com'
-                    $rv = sendEmail(HEURIST_MAIL_TO_BUG, $Title,
-                                $sMsg, null);
-                    $message = 'Heurist was unable to process. '.$message;
-                    $sysmsg = 'This error has been emailed to the Heurist team. We apologise for any inconvenience';
-                }
+        $status!=HEURIST_REQUEST_DENIED && $status!=HEURIST_ACTION_BLOCKED){
+
+
+            $now = new DateTime('now', new DateTimeZone('UTC'));
+            $curr_logfile = 'errors_'.$now->format('Y-m-d').'.log';
+
+            //1. check if log file for previous day exists
+            $yesterday = $now->sub(new DateInterval('P1D'));
+            $arc_logfile = 'errors_'.$yesterday->format('Y-m-d').'.log';
+            
+            $root_folder = HEURIST_FILESTORE_ROOT; //dirname(__FILE__).'/../../';
+            
+            //if yesterday log file exists
+            if(file_exists($root_folder.$arc_logfile)){
+                //2. copy to log folder and email it
+                $archiveFolder = $root_folder."AAA_LOGS/";        
+
+                fileCopy($root_folder.$arc_logfile, $archiveFolder.$arc_logfile);
+                unlink($root_folder.$arc_logfile);
+
+                if($this->send_email_on_error==1){
                     
-                error_log($Title.'  '.$sMsg);     
+                    $msg = 'Error report '.HEURIST_SERVER_NAME.' for '.$yesterday->format('Y-m-d');
+
+                    //send an email with attachment
+                    $email = new PHPMailer();
+                    $email->isHTML(true); 
+                    $email->SetFrom('bugs@HeuristNetwork.org', 'Bug reporter'); //'bugs@'.HEURIST_SERVER_NAME 
+                    $email->Subject   = $msg;
+                    $email->Body      = $msg;
+                    $email->AddAddress( HEURIST_MAIL_TO_BUG );        
+                    $email->addAttachment($archiveFolder.$arc_logfile);
+
+                    try{
+                        $email->send();
+                    } catch (Exception $e) {
+                        error_log('Cannot send email. Please ask system administrator to verify that mailing is enabled on your server. '
+                         .$email->ErrorInfo);     
+                    }                    
+                    //$rv = sendEmail(HEURIST_MAIL_TO_BUG, $Title, $sMsg, null);
+                }
+
+            }
+
+            //3. wrtie error into current error log
+            $Title = 'Heurist Error type: '.$status
+                    .' User: '.$this->get_user_id()
+                    .' '.@$this->current_User['ugr_FullName']
+                    .' <'.@$this->current_User['ugr_eMail'].'>'
+                    .' Database: '.$this->dbname();
+
+            $sMsg = 'Message: '.$message."\n"
+                    .($sysmsg?'System message: '.$sysmsg."\n":'')
+                    .'Request: '.substr(print_r($_REQUEST, true),0,2000)."\n"
+                    .'Script: '.@$_SERVER['REQUEST_URI']."\n"
+                    ."------------------\n";
+
+            fileAdd($Title.'  '.$sMsg, $root_folder.$curr_logfile);
+
+            $message = 'Heurist was unable to process. '.$message;
+            $sysmsg = 'This error has been emailed to the Heurist team (for servers maintained by the project - may not be enabled on personal servers). We apologise for any inconvenience';
+
+            //$root_folder.$curr_logfile."\n".
+            error_log($Title.'  '.$sMsg);     
         }
 
         $this->errors = array("status"=>$status, "message"=>$message, "sysmsg"=>$sysmsg, 'error_title'=>$title);
@@ -823,8 +895,7 @@ error_log(print_r($_REQUEST, true));
         if($total_not_in_cache==null || $total_not_in_cache>0){
 */            
             
-        $value = mysql__select_value($this->mysqli, "SHOW TABLES LIKE 'recLinks'");
-        if($value==null || $value==""){
+        if(!hasTable($this->mysqli, 'recLinks')){
                 //recreate cache
                 include(dirname(__FILE__).'/utilities/utils_db_load_script.php'); // used to execute SQL script
 
@@ -1036,7 +1107,7 @@ error_log(print_r($_REQUEST, true));
         if($ugrID>0){
             $groups = @$this->current_User['ugr_Groups'];
             if($refresh || !is_array($groups)){
-                $this->current_User['ugr_Groups'] = user_getWorkgroups($this->mysqli, $ugrID);
+                $groups = $this->current_User['ugr_Groups'] = user_getWorkgroups($this->mysqli, $ugrID);
             }
             if($level!=null){
                 $groups = array();

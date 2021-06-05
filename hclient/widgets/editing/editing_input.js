@@ -73,10 +73,13 @@ $.widget( "heurist.editing_input", {
         
             if(this.options.is_faceted_search){
                 if(window.hWin.HEURIST4.util.isempty(this.options['dtFields']['rst_FilteredJsonTermIDTree'])){
-                    this.options['dtFields']['rst_FilteredJsonTermIDTree'] = 
-                                $Db.dty(this.options.dtID,'dty_JsonTermIDTree');
+                    this.options['dtFields']['rst_FilteredJsonTermIDTree'] = $Db.dty(this.options.dtID,'dty_JsonTermIDTree');
                 } 
+                if(window.hWin.HEURIST4.util.isempty(this.options['dtFields']['rst_PtrFilteredIDs'])){
+                    this.options['dtFields']['rst_PtrFilteredIDs'] = $Db.dty(this.options.dtID,'dty_PtrTargetRectypeIDs');
+                }
                 this.options['dtFields']['rst_DefaultValue'] = '';
+                this.options['dtFields']['rst_PointerMode'] = 'browseonly';
             }
 
         }
@@ -851,7 +854,7 @@ $.widget( "heurist.editing_input", {
             } 
 
         }
-        else if(this.detailType=='enum' || this.detailType=='relationtype'){//--------------------------------------
+        else if(this.detailType=='enum' || this.detailType=='relationtype' || this.detailType=='access' || this.detailType=='tag'){//--------------------------------------
 
             var dwidth;
             if(this.configMode && this.configMode.entity!='records'){
@@ -859,10 +862,7 @@ $.widget( "heurist.editing_input", {
                 if(parseFloat(dwidth)>0){
                     dwidth = dwidth+'ex';
                 }
-            }
-            var def_value = this.f('rst_DefaultValue');
-            if(window.hWin.HEURIST4.util.isempty(value) && 
-                !window.hWin.HEURIST4.util.isempty(def_value)) value = def_value;            
+            }           
 
             $input = $('<select>').uniqueId()
                 .addClass('text ui-widget-content ui-corner-all')
@@ -870,7 +870,178 @@ $.widget( "heurist.editing_input", {
                 .val(value)
                 .appendTo( $inputdiv );
             
-            $input = this._recreateSelector($input, value);
+            if(this.detailType=='access'){
+                var sel_options = [
+                    {key: '', title: ''}, 
+                    {key: 'viewable', title: 'viewable'}, 
+                    {key: 'hidden', title: 'hidden'}, 
+                    {key: 'public', title: 'public'}, 
+                    {key: 'pending', title: 'pending'}
+                ];
+
+                window.hWin.HEURIST4.ui.createSelector($input.get(0), sel_options);
+                window.hWin.HEURIST4.ui.initHSelect($input, false);
+            }
+            else if(this.detailType=='tag'){
+                var groups = [];
+                var req = {};
+                req['a'] = 'search';
+                req['details'] = 'name'; // Get group id and name
+                req['entity'] = 'sysGroups';
+                req['request_id'] = window.hWin.HEURIST4.util.random();
+
+                /* Retrieve List of User Groups, mostly the names for displaying */
+                window.hWin.HAPI4.EntityMgr.doRequest(req, 
+                    function(response){
+                        if(response.status == window.hWin.ResponseStatus.OK){
+                            var recset = new hRecordSet(response.data);
+                            if(recset.length()>0){
+                                recset.each2(function(id, val){
+                                    groups.push([val['ugr_ID'], val['ugr_Name']]);
+                                });
+                            }
+                        }else{
+                            window.hWin.HEURIST4.msg.showMsgErr(response);
+                        }
+                    }
+                );
+
+                var sel_options = [];
+                var u_id = window.hWin.HAPI4.currentUser['ugr_ID'];
+
+                req = {};
+                req['a'] = 'search';
+                req['details'] = 'name'; // Get tag id, name, and gorup id
+                req['entity'] = 'usrTags';
+                req['sort:tag_Text'] = 2; // Order tags by tag name
+                req['request_id'] = window.hWin.HEURIST4.util.random();
+
+                /* Retrieve Tags */
+                window.hWin.HAPI4.EntityMgr.doRequest(req, 
+                    function(response){
+                        if(response.status == window.hWin.ResponseStatus.OK){
+                            var gIDs = [];
+                            var recset = new hRecordSet(response.data);
+                            if(recset.length()>0){
+                                records = recset.getSubSetByRequest({'sort:tag_UGrpID':1});
+                                
+                                u_tags = records.getSubSetByRequest({'tag_UGrpID':'='+u_id});
+                                u_tags.each2(function(id, val){ // Get User Tags first
+                                    var tag_name = filter_val = val['tag_Text'];
+                                    var tag_group = val['tag_UGrpID'];
+
+                                    var values = {};
+                                    values['key'] = filter_val;
+                                    values['title'] = tag_name;
+
+                                    sel_options.push(values);
+                                });  
+
+                                w_tags = records.getSubSetByRequest({'tag_UGrpID':'!='+u_id});
+                                w_tags.each2(function(id, val){ // Get Workgroup Tags second
+                                    var tag_name = filter_val = val['tag_Text'];
+                                    var tag_group = val['tag_UGrpID'];
+
+                                    for(var i=0; i<groups.length; i++){
+                                        if(groups[i][0] == tag_group){
+                                            tag_name = groups[i][1] + '.' + tag_name;
+                                        }
+                                    }
+
+                                    var values = {};
+                                    values['key'] = filter_val;
+                                    values['title'] = tag_name;
+
+                                    sel_options.push(values);
+                                });
+                                window.hWin.HEURIST4.ui.createSelector($input.get(0), sel_options);
+                                window.hWin.HEURIST4.ui.initHSelect($input, false);
+                            }else{ // No Tags Found
+                                window.hWin.HEURIST4.ui.createSelector($input.get(0), [{key: '', title: 'No Tags Found'}]);
+                            }
+                        }else{
+                            window.hWin.HEURIST4.msg.showMsgErr(response);
+                        }
+                    }
+                );
+            }
+            else{
+                $input = this._recreateSelector($input, value);
+				
+                if($($input[0]).hSelect("instance")!=undefined){
+					$($($input[0]).hSelect("instance").bindings[1]).on('click', function(e){ // selectmenu click extra handler
+
+						var trm_tooltip;
+						
+						$($($input[0]).hSelect("menuWidget")[0]).find('div').on({ // selectmenu's menu items
+							"mouseover": function(e){ // Retrieve information then display tooltip
+
+								var parent_container = $($input[0]).hSelect("menuWidget")[0];
+
+								var term_txt = $(e.target).text();
+								var vocab_id = that.f('rst_FilteredJsonTermIDTree');
+								var data = $Db.trm_TreeData(vocab_id, 'select');
+								
+								var details = "";
+
+								for(var i=0; i<data.length; i++){
+									if(data[i].title == term_txt){
+
+										var rec = $Db.trm(data[i].key);
+
+										if(!window.hWin.HEURIST4.util.isempty(rec.trm_Code)){
+											details += "<span style='text-align: center;'>Code &rArr; " + rec.trm_Code + "</span>";
+										}
+
+										if(!window.hWin.HEURIST4.util.isempty(rec.trm_Description)){
+
+											if(window.hWin.HEURIST4.util.isempty(details)){
+												details += "<span style='text-align: center;'>Code &rArr; N/A </span>";
+											}
+
+											details += "<hr/><span>" + rec.trm_Description + "</span>";
+										}
+									}
+								}
+
+								if(window.hWin.HEURIST4.util.isempty(details)){
+									details = "No Description Provided";
+								}
+
+								trm_tooltip = $(parent_container).tooltip({
+									items: "div.ui-state-active",
+									position: { // Post it to the right of menu item
+										my: "left+15 center",
+										at: "right center",
+										collision: "none"
+									},
+									show: { // Add delay to show
+										delay: 2000,
+										duration: 0
+									},
+									content: function(){ // Provide text
+										return details;
+									},
+									open: function(event, ui){ // Add custom CSS
+										ui.tooltip.css({
+											"color": "white",
+											"width": "200px",
+											"background": "#307D96",
+											"font-size": "1.1em"
+										});
+									}
+								});
+							},
+
+							"mouseleave": function(){ // Ensure tooltip closes
+								if(trm_tooltip.tooltip("instance")!=undefined){
+									trm_tooltip.tooltip("destroy");
+								}
+							}
+						});
+					});
+				}
+            }
             $input = $($input);
             
             this._on( $input, {change:this._onTermChange} );
@@ -989,7 +1160,7 @@ $.widget( "heurist.editing_input", {
                                 input = $(input);
                                 input.css('width','auto');
                                 input = that._recreateSelector(input, true);
-                                that._on( input, {change:this._onTermChange} );
+                                that._on( input, {change:that._onTermChange} );
                                 that._showHideSelByImage(input);
 
                             });
@@ -1112,7 +1283,7 @@ $.widget( "heurist.editing_input", {
                             isOpened = true;
                             
                             if(that.options.editing && (that.options.editing.editStructureFlag()===true)){
-                                window.hWin.HEURIST4.msg.showMsgFlash('This feature is disabled in edit structure mode');                     return;
+                                window.hWin.HEURIST4.msg.showMsgFlash('This feature is disabled in edit structure mode',2000);                     return;
                             }
                             
                             function __onCloseAddLink(context){
@@ -1558,31 +1729,6 @@ $.widget( "heurist.editing_input", {
                 }
                 
                 window.hWin.HEURIST4.ui.showEntityDialog('defRecTypes', rg_options);
-/*                
-                var sURL =  window.hWin.HAPI4.baseURL + "admin/structure/rectypes/selectRectype.html?type=" 
-                        + that.detailType  + "&dtID=" + that.options.recID +"&ids=" 
-                        + sels
-                        + "&db="+ window.hWin.HAPI4.database;  
-
-                window.hWin.HEURIST4.msg.showDialog(sURL, {
-                    "close-on-blur": false,
-                    "no-resize": true,
-                    title: 'Select Record Type',
-                    height: 600,
-                    width: 640,
-                    callback: function(selection) {
-                        if(!window.hWin.HEURIST4.util.isempty(selection) && !$.isArray(selection)){
-                            selection = selection.split(','); 
-                        }  
-                        var newsel = window.hWin.HEURIST4.util.isArrayNotEmpty(selection)?selection:[];
-                        
-                        //config and data are loaded already, since dialog was opened
-                        that._findAndAssignTitle($input, newsel);
-                        that.newvalues[$input.attr('id')] = newsel.join(',');
-                        that.onChange();
-                    }
-                });
-*/                
             }
             
             //replace input with div
@@ -1750,16 +1896,14 @@ $.widget( "heurist.editing_input", {
             $input = $( "<input>")
             .uniqueId()
             .addClass('text ui-widget-content ui-corner-all')
-            .attr('autocomplete','disabled')
-            .attr('autocorrect','off')
-            .attr('autocapitalize','none')
-            .attr('spellcheck','false')
             .val(value)
             .keyup(function(){that.onChange();})
             .change(function(){
                     that.onChange();
             })
             .appendTo( $inputdiv );
+            
+            window.hWin.HEURIST4.ui.disableAutoFill( $input );
             
             if(!(this.options.dtID=='file' || this.detailType=='resource' || 
                  this.detailType=='date' || this.detailType=='geo' || this.detailType=='action')){
@@ -1928,90 +2072,201 @@ $.widget( "heurist.editing_input", {
                     .css({position: 'absolute', margin: '5px 0px 0px 8px', cursor:'hand'}).insertBefore( $input ); 
                 
                 /* Image and Player (enalrged image) container */
-                $input_img = $('<br /><div class="image_input ui-widget-content ui-corner-all thumb_image" style="margin:10px 0 2px;">'
-                + '<img id="img'+f_id+'" class="image_input">'
-                + '<div id="player'+f_id+'" style="min-height:240px; min-width:320px; display:none;"></div>'
+                $input_img = $('<br/><div class="image_input ui-widget-content ui-corner-all thumb_image" style="margin-bottom:2px;border:none;">'
+                + '<img id="img'+f_id+'" class="image_input" style="max-width:none;">'
+                + '<div id="player'+f_id+'" style="min-height:100px;min-width:200px;display:none;"></div>'
                 + '</div>')
                 .appendTo( $inputdiv )
                 .hide();
 
+				/* Record Type help text for Record Editor */
+				$small_text = $('<br /><div class="smallText" style="display:inline-block;color:gray;font-size:smaller;">'
+                    + 'Click image to freeze in place</div>')
+                .clone()
+                .prependTo( $inputdiv )
+                .hide();
+
                 /* urls for downloading and loading the thumbnail */
                 var dwnld_link = window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database+'&download=1&file='+f_nonce;
-                var url = window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database+'&file='+f_nonce+'&mode=tag&origin=recview';
+                var url = window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database+'&file='+f_nonce+'&mode=tag&origin=recview'; 
 
                 /* Anchors (download and show thumbnail) container */
                 $dwnld_anchor = $('<br /><div class="download_link">'
                     + '<a id="lnk'+f_id+'" href="#" oncontextmenu="return false;" style="display:none;padding-right:20px;text-decoration:underline;color:blue"'
-                    + ' onClick="hidePlayer('+f_id+')">SHOW THUMBNAIL</a>'
-                    + '<a href="'+window.hWin.HEURIST4.util.htmlEscape(dwnld_link)+'" target="_surf" class="external-link image_tool" style="display:inline-block;text-decoration:underline;color:blue">'
-                    + 'DOWNLOAD</a></div>')
+                    + '>SHOW THUMBNAIL</a>'
+                    + '<a id="dwn'+f_id+'" href="'+window.hWin.HEURIST4.util.htmlEscape(dwnld_link)+'" target="_surf" class="external-link image_tool'
+                    + '"style="display:inline-block;text-decoration:underline;color:blue">DOWNLOAD</a>'
+                    + '</div>')
+                .clone()
+                .appendTo( $inputdiv )
                 .hide();
                 
                 /* Change Handler */
-                $input.change(function(){
+                $input.change(function(event){
+					
+                    /* new file values */
                     var val = that.newvalues[$input.attr('id')];
+                    var n_id = val['ulf_ID'];
+                    var n_nonce = val['ulf_ObfuscatedFileID'];
+                    var n_dwnld_link = window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database+'&download=1&file='+n_nonce;
+                    var n_url = window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database+'&file='+n_nonce+'&mode=tag&origin=recview';
 
                     if(window.hWin.HEURIST4.util.isempty(val) || !(val.ulf_ID >0)){
                         $input.val('');
                     }
                     //clear thumb rollover
                     if(window.hWin.HEURIST4.util.isempty($input.val())){
-                         $input_img.find('img').attr('src','');    
+                        $input_img.find('img').attr('src','');
                     }
+
+                    if(f_id != n_id){// If the image has been changed from original/or has been newly added
+
+                        $container = $(event.target.parentNode);
+
+                        $show = $($container.find('a#lnk'+f_id)[0]);
+                        $dwnld = $($container.find('a#dwn'+f_id)[0]);
+                        $player = $($container.find('div#player'+f_id)[0]);
+                        $thumbnail = $($container.find('img#img'+f_id)[0]);
+
+                        $show.attr({'id':'lnk'+n_id});
+
+                        $dwnld.attr({'id':'dwn'+n_id, 'href':n_dwnld_link});
+
+                        $player.attr({'id':'player'+n_id});
+
+                        $thumbnail.attr({'id':'img'+n_id});                       
+
+                        f_id = n_id;
+                        f_nonce = n_nonce;
+                        dwnld_link = n_dwnld_link;
+                        url = n_url;
+                    }
+
                     that.onChange(); 
                 });
                 
                 /* Handler Variables */
-                var hideTimer = 0;  //  Time for hiding thumbnail
-                var isClicked = 0;
+                var hideTimer = 0, showTimer = 0;  //  Time for hiding thumbnail
+                var isClicked = 0;  // Number of image clicks, one = freeze image inline, two = enlarge/srink
 
                 /* Input element's hover handler */
-                $input.mouseover(function(){
-                    if(!window.hWin.HEURIST4.util.isempty($input_img.find('img').attr('src'))){
+                function __showImagePreview(event){
+
+                    if(!window.hWin.HEURIST4.util.isempty($input_img.find('img').attr('src')) && isClicked == 0){
                         if (hideTimer) {
                             window.clearTimeout(hideTimer);
                             hideTimer = 0;
                         }
-                        $input_img.show();
-                    }
-                });
-
-                /* Input element's mouse out handler, attached and dettached depending on user preferences */
-                function img_mouseout(){
-                    if($input_img.is(':visible')){
-                        hideTimer = window.setTimeout(function(){if(isClicked==0){$input_img.hide(1000);}}, 500);
+                        
+                        if($input_img.is(':visible')){
+                            $input_img.stop(true, true).show();    
+                        }else{
+                            if(showTimer==0){
+                                showTimer = window.setTimeout(function(){
+                                    $input_img.show();
+                                    $inputdiv.find('div.smallText').show();
+                                    showTimer = 0;
+                                },500);
+                            }
+                        }
                     }
                 }
-                $input.on('mouseout', img_mouseout);
+                this._on($input,{mouseover: __showImagePreview});
+                this._on($input_img,{mouseover: __showImagePreview}); //mouseover
+
+                /* Input element's mouse out handler, attached and dettached depending on user preferences */
+                function __hideImagePreview(event){
+                        if (showTimer) {
+                            window.clearTimeout(showTimer);
+                            showTimer = 0;
+                        }
+                    if($input_img.is(':visible')){
+                        
+                        //var ele = $(event.target);
+                        var ele = event.toElement || event.relatedTarget;
+                        ele = $(ele);
+                        if(ele.hasClass('image_input') || ele.parent().hasClass('image_input')){
+                            return;
+                        }
+                                                
+                        hideTimer = window.setTimeout(function(){
+                            if(isClicked==0){
+                                $input_img.fadeOut(1000);
+                                $inputdiv.find('div.smallText').hide(1000);
+                            }
+                        }, 500);
+                    }
+                }
+                this._on($input, {mouseout:__hideImagePreview});
+                this._on($input_img, {mouseout:__hideImagePreview});
 
                 /* Thumbnail's click handler */
-                $input_img.click(function(){
+                $input_img.click(function(event){
+
+                    var elem = event.target;
                     
                     if (isClicked==0){
-                        isClicked++;
+                        isClicked=1;
                         
-                        $input.off("mouseout");
+                        that._off($input_img,'mouseout');
+
+                        $(elem.parentNode.parentNode).find('div.smallText').hide(); // Hide image help text
+
+                        $dwnld_anchor = $($(elem.parentNode.parentNode).find('div.download_link')); // Find the download anchors
                         
-                        $dwnld_anchor.appendTo( $inputdiv );
                         $dwnld_anchor.show();
+
+                        if ($dwnld_anchor.find('a#dwnundefined')){  // Need to ensure the links are setup
+                            $dwnld_anchor.find('a#dwnundefined').attr({'id':'dwn'+f_id, 'href':dwnld_link});
+                            $dwnld_anchor.find('a#lnkundefined').attr({'id':'lnk'+f_id, 'onClick':'window.hWin.HEURIST4.ui.hidePlayer('+f_id+', this.parentNode)'})
+                        }
 
                         $input_img.css('cursor', 'zoom-in');
 
-                        window.hWin.HAPI4.save_pref('imageRecordEditor', true);
+                        window.hWin.HAPI4.save_pref('imageRecordEditor', 1);
                     }
-                    else if (isClicked==1)
-                    {
-                        var elem = event.target;
+                    else if (isClicked==1) {
 
                         /* Enlarge Image, display player */
                         if ($(elem.parentNode).hasClass("thumb_image")) {
-                           window.hWin.HEURIST4.ui.showPlayer(elem, elem.parentNode, f_id, url);
+                            $(elem.parentNode.parentNode).find('.hideTumbnail').hide();
+
+                            $input_img.css('cursor', 'zoom-out');
+
+                            window.hWin.HEURIST4.ui.showPlayer(elem, elem.parentNode, f_id, url);
+                        }
+                        else {  // Srink Image, display thumbnail
+                            $($input_img[1].parentNode).find('.hideTumbnail').show();
+
+                            $input_img.css('cursor', 'zoom-in');
                         }
                     }
-                });  
+                }); 
+
+				/* for closing inline image when 'frozen' */
+                $hide_thumb = $('<span class="hideTumbnail" style="padding-left:5px;color:gray;cursor:pointer;font-size:smaller;">'
+                                + 'CLOSE IMAGE</span>').appendTo( $dwnld_anchor ).show();
+                $hide_thumb.on("click", function(event){
+
+                    isClicked = 0;
+
+                    that._on($input, {mouseout:__hideImagePreview});
+                    that._on($input_img, {mouseout:__hideImagePreview});
+
+                    $(event.target.parentNode).hide();
+
+                    $input_img.hide();
+                });
+
+				/* Show Thumbnail handler */
+                $('#lnk'+f_id).on("click", function(event){
+                    window.hWin.HEURIST4.ui.hidePlayer(f_id, event.target.parentNode.parentNode.parentNode);
+					
+                    $(event.target.parentNode.parentNode).find('.hideTumbnail').show();
+				});
 
 				/* Check User Preferences, displays thumbnail inline by default if set */
-                if (window.hWin.HAPI4.get_prefs_def('imageRecordEditor', false) && value.ulf_ID)
+                if (window.hWin.HAPI4.get_prefs_def('imageRecordEditor', 0)!=0 && value.ulf_ID)
                 {
                     $input_img.show();
                     $dwnld_anchor.show();
@@ -2019,10 +2274,12 @@ $.widget( "heurist.editing_input", {
                     $dwnld_anchor.appendTo( $inputdiv );
 
                     $input_img.css('cursor', 'zoom-in');
+					
+                    $small_text.hide();
 
                     $input.off("mouseout");
 
-                    isClicked++;
+                    isClicked=1;
                 }
 
                         var __show_select_dialog = null;
@@ -2126,7 +2383,6 @@ $.widget( "heurist.editing_input", {
                                 this.newvalues[$input.attr('id')] = value;
                             }*/
                         }
-                
             }
             else
             if( this.detailType=='folder' ){ //----------------------------------------------------
@@ -2247,8 +2503,7 @@ $.widget( "heurist.editing_input", {
          
                         //init upload widget
                         $input.fileupload({
-    url: window.hWin.HAPI4.baseURL +  'hsapi/utilities/fileUpload.php',  //'external/jquery-file-upload/server/php/',
-    //url: 'templateOperations.php',
+    url: window.hWin.HAPI4.baseURL +  'hsapi/utilities/fileUpload.php',
     formData: [ {name:'db', value: window.hWin.HAPI4.database}, 
                 {name:'entity', value:this.configMode.entity},
                 {name:'version', value:this.configMode.version},
@@ -2505,7 +2760,155 @@ console.log('onpaste');
                         val:value});
                 $input.parent('.evo-cp-wrap').css({display:'inline-block',width:'200px'});
 
-            }
+            }else if($Db.getConceptID('dty', this.options.dtID) == '3-1082'){ // Geo Bookmark, five input form, experimental 
+
+                $input.css({cursor:'hand'});
+
+                __show_geoBookmark_dialog = function(event) {
+                    event.preventDefault();
+
+                    if(that.is_disabled) return;
+
+                    var current_val = $input.val();
+
+                    // split current_val into parts based on , 
+                    var setup_val = current_val.split(",");
+
+                    var $dlg = null;
+
+                    var pdiv = '<div style="display:grid;grid-template-columns:100%;">'
+
+                            + '<div style="margin-bottom:10px;display:grid;grid-template-columns:150px 200px;">'
+                            + '<label class="required">Bookmark Name:</label><input type="text" id="bkm_name"></div>'
+                    
+                            + '<div style="margin-bottom:10px;display:grid;grid-template-columns:150px 200px 200px;">'
+                            + '<label class="required">Bookmark\'s Longitude:</label><input type="text" id="bkm_long" class="bkm_points" style="cursor:pointer;">'
+                            + '<span class="heurist-helper1" style="padding-left:5px">Min, Max Values</span></div>'
+
+                            + '<div style="margin-bottom:10px;display:grid;grid-template-columns:150px 200px 200px;">'
+                            + '<label class="required">Bookmark\'s Latitude:</label><input type="text" id="bkm_lat" class="bkm_points" style="cursor:pointer;">'
+                            + '<span class="heurist-helper1" style="padding-left:5px">Min, Max Values</span></div>'                            
+                    
+                            + '<div style="margin-bottom:10px;display:grid;grid-template-columns:150px 200px;">'
+                            + '<label style="color:#6A7C99">Starting Date:</label><input type="text" id="bkm_sdate"></div>'
+                    
+                            + '<div style="margin-bottom:10px;display:grid;grid-template-columns:150px 200px;">'
+                            + '<label style="color:#6A7C99">Ending Date:</label><input type="text" id="bkm_edate"></div>'
+
+                    var popele = $(pdiv);
+
+                    popele.find('input[class="bkm_points"]').click(function(e){
+                        var url = window.hWin.HAPI4.baseURL 
+                            +'viewers/map/mapDraw.php?db='+window.hWin.HAPI4.database;
+
+                        var wkt_points = $('input[id="bkm_long"]').val() + ',' + $('input[id="bkm_lat"]').val();
+                        var points = wkt_points.split(/[\s,]+/);
+
+                        var geo_points = points[0] + ',' + points[2] + ' ' + points[1] + ',' + points[3];
+
+                        var wkt_params = {'wkt': geo_points};
+                        wkt_params['start_tool'] = 'rectangle';
+
+                        window.hWin.HEURIST4.msg.showDialog(url, {
+                            height:that.options.is_faceted_search?540:'900',
+                            width:that.options.is_faceted_search?600:'1000',
+                            window: window.hWin,  //opener is top most heurist window
+                            dialogid: 'map_digitizer_dialog',
+                            default_palette_class: 'ui-heurist-populate',
+                            params: wkt_params,
+                            title: window.hWin.HR('Heurist map digitizer'),
+                            callback: function(location){
+                                if( !window.hWin.HEURIST4.util.isempty(location) ){
+                                    
+                                    var geovalue = window.hWin.HEURIST4.geo.wktValueToDescription(location.type+' '+location.wkt);
+                                    var geocode = geovalue.summary;
+                                    geocode = geocode.replace('X', '');
+                                    geocode = geocode.replace('Y', '');
+                                    geocode = geocode.replace(' ', '');
+
+                                    var points = geocode.split(/[\s,]+/);
+
+                                    $('input[id="bkm_long"]').val(points[0] + ',' + points[2]).change();
+                                    $('input[id="bkm_lat"]').val(points[1] + ',' + points[3]).change();
+                                }
+                            }
+                        } );
+                    });
+
+                    popele.find('input[id="bkm_name"]').val(setup_val[0]);
+                    popele.find('input[id="bkm_long"]').val(setup_val[1] +','+ setup_val[2]);
+                    popele.find('input[id="bkm_lat"]').val(setup_val[3] +','+ setup_val[4]);
+
+                    if(setup_val.length == 7){
+                        popele.find('input[id="bkm_sdate"]').val(setup_val[5]);
+                        popele.find('input[id="bkm_edate"]').val(setup_val[6]);
+                    }
+
+                    var btns = [
+                        {text:window.hWin.HR('Apply'),
+                            click: function(){
+
+                                var title = popele.find('input[id="bkm_name"]').val();
+                                var long_points = popele.find('input[id="bkm_long"]').val();
+                                var lat_points = popele.find('input[id="bkm_lat"]').val();
+                                var sdate = popele.find('input[id="bkm_sdate"]').val();
+                                var edate = popele.find('input[id="bkm_edate"]').val();
+
+                                var geo_points = long_points + ',' + lat_points;
+
+                                if(window.hWin.HEURIST4.util.isempty(title) || window.hWin.HEURIST4.util.isempty(geo_points)){
+                                    window.hWin.HEURIST4.msg.showMsgFlash('A title and map points must be provided', 2500);
+                                    return;
+                                }
+
+                                var points = geo_points.split(/[\s,]+/);
+
+                                if(points.length != 4){
+                                    window.hWin.HEURIST4.msg.showMsgFlash('You need 2 sets of geographical points', 2500);
+                                    return;
+                                }
+
+                                geo_points = "";
+                                for(var i = 0; i < points.length; i++){
+                                    var n = points[i];
+                                    geo_points = geo_points + ',' + parseFloat(n).toFixed(2);
+                                }
+
+                                var has_start_date = window.hWin.HEURIST4.util.isempty(sdate);
+                                var has_end_date = window.hWin.HEURIST4.util.isempty(edate);
+
+                                if(has_start_date && has_end_date){
+                                    $input.val(title + geo_points);
+                                }
+                                else if(!has_start_date && !has_end_date){
+                                    $input.val(title + geo_points +','+ sdate +','+ edate);
+                                }
+                                else{
+                                    window.hWin.HEURIST4.msg.showMsgFlash('You must provide both a start and end date, or neither', 2500);
+                                    return;
+                                }
+
+                                $dlg.dialog('close');
+                            }
+                        },
+                        {text:window.hWin.HR('Close'),
+                            click: function() { $dlg.dialog('close'); }
+                        }
+                    ];
+
+                    $dlg = window.hWin.HEURIST4.msg.showElementAsDialog({
+                        window:  window.hWin, //opener is top most heurist window
+                        title: window.hWin.HR('Geographical bookmark form'),
+                        width: 575,
+                        height: 252,
+                        element:  popele[0],
+                        resizable: false,
+                        buttons: btns,
+                        default_palette_class: 'ui-heurist-populate'
+                    });                 
+                }
+                this._on( $input, { keypress: __show_geoBookmark_dialog, click: __show_geoBookmark_dialog } );   
+            } // end of geo bookmark
             
         }//end if by detailType
 
@@ -2660,10 +3063,16 @@ console.log('onpaste');
                     
 					if (this.isFileForRecord) /* Need to hide the player and image containers, and the download link for images */
                     {
-                        $('.thumb_image').hide();
-                        $('.fullSize').hide();
-                        $('.download_link').hide();
-                        $('#player'+value.ulf_ID).hide();
+                        $parentNode = $(e.target.parentNode);
+                        $parentNode.find('.thumb_image').hide();
+                        $parentNode.find('.fullSize').hide();
+                        $parentNode.find('.download_link').hide();
+                        $parentNode.find('#player'+value.ulf_ID).hide();
+                        
+                        that._on($input, {mouseout:__hideImagePreview});
+                        that._on($input_img, {mouseout:__hideImagePreview});
+                        
+                        isClicked = 0;
                     }
 					
                     if(that.detailType=="resource" && that.configMode.entity=='records' 
@@ -3038,7 +3447,7 @@ console.log('onpaste');
     },
     
     //
-    //
+    // Open defTerms manager
     //
     _openManageTerms: function( vocab_id ){
         
@@ -3049,8 +3458,8 @@ console.log('onpaste');
             selection_on_init: vocab_id,
             innerTitle: false,
             innerCommonHeader: $('<div>'
-                +(that.options.dtID>0?('modifying field :<b>'+$Db.dty(that.options.dtID,'dty_Name')+'</b>'):'')
-                +' dropdown is populated from <b>'+vocab_id+' '+$Db.trm(vocab_id, 'trm_Label')+'</b> vocabulary</div>'),
+                +(that.options.dtID>0?('<span style="margin-left:260px">Field: <b>'+$Db.dty(that.options.dtID,'dty_Name')+'</b></span>'):'')
+                +'<span style="margin-left:110px">This field uses vocabulary: <b>'+$Db.trm(vocab_id,'trm_Label')+'</b></span></div>'),
             onInitFinished: function(){
                 var that2 = this;
                 setTimeout(function(){
@@ -3235,29 +3644,33 @@ console.log('onpaste');
                     sMsg = '';
                     if(code2>0){
                         
-                        sMsg = '.<br><span>Term (code '+code2+') with the same name already exists in "'
-                        +vocName+'".<br>';
+                        sMsg = '<span class="heurist-prompt ui-state-error">'
+                            +'This term references a duplicate outside the <i>'
+                            +vocName+'</i> vocabulary used by this field. ';
+                            
                         if(window.hWin.HAPI4.is_admin()){
-                            sMsg = sMsg + 'Either <a href="#" class="term-sel" '
-                                +'data-term-re="'+value+'" data-term="'+code2+'">Use this term</a></span>';
+                            sMsg = sMsg + '<a href="#" class="term-sel" '
+                                +'data-term-replace="'+value+'" data-vocab-correct="'+allTerms
+                                +'" data-vocab="'+vocId2+'" data-term="'+code2+'">correct</a></span>';
                         }else{
                             sMsg = sMsg 
-                            +'Either ask database manager to replace term for all records';    
+                            +'</span><br><span>Either ask database manager to replace term for all records</span>';    
                         }
-                        sMsg = sMsg + ' or select the required term in the dropdown</span>';
 
                     }else{
+                        
+                        sMsg = '<span class="heurist-prompt ui-state-error">'
+                            +'This term is not in the <i>'+vocName+'</i> vocabulary used by this field. '                        
+                        
                         if(window.hWin.HAPI4.is_admin()){
-                            sMsg = '.<br><span>If you are sure the term is not used by another field, you can '
-                            +'<a href="#" class="term-move">move term</a> to the "'
-                            +vocName+'" vocabulary <br/>'
-                            +' Alternatively you may <a href="#" class="term-ref" data-term="'
-                                +value+'"  data-vocab="'
-                                +allTerms+'">create a reference</a> from vocabulary "'
-                            +vocName+'" to the term in its current location.</span>';
+                            
+                            sMsg = sMsg + '<a href="#" class="term-fix" '
+                                +'data-term="'+value+'" data-vocab-correct="'+allTerms
+                                +'" data-vocab="'+vocId2+'" data-dty-id="'+this.options.dtID
+                                +'">correct</a></span>';
                         }else {
                             sMsg = sMsg + 
-                            '.<br><span>Ask database manager to correct this vocabulary</span>';    
+                            '.</span><br><span>Ask database manager to correct this vocabulary</span>';    
                         }
                     }
                     
@@ -3265,11 +3678,7 @@ console.log('onpaste');
                     $(opt).attr('ui-state-error',1);
                     $input.val(value);
                     $input.hSelect('refresh');
-                    sMsg = '<span class="heurist-prompt ui-state-error">'
-                            +'The term "'+name+'" (code '+value+') in vocabulary "'+vocName2
-                            +'" is not valid for this field which uses vocabulary "'+vocName+'" </span>'
-                            +sMsg;
-                            
+ 
                     this.error_message.css({'font-weight': 'normal', color: '#b15f4e'}); 
                 }
 
@@ -3287,7 +3696,8 @@ console.log('onpaste');
                         .appendTo( $input.parent() );
                     
                     err_ele.find('.ui-state-error')
-                        .css({color:'#b36b6b',
+                        .css({color:'red', //'#b36b6b',
+                              background:'none',
                               border: 'none',
                              'font-weight': 'normal'        
                         });
@@ -3305,14 +3715,25 @@ console.log('onpaste');
                         this._on(err_ele.find('.term-sel'),{click:function(e){
                             
                             var trm_id = $(e.target).attr('data-term');
-                            var trm_id_re = $(e.target).attr('data-term-re');
+                            var trm_id_re = $(e.target).attr('data-term-replace');
                             var fieldName = this.f('rst_DisplayName');
                             
-                            var request = {a:'replace', dtyID:this.options.dtID, sVal:trm_id_re, rVal:trm_id, tag:0, recIDs:'ALL'};                
+                            var request = {a:'replace', rtyID:this.options.rectypeID,
+                                dtyID:this.options.dtID, sVal:trm_id_re, rVal:trm_id, tag:0, recIDs:'ALL'};                
+                                
                             window.hWin.HEURIST4.msg.showMsgDlg(
-                                    'You are about to convert tag #'+trm_id_re+' to #'+trm_id
+'<div  style="line-height:20px">'
++'<div>Term: <span id="termName" style="font-style:italic">'
+    +$Db.trm(trm_id,'trm_Label')+'</span></div>'
++'<div>In vocabulary: <span id="vocabName" style="font-style:italic">'
+    +$Db.trm($(e.target).attr('data-vocab'),'trm_Label')+'</span></div>'
++'<hr/>'
++'<div>Vocabulary for this field is: <span id="vocabNameCorrect" style="font-style:italic">'
+    +$Db.trm($(e.target).attr('data-vocab-correct'),'trm_Label')+'</span></div>'
++'<p>Use the version of the term in this vocabulary for this field in all records of this type</p></div>'
+/*                                    'You are about to convert tag #'+trm_id_re+' to #'+trm_id
                                     +' in field "'+fieldName+'" for all records'
-                                    + '<br><br>Are you sure?',
+                                    + '<br><br>Are you sure?'*/,
                                     function(){
                                         window.hWin.HEURIST4.msg.bringCoverallToFront();                                             
                             
@@ -3330,22 +3751,29 @@ console.log('onpaste');
                                             }
                                         });
                                     },
-                                    {title:'Warning',yes:'Proceed',no:'Cancel'});
+                                    {title:'Correction of invalid term',yes:'Apply',no:'Cancel'});
             
                         }});
                     
-                        this._on(err_ele.find('.term-ref'),{click:function(e){
-                            var trm_id = $(e.target).attr('data-term');
-                            var voc_id = $(e.target).attr('data-vocab');
-                            $Db.setTermReferences(voc_id, trm_id, null, 
-                            function(){
-                                window.hWin.HAPI4.triggerEvent(window.hWin.HAPI4.Event.ON_STRUCTURE_CHANGE, 
-                                    { source:this.uuid, type:'trm' });    
-                                that._recreateSelector($input, value);
-                            });
-                               //this._openManageTerms(allTerms);
+                        this._on(err_ele.find('.term-fix'),{click:function(e){
+                            //see manageDefTerms.js
+                            var trm_ID = $(e.target).attr('data-term');
+                            correctionOfInvalidTerm(
+                                trm_ID,
+                                $(e.target).attr('data-vocab'),
+                                $(e.target).attr('data-vocab-correct'),
+                                $(e.target).attr('data-dty-id'),
+                                function(newvalue){ //callback
+                                    window.hWin.HAPI4.triggerEvent(window.hWin.HAPI4.Event.ON_STRUCTURE_CHANGE, 
+                                        { source:this.uuid, type:'trm' });    
+                                    if(!(newvalue>0)) newvalue = trm_ID;
+                                    that._recreateSelector($input, newvalue);
+                                }
+                            );
+                            
                         }});
-                    };
+                        
+                    }//is_admin
                 }
                 
                 
@@ -4165,14 +4593,13 @@ console.log('onpaste');
                     
                     var inpt2 = $('<input>').attr('id',$input.attr('id')+'-2')
                             .addClass('text ui-widget-content ui-corner-all')
-                            .attr('autocomplete','disabled')
-                            .attr('autocorrect','off')
-                            .attr('autocapitalize','none')
-                            .attr('spellcheck','false')
                             .change(function(){
                                 that.onChange();
                             })
                             .insertAfter(edash);
+                            
+                    window.hWin.HEURIST4.ui.disableAutoFill( $inpt2 );
+                            
                     that._createDateInput(inpt2, $inputdiv);
             
                     /*

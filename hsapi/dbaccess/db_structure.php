@@ -44,12 +44,13 @@
     * getTermOffspringList
     * getTermTopMostParent
     * getTermChildren
+    * getTermChildrenAll - get all children including by reference as a flat array
     * getTermInTree    
     * getTermByLabel  
     * getTermByCode  
     * getTermById
     * getTermFullLabel
-    * getTermListAll
+    * getTermListAll - get tree for domain
     * getTermLabels
     *
     * INTERNAL FUNCTIONS
@@ -544,30 +545,32 @@ function dbs_GetRectypeConstraint($system) {
                 'enum' => __getTermTree($system, "enum", "exact"));
 
         $vcgGroups = array();//'groupIDToIndex' => array());
+        $matches_refs = array(); 
                 
         //see dbDefTerms->getTermLinks
-        $dbVer = $system->get_system('sys_dbVersion');
-        $dbVerSub = $system->get_system('sys_dbSubVersion');
         if($dbVer==1 && $dbVerSub>2){
             $query = 'SELECT trl_ParentID, trl_TermID FROM defTermsLinks ORDER BY trl_ParentID';
-            $res = $mysqli->query($query);
-            $matches = array();
-            if ($res){
-                while ($row = $res->fetch_row()){
-                        
-                    if(@$matches[$row[0]]){
-                        $matches[$row[0]][] = $row[1];
-                    }else{
-                        $matches[$row[0]] = array($row[1]);
-                    }
-                }
-                $res->close();
-                $terms['trm_Links'] = $matches;
-                
-            }
+        }else{
+            $query = 'SELECT trm_ParentTermID, trm_ID FROM defTerms ORDER BY trm_ParentTermID';
+        }
+        $res = $mysqli->query($query);
+        $matches = array();
+        if ($res){
+            while ($row = $res->fetch_row()){
                     
-            //get vocabulary groups 
+                if(@$matches[$row[0]]){
+                    $matches[$row[0]][] = $row[1];
+                }else{
+                    $matches[$row[0]] = array($row[1]);
+                }
+            }
+            $res->close();
+            $terms['trm_Links'] = $matches;
+        }
         
+                    
+        if($dbVer==1 && $dbVerSub>2){
+            //get vocabulary groups 
             $query = 'SELECT vcg_ID, vcg_Name, vcg_Domain, vcg_Order, vcg_Description FROM defVocabularyGroups';
             $res = $mysqli->query($query);
             if($res){
@@ -579,34 +582,38 @@ function dbs_GetRectypeConstraint($system) {
             }else{
                 error_log('DATABASE: '.$system->dbname().'. Error retrieving vocabulary groups '.$mysqli->error);
             }
-        }//$dbVer==1 && $dbVerSub>2
-        $terms['groups'] = $vcgGroups;
-        
-        //terms by reference
-        $matches = array(); 
-        $query = 'select trl_ParentID,trl_TermID from defTermsLinks r, defTerms t '
-        .'where trl_TermID=trm_ID AND trl_ParentID!=trm_ParentTermID ORDER BY trl_ParentID';
-        $res = $mysqli->query($query);
-        if ($res){
-            while ($row = $res->fetch_row()){
-                    
-                if(@$matches[$row[0]]){
-                    $matches[$row[0]][] = $row[1];
-                }else{
-                    $matches[$row[0]] = array($row[1]);
+            
+            
+            //terms by reference
+            $query = 'select trl_ParentID,trl_TermID from defTermsLinks r, defTerms t '
+            .'where trl_TermID=trm_ID AND trl_ParentID!=trm_ParentTermID ORDER BY trl_ParentID';
+            $res = $mysqli->query($query);
+            if ($res){
+                while ($row = $res->fetch_row()){
+                        
+                    if(@$matches_refs[$row[0]]){
+                        $matches_refs[$row[0]][] = $row[1];
+                    }else{
+                        $matches_refs[$row[0]] = array($row[1]);
+                    }
                 }
+                $res->close();
+            }else{
+                error_log('DATABASE: '.$system->dbname().'. Error retrieving terms by reference '.$mysqli->error);
             }
-            $res->close();
-        }else{
-            error_log('DATABASE: '.$system->dbname().'. Error retrieving terms by reference '.$mysqli->error);
+        }//$dbVer==1 && $dbVerSub>2
+        else{
+            $vcgGroups[1] = array('vcg_ID'=>1, 'vcg_Name'=>'General');        
         }
-        $terms['references'] = $matches;
-                
+        
+        $terms['groups'] = $vcgGroups;
+        $terms['references'] = $matches_refs;
+        
         //ARTEM setCachedData($cacheKey, $terms);
         return $terms;
         
     }
-
+    
     // to public method ------>
     
     /**
@@ -654,7 +661,7 @@ function dbs_GetRectypeConstraint($system) {
     
 
     //
-    //
+    // Finds real vocabulary for given term 
     //
     function getTermTopMostParent($mysqli, $termId, $terms=null){
         
@@ -679,7 +686,7 @@ function dbs_GetRectypeConstraint($system) {
         
     
     /**
-    * return all term children as plain array
+    * return all terms's children as a plain array
     * 
     * @param mixed $system
     */
@@ -694,7 +701,7 @@ function dbs_GetRectypeConstraint($system) {
             while ($row = $res->fetch_row()) {
                 array_push($children, $row[0]);
                 if(!$firstlevel_only){
-                    $children = array_merge($children, getTermChildren($row[0], $system, $firstlevel_only));
+                    $children = array_merge($children, getTermChildren($row[0], $system, false));
                 }
             }
         }
@@ -702,7 +709,30 @@ function dbs_GetRectypeConstraint($system) {
         return $children;
         
     }
-    
+
+    //
+    // get all children including by reference as a flat array
+    //
+    function getTermChildrenAll($mysqli, $parent_ids, $all_levels=true){
+
+        //compose query
+        $query = 'SELECT trl_TermID FROM defTermsLinks WHERE trl_ParentID';
+        
+        if(is_array($parent_ids) && count($parent_ids)>1)
+        {
+            $query = $query .' IN ('.implode(',',$parent_ids).')';    
+        }else{
+            if(is_array($parent_ids)) $parent_ids = @$parent_ids[0];
+            $query = $query . ' = '.$parent_ids;    
+        }
+        
+        $ids = mysql__select_list2($mysqli, $query);
+        if($all_levels && count($ids)>0){
+            $ids = array_merge($ids, getTermChildrenAll($mysqli, $ids, true));
+        }
+        
+        return $ids;
+    }
     
     /**
     * prints term label including parents term labels
@@ -822,7 +852,7 @@ function dbs_GetRectypeConstraint($system) {
     }
 
     //
-    // to public method
+    // to public method - @todo replace with $terms->getTermByLabel
     //
     function getTermByLabel($term_label, $domain)
     {

@@ -599,10 +599,10 @@ function ShowReps() {
         codeEditor.setValue(content);
 
         setTimeout(function(){
-                $('.CodeMirror').show();
+                    $('div.CodeMirror').css('height','100%').show();
                     codeEditor.refresh();
                     _keepTemplateValue = codeEditor.getValue();
-                },2000);
+                },1000);
     }
 
 
@@ -1400,7 +1400,7 @@ function ShowReps() {
                 res = res + '_originalvalue dt="'+dtype+'"';
             }else if(dtype === 'file'){
                 res = res + '_originalvalue dt="'+dtype+'"';
-                res = res + ' width="300" height="auto"';
+                res = res + ' width="300" height="auto" auto_play="0" show_artwork="0"';
             }else{
             }
             res = res +'}{*' +  remark + '*}';

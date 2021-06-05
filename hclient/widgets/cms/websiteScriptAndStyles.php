@@ -130,8 +130,11 @@ if(!array_key_exists('embed', $_REQUEST)){
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/record/recordAction.js"></script>
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/widgets/record/recordAccess.js"></script>
     
-    <script type="text/javascript" src="<?php echo PDIR;?>external/tinymce/tinymce.min.js"></script>
+    <script type="text/javascript" src="<?php echo PDIR;?>external/tinymce5/tinymce.min.js"></script>
+    <!--
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/5/tinymce.min.js" referrerpolicy="origin"></script>
     <script type="text/javascript" src="<?php echo PDIR;?>external/tinymce/jquery.tinymce.min.js"></script>
+    -->
     
     <script type="text/javascript" src="<?php echo PDIR;?>hclient/core/temporalObjectLibrary.js"></script>
     
@@ -141,13 +144,23 @@ if(!array_key_exists('embed', $_REQUEST)){
 
 if($edit_Available){
 ?>
-    <script src="<?php echo PDIR;?>external/tinymce/tinymce.min.js"></script>
-    <!--
     <script src="<?php echo PDIR;?>external/tinymce5/tinymce.min.js"></script>
+    <!--
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/5/tinymce.min.js" referrerpolicy="origin"></script>
+    <script src="<?php echo PDIR;?>external/tinymce/tinymce.min.js"></script>
     <script src="<?php echo PDIR;?>external/tinymce5/jquery.tinymce.min.js"></script>
     <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/5/tinymce.min.js"></script>
     <script src="<?php echo PDIR;?>external/tinymce/jquery.tinymce.min.js"></script>
     -->
+    
+    <link rel="stylesheet" href="<?php echo PDIR;?>external/codemirror-5.61.0/lib/codemirror.css">
+    <script src="<?php echo PDIR;?>external/codemirror-5.61.0/lib/codemirror.js"></script>
+    <script src="<?php echo PDIR;?>external/codemirror-5.61.0/lib/util/formatting.js"></script>
+    <script src="<?php echo PDIR;?>external/codemirror-5.61.0/mode/xml/xml.js"></script>
+    <script src="<?php echo PDIR;?>external/codemirror-5.61.0/mode/javascript/javascript.js"></script>
+    <script src="<?php echo PDIR;?>external/codemirror-5.61.0/mode/css/css.js"></script>
+    <script src="<?php echo PDIR;?>external/codemirror-5.61.0/mode/htmlmixed/htmlmixed.js"></script>
+    
     <script src="websiteRecord.js"></script>
     <?php
 }else{
@@ -161,6 +174,8 @@ function onPageInit(success)
 {
 
 //console.log('webpage onPageInit  '+(new Date().getTime() / 1000 - _time_debug));
+//console.log('webpage onPageInit  '+init_page_record_id);
+
 _time_debug = new Date().getTime() / 1000;
         
     if(!success) return;
@@ -170,9 +185,9 @@ _time_debug = new Date().getTime() / 1000;
     //cfg_widgets is from layout_defaults.js 
     window.hWin.HAPI4.LayoutMgr.init(cfg_widgets, null);
     
-    //reload home page content by click on logo
+    //reload website by click on logo, opens first page with content
     $("#main-logo").click(function(event){
-            loadPageContent( home_page_record_id );
+            location.reload();
     });
     
     setTimeout(function(){
@@ -229,8 +244,9 @@ function loadPageContent(pageid){
               var page_target = $('#main-content');
               var page_footer = page_target.find('#page-footer');
               if(page_footer.length>0) page_footer.detach();
-//console.log('load '+pageid+'   '+page_footer.length);              
+//console.log('load page  '+pageid+'   '+page_footer.length);              
 
+              //page_target will have header (webpageheading) and content  
               page_target.empty().load(window.hWin.HAPI4.baseURL+'?db='
                         +window.hWin.HAPI4.database+'&field=1&recid='+pageid,
                   function(){
@@ -263,13 +279,11 @@ var datatable_custom_render = null;
 //
 function afterPageLoad(document, pageid){
     
-//console.log('afterPageLoad');    
-    
     //var pagetitle = $($(page_target).children()[0]);
     var pagetitle = $('#main-content > h2.webpageheading');
     var title_container = $('#main-pagetitle');
     var show_page_title = false;
-        
+
     if(pagetitle.length>0  && title_container.length>0)  //&& pagetitle.parent().attr('id')=='main-content'
     {
         //move page title to header - visibility is set in websiteRecord
@@ -281,6 +295,7 @@ function afterPageLoad(document, pageid){
     }
     
     if($('#main-header').length>0 && $('#main-content-container').length>0){
+        title_container.show();
         $('#main-header').height(show_page_title?180:144);
         $('#main-content-container').css({top:show_page_title?190:152});
     }
@@ -331,8 +346,15 @@ function afterPageLoad(document, pageid){
     if(!is_embed){    
         var s = location.pathname;
         while (s.substring(0, 2) === '//') s = s.substring(1);
-        window.history.pushState("object or string", "Title", s+'?db='
-        +window.hWin.HAPI4.database+'&website&id='+home_page_record_id+(pageid!=home_page_record_id?'&pageid='+pageid:''));
+        
+        s = s + '?db='
+                +window.hWin.HAPI4.database+'&website&id='+home_page_record_id;
+        if(pageid!=home_page_record_id){
+                s = s + '&pageid='+pageid;
+        }
+
+        window.history.pushState("object or string", "Title", s);
+        
     }
     
     
@@ -459,20 +481,26 @@ $website_title -> #main-title>h2
       $('#main-logo-alt').hide();
   <?php } ?>
   }
-            
+  
+  
   <?php if($website_title){  ?>
+  
   var ele = $('#main-title');
   if(ele.length>0){
       ele.empty().hide();
-      $('<h2 style="font-size:1.7em;margin-top:4px;padding:0 10px;max-height:80px;overflow: hidden;"><?php print htmlspecialchars($website_title, ENT_QUOTES);?></h2>').appendTo(ele);
+  <?php       
+  print '$(\'<h2 '.($image_banner?' style="text-shadow: 3px 3px 5px black"':'').'>'
+        . str_replace("'",'&#039;',strip_tags($website_title,'<i><b><u><em><strong><sup><sub><small><br>'))
+        .'</h2>\').appendTo(ele);';
+  ?>
       if(ele.parent().is('#main-header'))
       {
           if(!$('#main-logo-alt').is(':visible')){
                 ele.css({right:10}); 
           }
-          setTimeout(function(){ ele.css({left:$('#main-logo').width()+10 }); },2000);
+          setTimeout(function(){ ele.css({left:$('#main-logo').width()+10 });ele.fadeIn(500); },2000);
       }
-      ele.fadeIn(3000);
+      
       
   }
   <?php } ?>
@@ -494,14 +522,14 @@ $(document).ready(function() {
         ele.show();
     
         $('body').find('#main-menu').hide(); //will be visible after menu init
-  
-/*        
+
+/*          
         if(is_show_pagetitle){
             $('body').find('#main-pagetitle').show();
         }else{
             $('body').find('#main-pagetitle').hide();
         }
-            
+
 console.log('webpage doc ready ');
 */
 //+(window.hWin.HAPI4)+'    '+(new Date().getTime() / 1000 - _time_debug));
@@ -527,6 +555,20 @@ div.coverall-div {
     background-color: white;
     opacity: 1;
 }
+
+div.CodeMirror{
+    height:100%;
+}
+.CodeMirror *{
+    /* font-family: Courier, Monospace !important; */
+    font-family: Arial, sans-serif !important;
+    font-size: 14px;
+}
+.CodeMirror div.CodeMirror-cursor {
+    visibility: visible;
+}
+
+
 <?php        
 }
 //style from field DT_CMS_CSS of home record 

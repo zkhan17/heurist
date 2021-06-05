@@ -267,6 +267,8 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
          
             this.options.ui_params.width = 440;
             this.options.ui_params.fields = ['icon','name','fields'];
+            
+            this.recordList.resultList('fullResultSet', $Db.rty());   
         }
                     
 
@@ -743,10 +745,8 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
             switch ( fields[i] ) {
                 case 'rtyid': html += fld2('rty_ID',30,null,'text-align:center'); break;
                 case 'ccode': 
-                    var c1 = recordset.fld(record,'rty_OriginatingDBID');
-                    var c2 = recordset.fld(record,'rty_IDInOriginatingDB');
-                    c1 = (c1>0 && c2>0)?(c1+'-'+c2):' ';
-                    html += fld2('',80, c1,'text-align:center');     
+                    html += ('<div class="item truncate" style="min-width:80px;max-width:80px;text-align:center">'
+                            +$Db.getConceptID('rty',recID,true)+'</div>');
                     break;
                 case 'addrec': 
                     html += __action_btn('addrec','ui-icon-plus','Click to add new '+fld('rty_Name'));    
@@ -1107,7 +1107,7 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
             
             var ele = this._editing.getFieldByName('rty_ID');
             ele.find('div.input-div').html(this._currentEditID+'&nbsp;&nbsp;<span style="font-weight:normal">Code: </span>'
-                                    +$Db.getConceptID('rty',this._currentEditID));
+                                    +$Db.getConceptID('rty',this._currentEditID, true));
             
             
             //hide after edit init btnRecRemove for status locked 
@@ -1135,25 +1135,17 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
                     var maskvalue = ele_mask.editing_input('getValues');
                     maskvalue = maskvalue[0];
 
-                    var sURL = window.hWin.HAPI4.baseURL +   
-                    "admin/structure/rectypes/editRectypeTitle.html?rectypeID="
-                            + that._currentEditID + "&mask="
-                            + encodeURIComponent(maskvalue)+"&db="+window.hWin.HAPI4.database;
+                    window.hWin.HEURIST4.ui.showRecordActionDialog('rectypeTitleMask',
+                        {rty_ID:that._currentEditID, 
+                            rty_TitleMask:maskvalue, path: 'widgets/entity/popups/',
+                            onClose: function(newvalue){
+                                if(!window.hWin.HEURIST4.util.isnull(newvalue)){
+                                    ele_mask.editing_input('setValue', newvalue);
+                                    that._editing.setModified(true); //restore flag after autosave
+                                    that.onEditFormChange();
+                                }
+                    }});
 
-                    window.hWin.HEURIST4.msg.showDialog(sURL, {     
-                        "close-on-blur": false,
-                        "no-resize": true,
-                        height: 800,
-                        width: 800,
-                        callback: function(newvalue) {
-                            if(!window.hWin.HEURIST4.util.isnull(newvalue)){
-                                ele_mask.editing_input('setValue', newvalue);
-                                that._editing.setModified(true); //restore flag after autosave
-                                that.onEditFormChange();
-                            }
-                        },
-                        default_palette_class: this.options.default_palette_class
-                    });
 
                 }} );
                 
@@ -1169,10 +1161,12 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
             if(this.options.suppress_edit_structure!==true){
                 
             var $s = $('<div style="margin: 15px 0 20px 175px;' //border: 2px solid orange;border-radius: 10px;
-            +'padding: 10px 10px 5px;display: block;width: 570px;">'
-            +'<div class="input-cell"><button></button>'
-            +'<span class="heurist-helper3" style="vertical-align: middle;padding-left: 20px;">'
-                +'You can also modify the fields for this record type whenever you are editing data</span>'
+            +'padding: 10px 10px 5px;display: block;">' //width: 570px;
+            +'<div class="input-cell"><span style="display:inline-block"><button></button></span>'
+            +'<span class="heurist-helper3" style="display:inline-block;vertical-align: middle;padding-left: 20px;">'
++'This will open a blank record of this type in structure modification mode.<br>'
++'Tip: You can switch on structure modification mode at any time while entering data to make instant structural changes'            
+            +'</span>'
             +'</div></div>');
             
             var edit_ele = this._editing.getFieldByName('rty_ShowURLOnEditForm');
@@ -1219,6 +1213,10 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
             window.hWin.HEURIST4.ui.switchHintState2(ishelp_on, this.editForm, '.heurist-helper1');
         }});
         
+        ele = this._editing.getInputs('rty_Name');
+        this._on( $(ele[0]), {
+                keypress: window.hWin.HEURIST4.ui.preventChars} );
+        
         window.hWin.HEURIST4.ui.switchHintState2(ishelp_on, this.editForm, '.heurist-helper1');
         
         this.editForm.find('div.header').css({'min-widht':160, width:160});
@@ -1230,7 +1228,10 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
         
        this._super(changed_element);
        
-       if(changed_element!==true && this._editing.isModified() && changed_element.options.dtID=='rty_Name'){
+       if(changed_element && changed_element!==true 
+            && this._editing.isModified() 
+            && changed_element.options.dtID=='rty_Name')
+       {
             var val = this._editing.getValue('rty_Name');
             var ele = this._editing.getInputs('rty_Plural');
             $(ele[0]).val(val+'s');
@@ -1364,36 +1365,7 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
 */           
 
             this._addNewFields(recID, true);
- 
-/* 
-            //select Fields For New RecordType
-            var sURL = window.hWin.HAPI4.baseURL + "admin/structure/rectypes/editRectypeSelFields.html";
-
-            var that = this;
-            
-            this._selected_fields = [];
-            
-            window.hWin.HEURIST4.msg.showDialog(sURL, {
-                    "close-on-blur": false,
-                    "no-resize": false,
-                    height: 500, //(mode==0?200:250),
-                    width: 700,
-                    title:' Select fields for new record type',
-                    afterclose:function(){
-                        //_selected_fields assigned in closeCallback
-                        
-                        //add fields to structure in any case - by default DT_NAME and DT_DESCRIPTION
-                        if(!window.hWin.HEURIST4.util.isArrayNotEmpty(that._selected_fields)){
-                            var dty_name_id = window.hWin.HAPI4.sysinfo['dbconst']['DT_NAME']
-                            that._selected_fields = {fields:[dty_name_id],reqs:[dty_name_id]};  
-                        } 
-                    },
-                    callback:function(context){ //closeCallback
-                        that._selected_fields = context;
-                    },
-                    default_palette_class: this.options.default_palette_class 
-            });
-*/            
+           
         }else{
         }
         this._triggerRefresh('rty');
@@ -1412,140 +1384,59 @@ $.widget( "heurist.manageDefRecTypes", $.heurist.manageEntity, {
     },
     
     //
-    // add new base fields to record type
+    // Add default tab separators to new record type
     //    
     _addNewFields: function( rty_ID, is_new ){
       
-            var that = this;
-        
-            var popele = that.element.find('.add_base_fields');
-            
-            if(popele.length==0){
-                
-                var fields = [
-                window.hWin.HAPI4.sysinfo['dbconst']['DT_NAME'],
-                window.hWin.HAPI4.sysinfo['dbconst']['DT_SHORT_SUMMARY'],
-                window.hWin.HAPI4.sysinfo['dbconst']['DT_THUMBNAIL'],
-                window.hWin.HAPI4.sysinfo['dbconst']['DT_GEO_OBJECT'],
-                window.hWin.HAPI4.sysinfo['dbconst']['DT_START_DATE'],
-                window.hWin.HAPI4.sysinfo['dbconst']['DT_END_DATE'],
-                window.hWin.HAPI4.sysinfo['dbconst']['DT_CREATOR']];
-                
-                var _checked = 'checked';
-                
-                var sdiv = '<div style="display:table-row">'
-            +'<div style="display:table-cell;padding:10px;text-align:center">Use</div>'
-            +'<div style="display:table-cell;text-align:center;">Required</div>'
-            +'<div style="display:table-cell;text-align:left;padding-left:20px">Name</div></div>';
-
-                
-                for(var idx=0; idx< fields.length; idx++){
-                    var dty_ID = fields[idx];
-                    _checked = (idx==0)?'checked disabled="disabled"':'';
-                    sdiv = sdiv + 
-            '<div style="display:table-row">'
-            +'<div style="display:table-cell;padding:10px;text-align:center;"><input type="checkbox" class="ids" data-id="'
-                +dty_ID+'" '+_checked+'></div>'
-            +'<div style="display:table-cell;text-align:center;"><input type="checkbox" class="reqs" data-id="'+dty_ID+'" '+_checked+'></div>'
-            +'<div style="display:table-cell;text-align:left;padding-left:20px">'+$Db.dty(dty_ID,'dty_Name')+'</div></div>';
-                }
-                
-                sdiv = '<div class="add_base_fields">'
-    +'<p>Please select at least one of the following commonly-used fields to pre-populate this record type.'
-    +'<br><br>'
-    +'Please indicate which will be Required fields (you can easily change or delete these fields later):</p>'
-    +'<div style="width:100%;text-align:center;display:table">'+sdiv+'</div>';
-                
-                popele = $(sdiv).appendTo(that.element);
-            }
-            
-            var $dlg_pce = null;
-            
-            var btns = [
-                    {text:window.hWin.HR('Select'),
-                    click: function() { 
-                        $dlg_pce.dialog('close'); 
-                    }}
-                    //{text:window.hWin.HR('Cancel'),click: function() { $dlg_pce.dialog('close'); }}
-            ];            
-            
-            this._selected_fields = {};
-            
-            $dlg_pce = window.hWin.HEURIST4.msg.showElementAsDialog({
-                window:  window.hWin, //opener is top most heurist window
-                title: window.hWin.HR('Select fields for new record type'),
-                width: 700,
-                height: 500,
-                element:  popele[0],
-                resizable: true,
-                default_palette_class: this.options.default_palette_class,
-                buttons: btns,
-                beforeClose: function(){
-                        
-                        var fields = [], reqs=[];
-                        $dlg_pce.find('input.ids:checked').each(function() {
-                            fields.push($(this).attr('data-id'));
-                        });                
-                        $dlg_pce.find('input.reqs:checked').each(function() {
-                            reqs.push($(this).attr('data-id'));
-                        });                
-                        
-                        if(fields.length===0){
-                            window.hWin.HEURIST4.msg.showMsgFlash('Select at least one field');
-                            return false;
-                        }else{
-                            that._selected_fields = {fields:fields, reqs:reqs}
-                            return true;
-                        }
-                },
-                close: function(){
+		this._selected_fields = {};
+		
+		this._selected_fields['fields'] = [];
+		this._selected_fields['values'] = {};
+		
+		var that = this;
+		
+		//add 3 derault tabs 
+		var k = 0;
+		$Db.dty().each(function(dty_ID, rec){
+		   if($Db.dty(dty_ID,'dty_Type')=='separator'){
+			   if(k==0){
+				   that._selected_fields['fields'].unshift(dty_ID);    
+				   that._selected_fields['values'][dty_ID] = {dty_Name:'Overview',rst_DefaultValue:'tabs'};
+			   }else{
+				   that._selected_fields['fields'].push(dty_ID);    
+				   if(k==1){
+						that._selected_fields['values'][dty_ID] = {dty_Name:'Details',rst_DefaultValue:'tabs'};
+				   }else{
+						that._selected_fields['values'][dty_ID] = {dty_Name:'References',rst_DefaultValue:'tabs'};
+				   }
+			   }
+			   k++;
+			   if(k>2) return false;//break
+		   } 
+		});                        
                     
-                        that._selected_fields['values'] = {};
-                        //add 3 derault tabs 
-                        var k = 0;
-                        $Db.dty().each(function(dty_ID, rec){
-                           if($Db.dty(dty_ID,'dty_Type')=='separator'){
-                               if(k==0){
-                                   that._selected_fields['fields'].unshift(dty_ID);    
-                                   that._selected_fields['values'][dty_ID] = {dty_Name:'Overview',rst_DefaultValue:'tabs'};
-                               }else{
-                                   that._selected_fields['fields'].push(dty_ID);    
-                                   if(k==1){
-                                        that._selected_fields['values'][dty_ID] = {dty_Name:'Details',rst_DefaultValue:'tabs'};
-                                   }else{
-                                        that._selected_fields['values'][dty_ID] = {dty_Name:'References',rst_DefaultValue:'tabs'};
-                                   }
-                               }
-                               k++;
-                               if(k>2) return false;//break
-                           } 
-                        });                        
-                    
-                        var request = {};
-                        request['a']        = 'action'; //batch action
-                        request['entity']   = 'defRecStructure';
-                        request['rtyID']    = rty_ID;
-                        request['newfields']  = that._selected_fields;
-                        request['request_id'] = window.hWin.HEURIST4.util.random();
-                        
-                        window.hWin.HAPI4.EntityMgr.doRequest(request, 
-                            function(response){
-                                if(response.status == window.hWin.ResponseStatus.OK){
-                                    
-                                    //refresh local defs and show edit structure popup
-                                    window.hWin.HAPI4.EntityMgr.getEntityData('defRecStructure', true,
-                                    function(){
-                                        that._onActionListener(null, {recID:rty_ID, action:'editstr'} );
-                                    });
-                                    
-                                }else{
-                                    window.hWin.HEURIST4.msg.showMsgErr(response);      
-                                }
-                            });
-                    
-                }
-            });
-        
+		var request = {};
+		request['a']        = 'action'; //batch action
+		request['entity']   = 'defRecStructure';
+		request['rtyID']    = rty_ID;
+		request['newfields']  = that._selected_fields;
+		request['request_id'] = window.hWin.HEURIST4.util.random();
+		
+		window.hWin.HAPI4.EntityMgr.doRequest(request, 
+			function(response){
+				if(response.status == window.hWin.ResponseStatus.OK){
+					
+					//refresh local defs and show edit structure popup
+					window.hWin.HAPI4.EntityMgr.getEntityData('defRecStructure', true,
+					function(){
+						that._onActionListener(null, {recID:rty_ID, action:'editstr'} );
+					});
+					
+				}else{
+					window.hWin.HEURIST4.msg.showMsgErr(response);      
+				}
+			}
+		);
     },
 
     

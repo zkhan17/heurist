@@ -1,5 +1,7 @@
 <?php
-
+if(!@$_REQUEST['field']){ 
+    print '<!DOCTYPE html>';
+}
     /**
     *  Website generator based on CMS records 99-51,52,53
     * 
@@ -207,6 +209,7 @@ $show_pagetitle = false;
 $isWebPage = false;
 
 if(!(@$_REQUEST['field']>1)){
+    
     $website_title = __getValue($rec, DT_NAME);
     $isWebPage = ($rec['rec_RecTypeID']==RT_CMS_MENU && 
                 defined('DT_CMS_PAGETYPE') &&
@@ -252,7 +255,9 @@ window.hWin.HEURIST4.msg.showMsgDlg(
         $empty_mark = (trim($content)=='')?' date-empty="1"':'';
         $hide_mark = ($show_pagetitle) ?'' :' style="display:none;"';
         
-        print '<h2 class="webpageheading" '.$empty_mark.$hide_mark.'>'.$website_title.'</h2>';    
+        print '<h2 class="webpageheading" '.$empty_mark.$hide_mark.'>' 
+            .strip_tags($website_title,'<i><b><u><em><strong><sup><sub><small><br>')
+            .'</h2>';    
         
         print $content;
     }

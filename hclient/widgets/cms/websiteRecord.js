@@ -45,8 +45,8 @@ _init - #main-menu navigation wizard onselect -> __iniLoadPageById warn for chan
 
 
 // 
-//  tinymce-body - textare container with data - it becomes visible when editor is ON
-//  .mce-edit-area > iframe - real editor
+//  tinymce-body - textarea container with data - it becomes visible when editor is ON
+//  .tox-edit-area (.mce-edit-area v3) > iframe - real editor
 //  btn_inline_editor3 button invokes direct editor
 //  btn_inline_editor button invokes wyswyg editor _editPageContent
 //
@@ -56,11 +56,13 @@ _init - #main-menu navigation wizard onselect -> __iniLoadPageById warn for chan
 function hCmsEditing(_options) {
     var _className = "CmsEditing",
         _version   = "0.4";
+        
+    var doc_body = $(document).find('body'); //.'body'
 
-    var main_content = $('body').find('#main-content');
-//console.log('assign main_content');        
-    var main_menu = $('body').find('#main-menu');
-    var main_header = $('body').find('#main-header');
+    var main_content = doc_body.find('#main-content');
+
+    var main_menu = doc_body.find('#main-menu');
+    var main_header = doc_body.find('#main-header');
     
     var home_pageid = main_content.attr('data-homepageid'),
         init_pageid = main_content.attr('data-initid'),
@@ -81,6 +83,8 @@ function hCmsEditing(_options) {
     
     var original_editor_content = '';
     var LayoutMgr = new hLayout(); //to avoid interferene with  window.hWin.HAPI4.LayoutMgr  
+    
+    var codeEditor = null; //codemirror
 
     
     // define tinymce configuration
@@ -123,7 +127,7 @@ function hCmsEditing(_options) {
     //since v5 they are built in to the core: contextmenu textcolor
             ],      
             //undo redo | code insert  |  fontselect fontsizeselect |  forecolor backcolor | media image link | alignleft aligncenter alignright alignjustify | fullscreen            
-            toolbar: ['formatselect | bold italic forecolor backcolor  | customHeuristMedia link | align | bullist numlist outdent indent | table | removeformat | help | customAddWidget customSaveButton customCloseButton' ],  
+            toolbar: ['formatselect | bold italic forecolor backcolor  | customHeuristMedia link | align | bullist numlist outdent indent | table | removeformat | help | customAddWidget customAddTemplate customSaveButton customCloseButton' ],  
             content_css: [
                 '//fonts.googleapis.com/css?family=Lato:300,300i,400,400i'
                 //,'//www.tinymce.com/css/codepen.`min.css'
@@ -147,41 +151,63 @@ function hCmsEditing(_options) {
                     __initWidgetEditLinks(null);
                     
                     //adjust height
-                    var itop = $('.mce-top-area').height()>0?$('.mce-top-area').height():68;
+                    var itop = 68;
+                    if($('.mce-top-area').length>0 && $('.mce-top-area').height()>0){
+                        itop = $('.mce-top-area').height();   
+                    }else if($('.tox-toolbar-overlord').length>0 && $('.tox-toolbar-overlord').height()>0){
+                        itop = $('.tox-toolbar-overlord').height();
+                    }
+                    
+                    
+                    
                     var sheight = $('.tinymce-body').height() - itop;
                     sheight = ($('.tinymce-body').height() - itop<=100)?'90%':(sheight+'px');
                     $('.mce-edit-area > iframe').height( sheight );
+                    $('.tox-edit-area > iframe').height( sheight );
+                    $('.tox-edit-area').height( sheight );
+                    
+console.log( sheight );                    
                 });
                 
-                editor.addButton('customHeuristMedia', {
+                editor.ui.registry.addButton('customHeuristMedia', {
                       icon: 'image',
                       text: 'Add Media',
-                      onclick: function (_) {  //since v5 onAction in v4 onclick
+                      onAction: function (_) {  //since v5 onAction in v4 onclick
                             __addHeuristMedia();
                       }
                     });
                 
                 
-                editor.addButton('customAddWidget', { //since v5 .ui.registry
+                editor.ui.registry.addButton('customAddWidget', { //since v5 .ui.registry
                       icon: 'plus',
-                      text: 'Add database widget',
-                      onclick: function (_) {  //since v5 onAction
+                      text: 'Widget',
+                      tooltip: 'Add database widget',
+                      onAction: function (_) {  //since v5 onAction
                             __addEditWidget();
                       }
                     });
+
+                editor.ui.registry.addButton('customAddTemplate', { //since v5 .ui.registry
+                      icon: 'embed-page', //paste-text
+                      text: 'Template',
+                      tooltip: 'Insert Template',
+                      onAction: function (_) {  //since v5 onAction
+                         __insertTemplate();   
+                      }
+                    });
                                 
-                editor.addButton('customSaveButton', { //since v5 .ui.registry
+                editor.ui.registry.addButton('customSaveButton', { //since v5 .ui.registry
                       icon: 'save',
                       text: 'Save',
-                      onclick: function (_) {  //since v5 onAction in v4 onclick
+                      onAction: function (_) {  //since v5 onAction in v4 onclick
                             __saveChanges(false);
                       }
                     });            
 
-                editor.addButton('customCloseButton', {
+                editor.ui.registry.addButton('customCloseButton', {
                       icon: 'checkmark',
                       text: 'Done',
-                      onclick: function (_) {
+                      onAction: function (_) {
                           __iniLoadPageById(0); //reload current page
                       }
                     });            
@@ -191,9 +217,17 @@ function hCmsEditing(_options) {
         };//end inlineEditorConfig
         
 
-        //reload home
-        $( "#main-logo").click(function(event){
-            __iniLoadPageById( home_pageid );
+        // Open 'Website Design' editor
+        $("#main-logo, #main-title").click(function(event){
+            window.hWin.HEURIST4.ui.openRecordEdit(home_pageid, null,
+            {selectOnSave:true, edit_obstacle: false, onselect: 
+                function(event, res){
+                    if(res && window.hWin.HEURIST4.util.isRecordSet(res.selection)){
+                        // Need to refresh page content and header
+                        location.reload();
+                    }
+                }
+            });
         });
         
         setTimeout(function(){
@@ -244,28 +278,34 @@ function hCmsEditing(_options) {
             
         //$('<a href="#" id="btn_refresh_menu" style="display:none;font-size:1.2em;font-weight:bold;color:blue;">refresh menu</a>').click( __reloadMainMenu );
         
-        $('<textarea class="tinymce-body" style="position:absolute;left:0;width:99.9%;top:0;bottom:0;display:none"></textarea>')
+        $('<textarea class="tinymce-body" style="position:absolute;left:0;right:2px;top:0;bottom:0;display:none"></textarea>')
             .appendTo(main_content.parent());
+
+        //codemirror container
+        $('<div id="codemirror-body" style="position:absolute;left:0;right:2px;top:0;bottom:0;display:none;border:lightblue 1px dotted"></div>')
+            .hide()
+            .appendTo(main_content.parent());
+
         
         $('<a href="#" id="btn_inline_editor">Edit page content</a>')
-                .appendTo($('body')).addClass('ui-front cms-button') //was body > .ent_wrapper:first
+                .appendTo(doc_body).addClass('ui-front cms-button') //was body > .ent_wrapper:first
                 .click( _editPageContent )
                 .show();
 
         //switch to direct edit OR save direct edit                        
         $('<a href="#" id="btn_inline_editor3">source</a>')
-                .appendTo($('body')).addClass('ui-front cms-button')
+                .appendTo(doc_body).addClass('ui-front cms-button')
                 .click( _editPageSource )
                 .show();
             
             
                 $('<a href="#" id="btn_inline_editor4"></a>') //edit page settings
-                .appendTo($('body')).addClass('cms-button')
+                .appendTo(doc_body).addClass('cms-button')
                 .click(_editPageRecord)
                 .show();
 
         $('<a href="#" id="btn_inline_editor5">Cancel</a>')
-            .appendTo($('body'))
+            .appendTo(doc_body)
             .addClass('ui-front cms-button')
             .click(function (event) {
                 __hideEditor();
@@ -280,6 +320,60 @@ function hCmsEditing(_options) {
 
     }//_init  
     
+    
+    //
+    // init codemirror editor
+    //
+    function _initCodeEditor(content) {
+        
+        if(codeEditor==null){
+
+                codeEditor = CodeMirror(document.getElementById('codemirror-body'), {
+                    mode           : "htmlmixed",
+                    tabSize        : 2,
+                    indentUnit     : 2,
+                    indentWithTabs : false,
+                    lineNumbers    : false,
+                    matchBrackets  : true,
+                    smartIndent    : true,
+                    /*extraKeys: {
+                        "Enter": function(e){
+                            insertAtCursor(null, "");
+                        }
+                    },*/
+                    onFocus:function(){},
+                    onBlur:function(){}
+                });
+        }
+        
+        
+        //preformat - break lines for co
+        var ele = $('<div>').html(content);
+        $.each(ele.find('div[data-heurist-app-id]'),function(i,el){
+            var s = $(el).text();
+            s = "\n"+s.replace(/,/g, ", \n");
+            $(el).text(s);
+        });
+        content = ele.html();
+        
+        if(window.hWin.HEURIST4.util.isempty(content)) content = ' ';
+        
+        codeEditor.setValue(content);
+        $('#codemirror-body').show();
+
+        //autoformat
+        setTimeout(function(){
+                    $('div.CodeMirror').css('height','100%').show();
+                    
+                    var totalLines = codeEditor.lineCount();  
+                    codeEditor.autoFormatRange({line:0, ch:0}, {line:totalLines});                    
+                    codeEditor.scrollTo(0,0);
+                    codeEditor.setCursor(0,0); //clear selection
+                    
+                    codeEditor.focus()
+                    //setTimeout(function(){;},200);
+                },500);
+    }
     
             
     //
@@ -334,15 +428,15 @@ function hCmsEditing(_options) {
     function __loadPageById( pageid ){
         
         if(pageid>0){
-            window.hWin.HEURIST4.msg.bringCoverallToFront($('body').find('.ent_wrapper'));
+            window.hWin.HEURIST4.msg.bringCoverallToFront(doc_body.find('.ent_wrapper'));
             
-            
-            //edit_dialog.find('#web_preview').attr('src', surl);                                            
-            
-            //var ele = $('#main-content').find('div[widgetid="heurist_Search"]');
-            //if(ele.length>0 && ele.search('instance')) ele.search('destroy');
             current_pageid = pageid;
-            main_content.empty().load(window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database
+
+            //main_content = doc_body.find('#main-content'); DEBUG
+            //main_content.html('LOADED '+pageid);return; DEBUG
+
+            main_content.empty();
+            main_content.load(window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database
                 +'&field=1&recid='+pageid, function()
                 {
                         var show_page_title = false;
@@ -358,41 +452,41 @@ function hCmsEditing(_options) {
                                 pagetitle.attr('date-empty',0);
                                 
                                 if(pageid==home_pageid){
-                                    window.hWin.HEURIST4.msg.showMsgFlash('Home page is empty. First menu item will be loaded');
+                                    window.hWin.HEURIST4.msg.showMsgFlash('Home page is empty. First menu item will be loaded',3000);
                                 }else{
                                     window.hWin.HEURIST4.msg.showMsgDlg(
                                         'This menu item does not have associated page content.'
                                         +'<br>It will not be selectable in the website. '
                                         +'<br>We recommend this for parent menus.',null,null,
-                                        {my:'left top', at:'left+200 top+100', of:$('#main-content-container')});    
+                                        {my:'left top', at:'left+200 top+100', of: doc_body.find('#main-content-container')});    
                                 }
                             }
                             
-                            var title_container = $('#main-pagetitle');
+                            var title_container = doc_body.find('#main-pagetitle');
                             if(title_container.length>0){
                                 //move page title to header - visibility is set in websiteRecord
-                                title_container.empty();
+                                title_container.empty().show();
                                 pagetitle.detach().appendTo(title_container);
                                 show_page_title = pagetitle.is(':visible');
                             }
                         }
-                        if($('#main-header').length>0 && $('#main-content-container').length>0){
-                            $('#main-header').height(show_page_title?180:144);
-                            $('#main-content-container').css({top:show_page_title?190:152});
+                        if(main_header.length>0 && doc_body.find('#main-content-container').length>0){
+                            main_header.height(show_page_title?180:144);
+                            doc_body.find('#main-content-container').css({top:show_page_title?190:152});
                         }
                         
                         
                         //assign content to editor
-                        $('.tinymce-body').val($('#main-content').html());
+                        $('.tinymce-body').val(main_content.html());
                         //init widgets 
                         
-                        LayoutMgr.appInitFromContainer( document, "#main-content" );
+                        LayoutMgr.appInitFromContainer( null, main_content ); //was document, "#main-content"
                         window.hWin.HEURIST4.msg.sendCoverallToBack();
                         
                         __alignButtons();
                         
                         //find all link elements
-                        $('#main-content').find('a').each(function(i,link){
+                        main_content.find('a').each(function(i,link){
                             
                             var href = $(link).attr('href');
                             if(href && href!='#'){
@@ -466,12 +560,13 @@ function hCmsEditing(_options) {
     //
     function __saveChanges( need_close, new_pageid ){
         
-        window.hWin.HEURIST4.msg.bringCoverallToFront($('body').find('.ent_wrapper'));
+        window.hWin.HEURIST4.msg.bringCoverallToFront(doc_body.find('.ent_wrapper'));
 
         var newval = '';
         if(_isDirectEditMode()){
            //save as is
-           newval = $('.tinymce-body').val();
+           //newval = $('.tinymce-body').val();
+           newval = codeEditor.getValue();
             
         }else{
            newval = __getEditorContent(); 
@@ -557,7 +652,7 @@ function hCmsEditing(_options) {
     function __hideEditor( new_pageid ){
             
             if(!_isDirectEditMode()){ //detach
-                tinymce.remove('.tinymce-body');
+                tinymce.remove('.tinymce-body'); //detach
             }
             $('#btn_inline_editor').show();
             $('#btn_inline_editor3').show();
@@ -569,9 +664,9 @@ function hCmsEditing(_options) {
             if(is_header_editor){
                 
                 
-                $('#main-header').html(header_content_raw);
+                main_header.html(header_content_raw);
                 
-                if($('#main-header').find('#main-menu').length==0){
+                if(main_menu.length==0){
                     window.hWin.HEURIST4.msg.showMsgDlg(
                         '<p>Warning: You have not specified the main menu in your html using '
                         +'&lt;div id="main menu"&gt;.</p>'
@@ -580,7 +675,7 @@ function hCmsEditing(_options) {
                 }
                 
                 //reinit widgtets in header
-                LayoutMgr.appInitFromContainer( document, "#main-header",
+                LayoutMgr.appInitFromContainer( null, main_header, //was document, "#main-header",
                     {heurist_Navigation:{menu_recIDs:home_pageid
                     , use_next_level:true
                     , orientation:'horizontal'
@@ -614,8 +709,8 @@ function hCmsEditing(_options) {
                     $('.tinymce-body').val(last_save_content); 
                     
                     if(was_modified){
-                        $('#main-content').html(last_save_content);
-                        LayoutMgr.appInitFromContainer( document, "#main-content" );
+                        main_content.html(last_save_content);
+                        LayoutMgr.appInitFromContainer( null, main_content); //was document, "#main-content" );
                     }
                 }
             }
@@ -623,8 +718,10 @@ function hCmsEditing(_options) {
             last_save_content = null;    
             was_modified = false;    
             $('.tinymce-body').hide();
-            $('#main-content').show();
-            $('#main-content').parent().css('overflow-y','auto');
+            $('#codemirror-body').hide();
+            
+            main_content.show();
+            main_content.parent().css('overflow-y','auto');
             $('#edit_mode').val(0).click();
 
             //exit edit mode
@@ -642,12 +739,12 @@ function hCmsEditing(_options) {
             $('#btn_inline_editor4').hide();
         }else{
             
-            var ele_header = $('#main-header');
+            var ele_header = main_header;
             
             if(ele_header.length==0){
                 
                 var tp = 5;
-                var lp = $('#main-content').width();
+                var lp = main_content.width();
                 $('#btn_inline_editor').css({position:'absolute',
                             top:tp, left:lp-190}).show();
                 $('#btn_inline_editor3').css({position:'absolute',
@@ -656,11 +753,12 @@ function hCmsEditing(_options) {
                     top:tp,left:lp-340}).hide();
                     
                 $('textarea.tinymce-body').css('top',30);
+                $('#codemirror-body').css('top',30);
             
             }else{
                 
-                var tp = $('#main-header').height()-($('#main-header').height()==180?15:-10);
-                var lp = $('#main-header').width();
+                var tp = main_header.height()-(main_header.height()==180?15:-10);
+                var lp = main_header.width();
                 $('#btn_inline_editor').css({position:'absolute',
                             top:tp,left:lp-190}).show();
                 $('#btn_inline_editor3').css({position:'absolute',
@@ -668,12 +766,12 @@ function hCmsEditing(_options) {
                 $('#btn_inline_editor5').css({position:'absolute',
                     top:tp,left:lp-340}).hide();
                 
-                //$('#btn_inline_editor').position({my:'right top',at:'right-90 top-15',of:$('#main-content')}).show();
-                //$('#btn_inline_editor3').position({my:'right top',at:'right-40 top-15',of:$('#main-content')}).show();
+                //$('#btn_inline_editor').position({my:'right top',at:'right-90 top-15',of:main_content}).show();
+                //$('#btn_inline_editor3').position({my:'right top',at:'right-40 top-15',of:main_content}).show();
                 
-                var ele = $('#main-pagetitle > h2');
+                var ele = doc_body.find('#main-pagetitle > h2');
                 if(ele.length>0){
-                    var pos = {my:'left top', at:'right+20 top+2', of:$('#main-pagetitle > h2')};   
+                    var pos = {my:'left top', at:'right+20 top+2', of: doc_body.find('#main-pagetitle > h2')};   
                     $('#btn_inline_editor4').position(pos).show();
                 }
                 
@@ -685,7 +783,7 @@ function hCmsEditing(_options) {
     
     //
     // adds widget-design-header and widget-options
-    // assigns events for edit/remove links on widget placeholder in timymce editor
+    // assigns events for edit/remove links on widget placeholder in tinymce editor
     //
     function __initWidgetEditLinks(widgetid){
 
@@ -773,7 +871,8 @@ function hCmsEditing(_options) {
                         var recordset = data.selection;
                         var record = recordset.getFirstRecord();
 
-                        var thumbURL = window.hWin.HAPI4.baseURL+'?db='+window.hWin.HAPI4.database
+                        //always add media as reference to production version of heurist code (not dev version)
+                        var thumbURL = window.hWin.HAPI4.baseURL_pro+'?db='+window.hWin.HAPI4.database
                         +"&thumb="+recordset.fld(record,'ulf_ObfuscatedFileID');
 
                         var playerTag = recordset.fld(record,'ulf_PlayerTag');
@@ -789,6 +888,66 @@ function hCmsEditing(_options) {
         window.hWin.HEURIST4.ui.showEntityDialog('recUploadedFiles', popup_options);
     }
 
+    //
+    // 1. Shows dialog with list of templates 
+    // 2. Loads template
+    // 3. Execute template script to replace template variables
+    // 4. Adds to content
+    // 5. Init edit/remove links
+    //
+    function __addTemplate(template_name){
+    
+
+        // 1. Shows dialog with list of templates 
+        var sURL = window.hWin.HAPI4.baseURL+'hclient/widgets/cms/templates/snippets/'+template_name+'.html';
+        var sURL2 = window.hWin.HAPI4.baseURL+'hclient/widgets/cms/templates/snippets/'+template_name+'.js';
+
+        // 2. Loads template
+        var ele = $('<div>').attr('data-template-temp',1).appendTo(doc_body).hide()
+        ele.load(sURL+'?t='+window.hWin.HEURIST4.util.random(),
+        function(){
+
+        var t_style = ele.find('style').text(); //style will be added to page css
+        
+        ele.on('oncomplete', function(event, data){
+            
+                // 4. Adds to tinymce
+                var content = ele.html();
+                tinymce.activeEditor.insertContent(content);
+                // 5. Init edit/remove links
+                __initWidgetEditLinks();
+                
+                //scroll to pos
+                if(data && data.widgetid){
+                    $(tinymce.activeEditor.getBody()).find('#'+data.widgetid).get(0).scrollIntoView();    
+                }
+                
+                ele.empty().remove(); //remove temp div
+                
+        });
+                        
+        if(template_name=='blog'){
+            // 3. Execute template script to replace template variables, adds filters and smarty templates
+            try{
+                $.getScript(sURL2, function(){
+                    //console.log('getScript');                
+                });
+            }catch(e){
+                alert('Error in template script');
+            }
+        }else{
+            var widgetid = (template_name=='discover')?ele.find('div[data-heurist-app-id="heurist_SearchTree"]'):0;
+            
+            ele.trigger('oncomplete',{widgetid:widgetid});
+        }
+
+        }); //on template load
+        
+        //$.get("http://www.mypage.com", function( my_var ) {
+            // my_var contains whatever that request returned
+        //});
+    }
+    
     //
     // defines widget to be inserted (heurist-app-id) and its options (heurist-app-options)
     //      
@@ -818,15 +977,15 @@ function hCmsEditing(_options) {
         //
         function __prepareWidgetDiv( widgetid, widget_old ){
             //var $dlg = window.hWin.HEURIST4.msg.getMsgDlg();
-            
-            
+
             var sel = $dlg.find('#widgetName');
             var widget_name = sel.val();
-            var widget_title = sel.find('option:selected').attr('data-name');
+            var widget_title = sel.find('option:selected').attr('data-name'); //not used
             var widgetCss = $dlg.find('#widgetCss').val();
             var groupContent = '';
             
             var opts = {};
+            opts['__widget_name'] = '========================== '+widget_name.toUpperCase().substring(8)+' ==========================';
             
             if(widget_name=='heurist_Map'){
                 
@@ -874,7 +1033,7 @@ function hCmsEditing(_options) {
                     var mapdoc_id = $dlg.find('select[name="mapdocument"]').val();
                     if(mapdoc_id>0) opts['mapdocument'] = mapdoc_id;
                     
-            }else 
+            }else
             if (widget_name=='heurist_Groups'){
                 
                 //find all inputs with class = tabs
@@ -917,7 +1076,8 @@ function hCmsEditing(_options) {
                 
                 
                     
-            }else{
+            }
+            else{
                 
                 var cont = $dlg.find('div.'+widget_name);
                 
@@ -933,7 +1093,7 @@ function hCmsEditing(_options) {
                     if(window.hWin.HEURIST4.util.isempty(menu_recIDs) || 
                       ($.isArray(menu_recIDs)&& (menu_recIDs.length==0||window.hWin.HEURIST4.util.isempty(menu_recIDs[0]))))
                     {
-                        window.hWin.HEURIST4.msg.showMsgErr('Please set at least one top menu item');                     
+                        window.hWin.HEURIST4.msg.showMsgErr('Please set at least one top level menu item');                     
                         return false;   
                     }
                     cont.find('input[name="menu_recIDs"]').val( menu_recIDs );
@@ -978,8 +1138,8 @@ function hCmsEditing(_options) {
                     if(selval==1){
                           window.hWin.HEURIST4.msg.showMsgErr('For "tree" mode you have to select groups to be displayed');
                           return false;
-                    }else if (window.hWin.HEURIST4.util.isempty(opts.allowed_svsIDs) && selval==0) { //individual searches are not defined
-                          window.hWin.HEURIST4.msg.showMsgErr('For "button" mode you have to select either groups or individual searches');
+                    }else if (window.hWin.HEURIST4.util.isempty(opts.allowed_svsIDs) && selval==0) { //individual filters are not defined
+                          window.hWin.HEURIST4.msg.showMsgErr('For "button" mode you must select either workgroups or filters individually');
                           return false;
                     }
                 }
@@ -989,9 +1149,10 @@ function hCmsEditing(_options) {
 //console.log(opts);          
             
             opts['init_at_once'] = true;
-            opts['search_realm'] = 'sr1';
+            opts['search_realm'] = $dlg.find('input[name="search_realm"]').val();
             
             var widget_options = JSON.stringify(opts);
+            
             /*var widget_options = '';//JSON.stringify(opts);
             for(var key in opts){
                 widget_options = widget_options+key+':'+opts[key]+';'                
@@ -1025,16 +1186,13 @@ function hCmsEditing(_options) {
 */                
 
             var content = '';
-            /*
-            if(window.hWin.HEURIST4.util.isempty(widget_old)){
-                content =  '<!-- =========================='+ widget_name +'======================= -->'; // + "\n";
-            }
-            */
+            
 
-            var content = content + '<div data-heurist-app-id="'+widget_name+'" '
+            var content = content = 
+                '<div data-heurist-app-id="'+widget_name+'" '
                 + ' style="'+ widgetCss+'" '
-                + ' id="'+widgetid+'" class="mceNonEditable"'
-                + '>' + widget_options +  '</div>';
+                + ' class="mceNonEditable" id="'+widgetid+'">'
+                + widget_options +  '</div>';
   
                 
             return content; 
@@ -1060,6 +1218,8 @@ function hCmsEditing(_options) {
             var opts = window.hWin.HEURIST4.util.isJSON(cfgele.text());
             
             if(opts!==false){
+
+                $dlg.find('input[name="search_realm"]').val(opts.search_realm);    
             
                 if(widget_name=='heurist_Map'){
                     
@@ -1190,7 +1350,7 @@ function hCmsEditing(_options) {
                         
                         if(!is_addition){  //edit
                             /*  old way it does not activeate noneditable
-                            var ele = $(content).appendTo($('body'));
+                            var ele = $(content).appendTo(doc_body);
                             tinymce.activeEditor.dom.replace( ele[0], tinymce.activeEditor.dom.get(widgetid_edit) );
                             */
                             
@@ -1221,7 +1381,7 @@ function hCmsEditing(_options) {
            default_palette_class: 'ui-heurist-publish',
            width:750,
            close: function(){
-               is_edit_widget_open = false;
+                is_edit_widget_open = false;
                 $dlg.dialog('destroy');       
                 $dlg.remove();
            },
@@ -1251,6 +1411,9 @@ function hCmsEditing(_options) {
                        }else if(val=='heurist_Search'){
                             s = s + 'border:0px solid gray;'
                             s = s + '\nheight:50px;\nwidth:400px;';        
+                       }else if(val=='heurist_recordAddButton'){
+                            s = s + 'border:1px solid gray;\ncolor:black;'
+                            s = s + '\nheight:26px;\nwidth:120px;';        
                        }else {
                            s = s + 'border:1px solid gray;'
                            if(val=='heurist_Navigation'){
@@ -1288,7 +1451,7 @@ function hCmsEditing(_options) {
                                 showclear_button: true,
                                 dtFields:{
                                     dty_Type:"resource", rst_MaxValues:0,
-                                    rst_DisplayName: 'Top menu items', rst_DisplayHelpText:'',
+                                    rst_DisplayName: 'Top level menu items', rst_DisplayHelpText:'',
                                     rst_PtrFilteredIDs: [window.hWin.HAPI4.sysinfo['dbconst']['RT_CMS_MENU'],
                                               window.hWin.HAPI4.sysinfo['dbconst']['RT_WEB_CONTENT']],
                                     rst_FieldConfig: {entity:'records', csv:false}
@@ -1329,6 +1492,35 @@ function hCmsEditing(_options) {
                        });
                        
                        
+
+                   }else 
+                   if (val=='heurist_recordAddButton'){
+                        
+                        var ele = dele.find('button[name="add_record_cfg"]');
+                        
+                        if(!ele.button('instance')){
+                        
+                            ele.button().click(
+                                function(){
+                                    window.hWin.HEURIST4.ui.showRecordActionDialog('recordAdd',{
+                                        title: 'Select record type',
+                                        height: 520,
+                                        get_params_only: true,
+                                        onClose: function(context){
+                                            if(context && context.RecTypeID>0){
+                                                dele.find('input[name="RecTypeID"]').val(context.RecTypeID);
+                                                dele.find('input[name="OwnerUGrpID"]').val(context.OwnerUGrpID);
+                                                dele.find('input[name="NonOwnerVisibility"]').val(context.NonOwnerVisibility);
+                                            }
+                                                
+                                        },
+                                        default_palette_class: 'ui-heurist-publish'                                        
+                                    }
+                                    );    
+                                }
+                            );
+                        }
+                
                    }else
                    if(val=='heurist_SearchTree'){
                        
@@ -1386,7 +1578,7 @@ function hCmsEditing(_options) {
                                 showclear_button: true,
                                 dtFields:{
                                     dty_Type:"resource", rst_MaxValues:1,
-                                    rst_DisplayName: 'EITHER Show all searches in these workgroups', 
+                                    rst_DisplayName: 'EITHER Show all filters in these workgroups', 
                                     rst_DisplayHelpText:'',
                                     rst_FieldConfig: {entity:'sysGroups', csv:true}
                                 },
@@ -1416,7 +1608,7 @@ function hCmsEditing(_options) {
                                 showclear_button: true,
                                 dtFields:{
                                     dty_Type:"resource", rst_MaxValues:1,
-                                    rst_DisplayName: 'OR Choose specific searches', rst_DisplayHelpText:'',
+                                    rst_DisplayName: 'OR Choose specific filters', rst_DisplayHelpText:'',
                                     rst_FieldConfig: {entity:'usrSavedSearches', csv:true}
                                 },
                                 change:function(){
@@ -1443,7 +1635,7 @@ function hCmsEditing(_options) {
                                 showclear_button: true,
                                 dtFields:{
                                     dty_Type:"resource", rst_MaxValues:1,
-                                    rst_DisplayName: 'Trigger this search on page load', rst_DisplayHelpText:'',
+                                    rst_DisplayName: 'Trigger this filter on page load', rst_DisplayHelpText:'',
                                     rst_FieldConfig: {entity:'usrSavedSearches', csv:false} 
                                 }
                             };
@@ -1490,7 +1682,7 @@ function hCmsEditing(_options) {
                            ele.editing_input({
                                 dtFields:{
                                     dty_Type:"resource", rst_MaxValues:1,
-                                    rst_DisplayName: 'Initial search', rst_DisplayHelpText:'',
+                                    rst_DisplayName: 'Initial filter', rst_DisplayHelpText:'',
                                     rst_FieldConfig: {entity:'usrSavedSearches', csv:false,
                                         initial_filter:ifilter, search_form_visible:(ifilter==null)    
                                     } 
@@ -1513,7 +1705,7 @@ function hCmsEditing(_options) {
                                     q: 't:'+window.hWin.HAPI4.sysinfo['dbconst']['RT_MAP_DOCUMENT'],w: 'a',
                                     detail: 'header',
                                     source: 'cms_edit'};
-                        //perform search        
+                        //perform filter        
                         window.hWin.HAPI4.RecordMgr.search(request,
                             function(response){
                                 
@@ -1581,6 +1773,75 @@ function hCmsEditing(_options) {
         
         
     }
+    
+    //
+    //
+    //
+    function __insertTemplate(){
+
+        var $dlg;
+
+        if(is_edit_widget_open) return;
+        is_edit_widget_open = true;
+        
+        var selected_template = null;
+        
+        var templates = {
+                def:{name:'Default', author:'Heurist team',
+                    description:'Simple placeholder'},
+                discover:{name:'Discover (filters/results/map)', author:'Unknown author',
+                    description:'Filters, result list and mapping'},            
+                blog:{name:'Blog posts', author:'Heurist team',
+                    description:'List of blog post with filter'}
+                };
+
+        var buttons= [
+                 {text:window.hWin.HR('Cancel'), 
+                    id:'btnCancel',
+                    css:{'float':'right','margin-left':'30px','margin-right':'20px'}, 
+                    click: function() { 
+                        $dlg.dialog( "close" );
+                    }},
+                 {text:window.hWin.HR('Insert'), 
+                    id:'btnDoAction',
+                    class:'ui-button-action',
+                    disabled:'disabled',
+                    css:{'float':'right'}, 
+                    click: function() { 
+                        if(selected_template){
+                            __addTemplate(selected_template);
+                            $dlg.dialog( "close" );    
+                        }
+                    }}];
+      
+        $dlg = window.hWin.HEURIST4.msg.showMsgDlgUrl(window.hWin.HAPI4.baseURL
+                +"hclient/widgets/cms/editCMS_SelectTemplate.html?t="+(new Date().getTime()), 
+                buttons, 'Select Template to insert to your Web Page', 
+        {  container:'cms-add-widget-popup',
+           default_palette_class: 'ui-heurist-publish',
+           width: 400,
+           height: 430,
+           close: function(){
+                is_edit_widget_open = false;
+                $dlg.dialog('destroy');       
+                $dlg.remove();
+           },
+           open: function(){
+                is_edit_widget_open = true;
+                
+                //load list of templates and init selector
+                $dlg.find('#templates').mouseover(function(e){
+                    window.hWin.HEURIST4.util.setDisabled( $dlg.parents('.ui-dialog').find('#btnDoAction'), false );
+                    var t_name = $(e.target).val();
+                    selected_template  = t_name;
+                    //$dlg.find('.template_author').html(templates[t_name]['author']);
+                    $dlg.find('.template_description').html(templates[t_name]['description']);
+                });
+               
+           }
+        });
+        
+    }
  
     //
     // opens record editor for current page
@@ -1611,7 +1872,7 @@ function hCmsEditing(_options) {
                 return;
         }
         
-        window.hWin.HEURIST4.msg.bringCoverallToFront($('body').find('.ent_wrapper'));        
+        window.hWin.HEURIST4.msg.bringCoverallToFront(doc_body.find('.ent_wrapper'));        
         var request = {a: 'delete',
                     recIDs: home_pageid,
                     dtyID: window.hWin.HAPI4.sysinfo['dbconst']['DT_CMS_HEADER']};
@@ -1734,7 +1995,7 @@ function hCmsEditing(_options) {
         /*setTimeout(function(){
         $('.mce-tinymce').css({position:'absolute',
         top:140,  //
-        bottom:20 //$('#main-content').css('bottom')
+        bottom:20 //main_content.css('bottom')
         });    
         },500);*/
 
@@ -1761,9 +2022,11 @@ function hCmsEditing(_options) {
             
             main_content.parent().css('overflow-y','hidden');
             main_content.hide();
-            //$('#edit_mode').val(1).click();//to disable left panel
-            $('.tinymce-body').show();
+            
             original_editor_content = $('.tinymce-body').val();
+
+            //$('.tinymce-body').show();
+            _initCodeEditor(original_editor_content);
             
         }
         window.hWin.HEURIST4.util.stopEvent(event);
@@ -1854,6 +2117,11 @@ function hCmsEditing(_options) {
         editWidget: function (wid) {
             __addEditWidget(wid);
         },
+
+        addTemplate: function (wid) {
+            __addTemplate(wid);
+        },
+
         
         loadPageById: function (pageid) {
             __iniLoadPageById(pageid)

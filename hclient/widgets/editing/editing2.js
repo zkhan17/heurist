@@ -292,7 +292,7 @@ function hEditing(_options) {
                          var div_prompt = $('<div>').text(headerHelpText)
                             .addClass('heurist-helper1')
                             .appendTo(newFieldContainer);
-                         if(currGroupType == 'tabs'){
+                         if(currGroupType == 'tabs' || currGroupType == 'accordion'){
                             div_prompt.addClass('tab-separator-helper')
                                 .attr('separator-dtid',fields[idx]['dtID']).css({padding:'5px 0 0 5px',display:'inline-block'});
                          }else{
@@ -403,7 +403,7 @@ function hEditing(_options) {
 
         if(entityConfig && entityConfig.entityDescription){
             //add description at the beginning of form
-            $('<div>').css({padding: '4px'}).addClass('heurist-helper2')
+            $('<div>').css({padding: '4px'}).addClass('heurist-helper2 entity-description')
                 .html(entityConfig.entityDescription).appendTo($container);
         }
         

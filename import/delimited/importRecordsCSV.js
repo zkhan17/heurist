@@ -3875,7 +3875,9 @@ function hImportRecordsCSV(_imp_ID, _max_upload_size, _format) {
         
     } 
     
-    
+    //
+    // Import Terms
+    //
     function _importNewTermsToAllFields($dlg, index, prepared_data){
 
         var btn_ads = $dlg.find('.add_terms');
@@ -4048,6 +4050,8 @@ function hImportRecordsCSV(_imp_ID, _max_upload_size, _format) {
     //
     function _importTerms($dlg, _prepareddata, is_all)
     {
+        _prepareddata = JSON.stringify(_prepareddata);
+        
         //save hierarchy - label can have dots    
         var request = {
             'a'          : 'batch',
@@ -4063,28 +4067,37 @@ function hImportRecordsCSV(_imp_ID, _max_upload_size, _format) {
                     if(response.status == window.hWin.ResponseStatus.OK){
 
                         var recIDs = response.data;
-                        
+
+                        //refresh local definitions
+                        window.hWin.HAPI4.EntityMgr.refreshEntityData('trm',
+                                    function(){
+                                        var cnt = $dlg.find('.add_terms').length;
+                                        var s = recIDs.length+' new term'
+                                                +((recIDs.length==1)?' was':'s were')+' imported. ';
+                                        if(cnt==1 || is_all){
+                                            $dlg.dialog('close');
+                                            window.hWin.HEURIST4.msg.showMsgErr(s+'Please repeat "Prepare" action'); 
+                                            
+                                        }else{
+                                            window.hWin.HEURIST4.msg.showMsgErr(s+'Check other "error" tabs '
+                                            +'to add missing terms for other enumeration fields. '
+                                            +'And finally close this dialog and repeat "Prepare" action'); 
+                                        }
+                                    }
+                        );
+                                    
+/*  @todo - remove. we don't use HEURIST4.terms anymore                        
                         window.hWin.HAPI4.SystemMgr.get_defs({terms:'all', mode:2}, function(response){
                             if(response.status == window.hWin.ResponseStatus.OK){
                                 
                                 window.hWin.HEURIST4.terms = response.data.terms;
                                 window.hWin.terms = response.data.terms;
                                 
-                                var cnt = $dlg.find('.add_terms').length;
-                                var s = recIDs.length+' new term'
-                                        +((recIDs.length==1)?' was':'s were')+' imported. ';
-                                if(cnt==1 || is_all){
-                                    $dlg.dialog('close');
-                                    window.hWin.HEURIST4.msg.showMsgErr(s+'Please repeat "Prepare" action'); 
-                                }else{
-                                    window.hWin.HEURIST4.msg.showMsgErr(s+'Check other "error" tabs '
-                                    +'to add missing terms for other enumeration fields. '
-                                    +'And finally close this dialog and repeat "Prepare" action'); 
-                                }
                             }else{
                                 window.hWin.HEURIST4.msg.showMsgErr('Cannot obtain term definitions to support import, possible database corruption, please consult Heurist developers');
                             }
                         });
+*/                        
                         
                     }else{
                         window.hWin.HEURIST4.msg.showMsgErr(response);

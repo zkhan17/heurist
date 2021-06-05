@@ -25,19 +25,35 @@
     * @package     Heurist academic knowledge management system
     * @subpackage  !!!subpackagename for file such as Administration, Search, Edit, Application, Library
     */
-define('OWNER_REQUIRED',1);   
+ 
 define('PDIR','../../');  //need for proper path to js and css    
 
 require_once(dirname(__FILE__).'/../../hclient/framecontent/initPageMin.php');
 
 /*
 if( $system->verifyActionPassword($_REQUEST['pwd'], $passwordForServerFunctions) ){
-    print $response = $system->getError()['message'];
+    ?>
+    
+    <form action="verifyConceptCodes4.php" method="POST">
+        <div style="padding:20px 0px">
+            Only an administrator (server manager) can carry out this action.<br />
+            This action requires a special system administrator password (not a normal login password)
+        </div>
+    
+        <span style="display: inline-block;padding: 10px 0px;">Enter password:&nbsp;</span>
+        <input type="password" name="pwd" autocomplete="off" />
+
+        <input type="submit" value="OK" />
+    </form>
+
+    <?php
     exit();
 }
 */
-
 ?>            
+
+<script>window.history.pushState({}, '', '<?php echo $_SERVER['PHP_SELF']; ?>')</script>  
+         
 <div style="font-family:Arial,Helvetica;font-size:12px">
             <p>This report shows </p>
 <?php            
@@ -70,8 +86,7 @@ $mysqli = $system->get_mysqli();
         
         if(false && $ver<3){
             /* databases without trm_VocabularyGroupID
-            $query = "SHOW COLUMNS FROM '.$db_name.'defTerms LIKE 'trm_VocabularyGroupID'";
-            if(!hasColumn($mysqli, $query)){
+            if(!hasColumn($mysqli, 'defTerms', 'trm_VocabularyGroupID', $db_name)){
                 print $db_name.'<br>';
             }
             */
@@ -79,9 +94,7 @@ $mysqli = $system->get_mysqli();
                     
             
             //is defTermLinks exist
-            $value = mysql__select_value($mysqli, 'SHOW TABLES FROM '.$db_name." LIKE 'defTermsLinks'");
-            $not_exist = ($value==null || $value=="");
-            if(!$not_exist){
+            if(!hasTable($mysqli, 'defTermsLinks', $db_name)){
                 array_push($db2_with_links,$db_name);    
             }
             
@@ -158,16 +171,6 @@ Show labels 3-1088  ( 2-6258 )  3-5084, 3-5085, 3-5086
         //verifySpatialVocab('Show labels','3-1088','2-6258');
             
             
-/*            
-            $query = "SHOW COLUMNS FROM ".$db_name.".sysIdentification LIKE 'sys_ExternalReferenceLookups'";
-            if(!hasColumn($mysqli, $query)){ //column not defined
-                $query = "ALTER TABLE ".$db_name.".sysIdentification ADD COLUMN `sys_ExternalReferenceLookups` TEXT default NULL COMMENT 'Record type-function-field specifications for lookup to external reference sources such as GeoNames'";
-                $res = $mysqli->query($query);
-                print $db_name.': sys_ExternalReferenceLookups added<br>';
-            }
-*/            
-            
-        
     }//while  databases
     
     if(count($db2_with_links)>0){
@@ -198,15 +201,6 @@ Show labels 3-1088  ( 2-6258 )  3-5084, 3-5085, 3-5086
     
     print '[end report]</div>';
     
-function hasColumn($mysqli, $query){
-    $res = $mysqli->query($query);
-    $row_cnt = 0;
-    if($res) {
-        $row_cnt = $res->num_rows; 
-        $res->close();
-    }
-    return ($row_cnt>0);
-}   
 //
 //
 // 

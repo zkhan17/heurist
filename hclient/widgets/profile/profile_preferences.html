@@ -58,7 +58,7 @@
 "javascript:(function(){"
     + "e=encodeURIComponent;d=document;h='" + window.hWin.HAPI4.baseURL + "';"
     + "if(location.protocol=='https:'){"
-        + "if(window.confirm('Only the URL and web page title can be extracted from https:// pages."
+        + "if(window.confirm('Only the URL, web page title and a page snapshot can be extracted from https:// pages."
                 + "\\nAdditional information will need to be set manually."
                 + "\\n\\nClick OK to add a record for this page.')){"
                     + "window.open(h+'?fmt=edit&db="+window.hWin.HAPI4.database
@@ -318,6 +318,11 @@
     <div id="custom_theme_div">
         <div class="header"><label>Interface colour scheme (detailed):</label></div>
         <input id="custom_theme" name="custom_theme" class="text ui-widget-content ui-corner-all"/>
+    </div>
+	
+	<div>
+        <div class="header"><label for="imageRecordEditor">Display images inline by default in the record editor</label></div>
+        <input type="checkbox" name="imageRecordEditor" id="imageRecordEditor" class="text ui-widget-content ui-corner-all"/>
     </div>
     
 

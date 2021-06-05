@@ -2267,6 +2267,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
                 "info" : false,
                 dom:"Bfrtip",
                 buttons:[
+
                     {
                         extend: 'csv',
                         className: 'exportButtons',
@@ -2388,6 +2389,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
 
         //Create the pie chart
         var pieCanvas = $('#pieResults');
+
         let colorsList = [
             '#f08080',
             '#7fffd4',
@@ -2402,7 +2404,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
             '#ff6666',
             '#ffc0cb'
             
-        ]
+        ];
 
         //Extract label and data values for pie chart
         let labelsNames = extractData('row', true);
@@ -3156,7 +3158,7 @@ function CrosstabsAnalysis(_query, _query_domain) {
             _resetIntervals(event);
         },
 
-        OnRowTypeChange: (value) => {
+        OnRowTypeChange: function(value) {
             _OnRowTypeChange(value)
         },
 

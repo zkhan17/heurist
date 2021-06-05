@@ -102,7 +102,9 @@ $.widget( "heurist.resultList", {
         transparent_background: false,
         
         aggregate_values: null, //supplementary values per record id - usually to store counts, sum, avg 
-        aggregate_link: null    //link to assigned to aggregate value label
+        aggregate_link: null,    //link to assigned to aggregate value label
+		
+		blog_result_list: false	//whether the result list is used for blog records, limiting pagesize if it is
     },
 
     _is_publication:false, //this is CMS publication - take css from parent
@@ -122,6 +124,7 @@ $.widget( "heurist.resultList", {
 
     _currentRecordset:null,
     _currentMultiSelection:null, //for select_multi - to keep selection across pages and queries
+    _fullRecordset:null, //keep full set for multiselection (to get records diregard current filters)
 
     _startupInfo:null,
 
@@ -140,7 +143,12 @@ $.widget( "heurist.resultList", {
         var that = this;
 
         if(this.options.pagesize<50 || this.options.pagesize>5000){
-            this.options.pagesize = window.hWin.HAPI4.get_prefs('search_result_pagesize');
+            if(this.options.blog_result_list==true){
+                this.options.pagesize = 10;
+            }
+            else{
+                this.options.pagesize = window.hWin.HAPI4.get_prefs('search_result_pagesize');
+            }
         }
 
         this._is_publication  = this.element.parent().attr('data-heurist-app-id');
@@ -1236,7 +1244,8 @@ $.widget( "heurist.resultList", {
         if(this.options.entityName!='records'){
 
             $('<div>').css('padding','10px')
-                .html('<h3 class="not-found" style="color:teal">No entites match the filter criteria</h3>')
+                .html('<h3 class="not-found" style="color:red;">Filter/s are active (see above)</h3><br />'
+                        + '<h3 class="not-found" style="color:teal">No entities match the filter criteria</h3>')
                 .appendTo(this.div_content);
             
         }else{
@@ -1426,7 +1435,7 @@ $.widget( "heurist.resultList", {
         var rectypeID = fld('rec_RecTypeID');
         var bkm_ID = fld('bkm_ID');
         var recTitle = fld('rec_Title'); 
-        var recTitle_strip_all = window.hWin.HEURIST4.util.stripTags(recTitle);
+        var recTitle_strip_all = window.hWin.HEURIST4.util.htmlEscape(window.hWin.HEURIST4.util.stripTags(recTitle));
         var recTitle_strip1 = window.hWin.HEURIST4.util.stripTags(recTitle,'u, i, b, strong');
         var recTitle_strip2 = window.hWin.HEURIST4.util.stripTags(recTitle,'a, u, i, b, strong');
         var recIcon = fld('rec_Icon');
@@ -2153,6 +2162,7 @@ $.widget( "heurist.resultList", {
 
                             $rdiv.addClass('expanded');
                             $rdiv.children().not('.recTypeThumb').hide();
+                            //show on hover as usual 
                             $rdiv.find('.action-button-container').show();
                             $rdiv.find('.action-button').removeClass('ui-button-icon-only');
                             if(window.hWin.HAPI4.has_access()){
@@ -2192,9 +2202,12 @@ $.widget( "heurist.resultList", {
                     if( this.options.rendererExpandInFrame ||  !isSmarty)
                     {
                         
+                        //var ele2 = that.div_content.find('.record-expand-info[data-recid='+recID+']');
+                        ele.addClass('loading');
+                        
                         $('<iframe>').attr('data-recid',recID)
                             .appendTo(ele)
-                            .addClass('loading')
+                            .css('opacity',0)
                             .attr('src', infoURL).on('load',function()
                             { 
                                 var _recID = $(this).attr('data-recid');
@@ -2219,7 +2232,8 @@ $.widget( "heurist.resultList", {
                                         }else{
                                             h = 300 //default value
                                         }
-                                        ele2.removeClass('loading').height(h);//+(h*0.05)    
+                                        ele2.height(h);//+(h*0.05)    
+                                        
                                     }
                                 }
                                 
@@ -2227,6 +2241,10 @@ $.widget( "heurist.resultList", {
 
                                 setTimeout(__adjustHeight, 2000);
                                 setTimeout(__adjustHeight, 4000);
+                                setTimeout(function(){
+                                    ele2.removeClass('loading');
+                                    ele2.find('iframe').css('opacity',1);
+                                }, 2100);
                                 //setTimeout(__adjustHeight, 10000);
                                 
                             }catch(e){
@@ -2274,6 +2292,13 @@ setTimeout("console.log('2. auto='+ele2.height());",1000);
     },
     
     //
+    // keeps full set for multiselection 
+    //
+    fullResultSet: function(recset){
+        this._fullRecordset = recset;
+    },
+    
+    //
     // trigger global event
     //
     triggerSelection: function(){
@@ -2301,6 +2326,8 @@ setTimeout("console.log('2. auto='+ele2.height());",1000);
                 return null;
             }else if(idsonly){
                 return this._currentMultiSelection; //.getIds();
+            }else if(this._fullRecordset){
+                return this._fullRecordset.getSubSetByIds(this._currentMultiSelection);
             }else{
                 return this._currentRecordset.getSubSetByIds(this._currentMultiSelection);
             }
@@ -2735,17 +2762,24 @@ setTimeout("console.log('2. auto='+ele2.height());",1000);
                 }
                 
                 var $__dlg = window.hWin.HEURIST4.msg.showMsgDlg(
-'<p>You have selected '+n
-+' records. This display mode loads complete information for each record and will take a long time to load and display all of these data.</p>'
-+s,
-{'Proceed' :function(){ 
-    callback.call();
-    $__dlg.dialog( "close" );
-},
-'Use simple display mode':function(){
-    that.applyViewMode('list');
-    $__dlg.dialog( "close" );
-}}, {title:'Warning'});
+                '<p>You have selected '+n
+                +' records. This display mode loads complete information for each record and will take a long time to load and display all of these data.</p>'
+                +s,
+                {'Proceed as is' :function(){ 
+                    callback.call();
+                    $__dlg.dialog( "close" );
+                },
+                'Single Line Display Mode (this time)':function(){
+                    that.applyViewMode('list');
+                    $__dlg.dialog( "close" );
+                },
+                'Switch to Single Display Mode':function(){
+                    that.applyViewMode('list');
+                    window.hWin.HAPI4.save_pref('rec_list_viewmode_'+that.options.entityName, 'list');
+                    $__dlg.dialog( "close" );
+                }
+                }, {title:'Warning'});
+				
             return true;          
         }else{
             return false;

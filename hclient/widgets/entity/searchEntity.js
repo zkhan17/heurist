@@ -117,6 +117,8 @@ $.widget( "heurist.searchEntity", {
         
         
             //EXTEND this.startSearch();
+            window.hWin.HEURIST4.ui.disableAutoFill( this.element.find( 'input' ) );
+            
     },  
     
     //

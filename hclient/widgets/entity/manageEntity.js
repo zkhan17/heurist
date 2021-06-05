@@ -247,7 +247,7 @@ $.widget( "heurist.manageEntity", {
         if(this.options.innerTitle){ 
             
             fele.children(0).css('top', '38px'); //down manager div to 38
-            
+			
             if(this.options.innerTitle===true){
                 this._innerTitle = $('<div>').addClass('ui-heurist-header')
                 .html('<span class="title">'+this.options['title']+'</span>')
@@ -786,7 +786,7 @@ $.widget( "heurist.manageEntity", {
                         });        
                         
             }else{
-                this.addEditRecord(-1);
+                this.addEditRecord(-1, true);
             }
     },
     
@@ -869,6 +869,11 @@ $.widget( "heurist.manageEntity", {
                 sh = sh + $(ele).height();
             }
         });
+        //description above edit form        
+        var ele = $dlg.find('.entity-description')
+        if(ele.length>0 && ele.is(':visible')){
+            sh = sh + ele.height();
+        }
         
         sh = sh+140
         
@@ -936,6 +941,20 @@ $.widget( "heurist.manageEntity", {
                         class: 'ui-button-action',
                         click: function() { that._selectAndClose(); }}); 
         }
+		
+		// Add extra save button to new base field for a record, replaces the original checkbox
+		if(this.options.newFieldForRtyID > 0){
+            btn_array.splice(1, 0, {
+                text:window.hWin.HR('Create and customise new field'),
+                id:'btnSaveExt',
+                css:{'display':'none','float':'right',margin:'.5em .8em .5em .4em'},
+                class:'ui-button-action',
+                click: function() {
+                    that._saveEditAndClose();
+                }
+            });
+        }
+		
         return btn_array;         
     },
 
@@ -1152,6 +1171,9 @@ $.widget( "heurist.manageEntity", {
         
     },
     
+    //
+    // returns context value that is passed as parameter to function options.onClose
+    //
     contextOnClose: function(){
         return null;  
     },
@@ -1459,7 +1481,7 @@ $.widget( "heurist.manageEntity", {
     // send update request and close popup if edit is in dialog
     // afteraction is used in overriden version of this method
     //
-    _saveEditAndClose: function( fields, afterAction ){
+    _saveEditAndClose: function( fields, afterAction, onErrorAction ){
 
             if(window.hWin.HAPI4.is_callserver_in_progress()) {
 //console.log('prevent repeatative call')
@@ -1483,9 +1505,9 @@ $.widget( "heurist.manageEntity", {
                 'entity'     : this.options.entity.entityName,
                 'request_id' : window.hWin.HEURIST4.util.random(),
                 'fields'     : fields,
-                'isfull'     : is_full  //
+                'isfull'     : is_full  //partial or full update (from edit form)
                 };
-             
+				
                 if(this.options.coverall_on_save) {
                     if(this.options.edit_mode=='popup' && this._edit_dialog || this.options.edit_mode=='editonly'){  
                         //window.hWin.HEURIST4.msg.bringCoverallToFront(this._edit_dialog.parents('.ui-dialog'));   
@@ -1515,7 +1537,8 @@ this._time_debug = fin_time;
                         if(response.status == window.hWin.ResponseStatus.OK){
 
                             var recID = response.data[0];
-                            fields[ that.options.entity.keyField ] = (''+recID);
+                            if(recID>0)
+                                fields[ that.options.entity.keyField ] = (''+recID);
                             
                             //update record in cache
                             if(that.options.use_cache && that._cachedRecordset){
@@ -1535,13 +1558,17 @@ this._time_debug = fin_time;
                             that._afterSaveEventHandler2( recID, fields );        
                             
                             if($.isFunction(afterAction)){
-                                afterAction.call(this, recID, fields);
+                                afterAction.call(that, recID, fields);
                             }else{
                                 that._afterSaveEventHandler( recID, fields );        
                             }
                             
                         }else{
-                            window.hWin.HEURIST4.msg.showMsgErr(response);
+                            if($.isFunction(onErrorAction)){
+                                onErrorAction.call(that, response);
+                            }else{
+                                window.hWin.HEURIST4.msg.showMsgErr(response);    
+                            }
                         }
                     });
     },      
@@ -1617,8 +1644,8 @@ this._time_debug = fin_time;
                             window.hWin.HEURIST4.msg.showMsgErr(response);
                         }
                     });
-    },       
-    
+    },    
+
     //
     // to override
     //
@@ -2026,7 +2053,7 @@ this._time_debug = fin_time;
     //
     // show edit form in popup dialog or rigth-hand panel
     //
-    addEditRecord: function(recID){
+    addEditRecord: function(recID, is_proceed){
         
         if(this.options.edit_mode == 'none') return;
         

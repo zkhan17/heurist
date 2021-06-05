@@ -851,7 +851,20 @@ dty_TermIDTreeNonSelectableIDs
                         && this._editing && this._editing.isModified();
         this.editForm.find('#btnRecSaveAndClose_rts').css('display', 
                 (isChanged)?'block':'none');
-            
+           
+        var btnSave = $(document).find('#btnRecSave');
+        var btnClose = $(btnSave[0].parentNode).find('button:contains("Close")')[1];
+        if (isChanged){
+            btnSave.prop('disabled', true);
+            $(btnClose).prop('disabled', true);
+            $(btnClose).css('opacity', '0.35');
+        }
+        else{
+            btnSave.prop('disabled', false);
+            $(btnClose).prop('disabled', false);
+            $(btnClose).css('opacity', '');
+        }
+		   
         if(this._toolbar){
             this._toolbar.find('#btnRecPreview_rts').css('display', 
                     (isChanged)?'none':'block');
@@ -977,6 +990,33 @@ dty_TermIDTreeNonSelectableIDs
                     }
                 }
             };
+            popup_options['multiselect'] = function(event, res)
+            {
+
+                that._cachedRecordset = $Db.rst(that.options.rty_ID); // ensure cache is update to date before updating
+                
+                if(res && res.selection){ // ensure that something has been sent
+                    if(window.hWin.HEURIST4.util.isArrayNotEmpty(res.selection)){ // ensure that fields have been sent
+                        
+                        var rst = {};
+
+                        if(!window.hWin.HEURIST4.util.isempty(res.rst_fields)){ // check if field requirements have been sent
+                            rst = res.rst_fields;
+                        }
+                        else{
+                            rst = {
+                                rst_RequirementType: that._editing.getValue('rst_RequirementType')[0], 
+                                rst_MaxValues: that._editing.getValue('rst_MaxValues')[0], 
+                                rst_DisplayWidth: that._editing.getValue('rst_DisplayWidth')[0] 
+                            };
+                        }
+
+                        var dty_IDs = res.selection;
+
+                        that.addMultiNewFields(dty_IDs, after_dty_ID, rst);
+                    }
+                }
+            };			
             that._lockDefaultEdit = false;
         }else{
             popup_options['onClose'] = function(){
@@ -1134,6 +1174,119 @@ console.log('No active tree node!!!!')
         });
 
     },
+	
+    //
+    // add several base fields at once to rectype, and update structure
+    //
+    addMultiNewFields: function(dty_IDs, after_dty_ID, rst_fields){
+
+        var that = this;
+
+        var idCnt = dty_IDs.length; // number of new fields
+        var rty_ID = that.options.rty_ID; // current rectype
+
+        if(window.hWin.HEURIST4.util.isempty(rst_fields)){
+            rst_fields = {};
+        }
+
+        var sel_fields = {};
+        sel_fields['fields'] = dty_IDs;
+        sel_fields['values'] = {};
+
+        // Add fields to rectyp structure, places the fields at the start of structure
+        for(var i = 0; i < idCnt; i++){
+            if(this._cachedRecordset.getById(dty_IDs[i])){ // Check if field is already a part of rectype
+                continue;
+            }
+
+            var id = dty_IDs[i];
+
+            var basefield_name = $Db.dty(id, 'dty_Name');
+
+            sel_fields['values'][id] = {dty_Name: basefield_name};
+        }
+
+        // Request to add all new base fields to rectype structure, this will place all new fields at the top
+        var request = {
+            'a': 'action',
+            'entity': 'defRecStructure',
+            'newfields': sel_fields,
+            'order': 0,
+            'rtyID': rty_ID,
+            'request_id': window.hWin.HEURIST4.util.random()
+        };
+
+        window.hWin.HAPI4.EntityMgr.doRequest(request, 
+            function(response){
+                if(response.status == window.hWin.ResponseStatus.OK){
+
+                    // re-structure tree to place new fields at the place the user requested
+                    for(var j = 0; j < idCnt; j++){
+                        var recID = dty_IDs[j];
+						
+                        request = {
+                            'a': 'search',
+                            'entity': that.options.entity.entityName,
+                            'details': 'list',
+                            'rst_RecTypeID': rty_ID,
+                            'rst_DetailTypeID': recID,
+                            'request_id': window.hWin.HEURIST4.util.random()
+                        }; // Retrieve field information
+
+                        window.hWin.HAPI4.EntityMgr.doRequest(request, 
+                            function(response){
+                                if(response.status == window.hWin.ResponseStatus.OK){
+                                    
+                                    var recset = hRecordSet(response.data); // get recset
+                                    var fields = recset.getRecord( response.data.order[0] ); // get fields from recset
+                                    fields['rst_ID'] = fields['rst_DetailTypeID']; // set id values
+                                    recID = fields['rst_DetailTypeID'];
+
+                                    that._cachedRecordset.setRecord(recID, fields); // update cached record
+                                    
+                                    var tree = that._treeview.fancytree("getTree"); // get fancytree to update
+                                    var parentnode;
+									// get parentnode for new leaf
+                                    if(after_dty_ID>0){
+                                        parentnode = tree.getNodeByKey(after_dty_ID);
+                                    }else{
+                                        parentnode = tree.rootNode;
+                                    }
+                                    if(!parentnode){ 
+                                        return;  
+                                    } 
+                                    
+                                    // insert node into rectype structured francytree
+                                    parentnode.addNode({key:recID}, 
+                                            (parentnode.isRootNode() || parentnode.folder==true)
+                                                                    ?'firstChild':'after');
+                                    if(parentnode.folder){
+                                        parentnode.setExpanded(true);
+                                    }
+                                    
+                                    that._stillNeedUpdateForRecID = 0;
+                                    
+                                    that._afterSaveEventHandler(recID, fields); // save general handler
+                                    
+                                    that._show_optional = (fields['rst_RequirementType']=='optional');
+
+                                    that._open_formlet_for_recID = recID;
+                                    //save new order, update preview and open formlet field editor (modify structure)
+                                    that._saveRtStructureTree();
+                                }
+                                else{
+                                    window.hWin.HEURIST4.msg.showMsgErr(response);
+                                }
+                            }
+                        );
+                    }
+                }
+                else{
+                    window.hWin.HEURIST4.msg.showMsgErr(response);
+                }
+            }
+        );
+    },
     
     //
     // show record editor form - it reflects the last changes of rt structure
@@ -1256,10 +1409,11 @@ console.log('No active tree node!!!!')
                         that._closeFormlet();
                     });
                 }else{
-                
+                    //make field edit formlet in "design" color
                     this.editForm
                         .css({'margin-left':'209px'})
-                        .removeClass('ent_content_full');
+                        .removeClass('ent_content_full ui-heurist-bg-light')
+                        .addClass('ui-heurist-design-fade');
                     
                     var ed_cont;
                     if(this.editForm.parent().hasClass('editor-container')){
@@ -1271,11 +1425,15 @@ console.log('No active tree node!!!!')
                         this.editForm.appendTo(ed_cont);
                     }
                     
+                    //remove bg color for previous label
+                    this.previewEditor.find('div.header').removeClass('ui-heurist-design-fade');    
+                    
                     if(isHeader){
                         //insert as fist child for header
                         ed_ele.prepend( ed_cont );
                         //ed_cont.appendTo(ed_ele); //prepend
                     }else{
+                        ed_ele.find('div.header').addClass('ui-heurist-design-fade');    
                         ed_cont.insertAfter(ed_ele);    
                     }
                     //for empty fieldsets
@@ -1283,10 +1441,22 @@ console.log('No active tree node!!!!')
                         this.editForm.parents('fieldset:first').show();
                     }
                     
-                    //expand accordion tab
+                    //expand accordion or tab
                     var ele = this.editForm.parents('.ui-accordion:first');
                     if(ele.length>0){
-                        ele.accordion( 'option', 'active', 0);
+                        
+                        var atab = this.editForm.parents('.ui-accordion-content');
+                        if(!atab.is(':visible')){
+                            var header_id = atab.attr('aria-labelledby');
+                            $.each(ele.find('.ui-accordion-header'),function(idx,item){
+                                if($(item).attr('id') == header_id){
+                                    ele.accordion( 'option', 'active', idx);            
+                                    return false;
+                                }
+                            });
+                        }
+                        
+                        
                     }else{
                         ele = this.editForm.parents('.ui-tabs');
                         if(ele.length>0){
@@ -1506,6 +1676,11 @@ console.log('No active tree node!!!!')
                     }
                 }); 
             }
+            
+            var ele = this._editing.getInputs('rst_DisplayName');
+            this._on( $(ele[0]), {
+                keypress: window.hWin.HEURIST4.ui.preventChars} );
+            
                 
         }
 
@@ -1517,30 +1692,40 @@ console.log('No active tree node!!!!')
         var btnSave = $('<button>').attr('id', 'btnRecSaveAndClose_rts')
                 .button({label:window.hWin.HR('Save')})
                 .css({'font-weight':'bold','float':'right',display:'none','margin-top':'2px','margin-right':'6px'})
+                .addClass('ui-button-action')
                 .appendTo(bottom_div);
             
         this._on( btnCancel,{click: function() { 
+            that.previewEditor.find('div[data-dtid='+that._currentEditID+']')
+                    .find('div.header').removeClass('ui-heurist-design-fade');
 
+            if(that._editing && that._editing.isModified() && that._currentEditID!=null){
+                var $dlg, buttons = {};
+                buttons['Save'] = function(){ that._saveEditAndClose(null, 'close'); $dlg.dialog('close'); }; 
+                buttons['Ignore and close'] = function(){ 
+                        that._closeFormlet(); 
+                        $dlg.dialog('close'); 
+                };
+				buttons['Cancel'] = function(){
+                    $dlg.dialog('close');
+                };
 
-                        if(that._editing && that._editing.isModified() && that._currentEditID!=null){
-                            var $dlg, buttons = {};
-                            buttons['Save'] = function(){ that._saveEditAndClose(null, 'close'); $dlg.dialog('close'); }; 
-                            buttons['Ignore and close'] = function(){ 
-                                    that._closeFormlet(); 
-                                    $dlg.dialog('close'); 
-                            };
-
-                            $dlg = window.hWin.HEURIST4.msg.showMsgDlg(
-                                'You have made changes to the data. Click "Save" otherwise all changes will be lost.',
-                                buttons,
-                                {title:'Confirm',yes:'Save',no:'Ignore and close'},
-                                {default_palette_class:this.options.default_palette_class});
-                        }else{
-                            that._closeFormlet();
-                        }
-                }});
+                $dlg = window.hWin.HEURIST4.msg.showMsgDlg(
+					'You have made changes to the field definition. Click "Save" to save the changes.',
+					buttons,
+					{title:'Confirm',yes:'Save',no:'Drop changes',close:'Cancel'},
+					{default_palette_class:this.options.default_palette_class});
+            }else{
+                that._closeFormlet();
+            }
+		}});
                 
-        this._on( btnSave, {click: function() { that._saveEditAndClose( null, 'close' ); }});
+		this._on( btnSave, {click: function() { 
+            that.previewEditor.find('div[data-dtid='+that._currentEditID+']')
+                    .find('div.header').removeClass('ui-heurist-design-fade');
+
+            that._saveEditAndClose( null, 'close' ); 
+		}});
         
         
         this._super();

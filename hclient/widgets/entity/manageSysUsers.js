@@ -426,6 +426,16 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
                     +     '<span class="ui-button-icon-primary ui-icon ui-icon-pencil"></span><span class="ui-button-text"></span>'
                     + '</div>&nbsp;&nbsp;';
                if(recID != 2){ //owner
+			   
+               /* New DB Owner needs to be enabled user */
+               /*
+					if (fld('ugr_Enabled')=='y'){	
+                        html = html
+                        + '<div title="Click to transfer DB Ownership" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only" role="button" aria-disabled="false" data-key="transferOwner" style="height:16px">'               
+                        +     '<span class="ui-button-icon-primary ui-icon ui-icon-transfer-e-w"></span><span class="ui-button-text"></span>'               
+                        + '</div>';
+                    }
+			   */
                     html = html      
                     + '<div title="Click to delete user" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-icon-only" role="button" aria-disabled="false" data-key="delete" style="height:16px">'
                     +     '<span class="ui-button-icon-primary ui-icon ui-icon-circle-close"></span><span class="ui-button-text"></span>'
@@ -479,7 +489,7 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
     _afterInitEditForm: function(){
 
         this._super();
-        
+
         var ugl_GroupID = this.searchForm.find('#input_search_group').val();
         if(ugl_GroupID>0 && !this._currentEditRecordset){ //insert       
 
@@ -496,6 +506,25 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
             ele.find('#btnRecRemove').hide();
         }
         
+        var btnTrOwner = this._toolbar.find('#btnTransferOwnership');
+        
+        if(this._currentEditID>0 && this._currentEditID!=2 && window.hWin.HAPI4.user_id()==2){
+            //add special button
+            if(btnTrOwner.length==0){
+                btnTrOwner = $('<button id="btnTransferOwnership">')
+                        .appendTo(this._toolbar);
+            }
+            btnTrOwner.button({
+                         label:'Transfer Ownership',icon:'ui-icon-transfer-e-w'})
+                        .css({'float':'left',margin:'.5em .4em 0 .5em'}).show();
+                        
+            this._on(btnTrOwner, {click:this._transferDBOwner});
+        }else{
+            if(btnTrOwner) btnTrOwner.hide();
+        }
+        
+            
+        
         if(!window.hWin.HAPI4.is_admin() || window.hWin.HAPI4.currentUser['ugr_ID']==this._currentEditID){
             var input_ele = this._editing.getFieldByName('ugr_Enabled');
             input_ele.hide();
@@ -507,8 +536,6 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
     // update list after save (refresh)
     //
     _afterSaveEventHandler: function( recID, fieldvalues ){
-
-        var o_enable = this.options.entity.fields[9].values;    // original setting for user enabled
 
         // close on addition of new record in select_single mode    
         if(this._currentEditID<0 && this.options.select_mode=='select_single'){
@@ -525,41 +552,6 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
         
         this._super( recID, fieldvalues );
         this.getRecordSet().setRecord(recID, fieldvalues);
-
-        if (o_enable == 'n')
-        {
-            if (fieldvalues.ugr_Enabled == 'y')
-            {
-                var email = this.options.entity.fields[4].values[0];    /* Email to */
-                var msg = 'Welcome to Heurist, your account (username: '+ this.options.entity.fields[6].values +') has been activated for use within the database '
-                            + window.hWin.HAPI4.database +'.';  /* Email message */
-                var subject = 'Heurist Registration - Account Enabled for Database: ' + window.hWin.HAPI4.database; /* Email subject */
-
-                var url = window.hWin.HAPI4.baseURL + 'hsapi/utilities/utils_mail.php';
-
-                $.ajax({
-                    url: url,
-                    type: "POST",
-                    data: {to: email, title: subject, msg: msg},
-                    cache: false,
-                    error: function( jqXHR, textStatus, errorThrown ) { 
-                        console.log(jqXHR.status);
-                        console.log(textStatus);
-                        console.log(errorThrown);
-                    },
-                    success: function( response ) {
-
-                        if (response == "ok") {
-                            console.log('Email Sent to Enabled User');
-                        }
-                        else {  /* Invalid Email or SMTP not setup */
-                            console.log('Error Sending an Email to Enabled User');
-                            console.log(response);
-                        }
-                    }
-                });
-            }
-        }
         
         if(this.options.edit_mode == 'editonly'){
             this.closeDialog(true); //force to avoid warning
@@ -578,5 +570,73 @@ $.widget( "heurist.manageSysUsers", $.heurist.manageEntity, {
                 'Are you sure you wish to delete this user?', function(){ that._deleteAndClose(true) }, 
                 {title:'Warning',yes:'Proceed',no:'Cancel'});        
         }
-    }    
+    },
+
+    /*
+     * Transfer DB Ownership to the selected User, will reload the page after completion to reset certain variables
+     * It shows Warning Message about Transfering Ownership to another user.
+     *
+     * Param: unconditionally (bool) -> DB Owner's agreement to complete task
+     */
+    _transferDBOwner: function(unconditionally){
+
+        if(this._currentEditID==null || this._currentEditID<1) return;
+
+        if(unconditionally===true){
+            
+            var request = {
+                'a': 'action',
+                'transferOwner': true,
+                'entity'     : this.options.entity.entityName,
+                'request_id' : window.hWin.HEURIST4.util.random(),
+                'recID'      : this._currentEditID 
+            };
+
+            var that = this;
+
+            window.hWin.HAPI4.EntityMgr.doRequest(request,
+                function(response){
+                    if(response.status == window.hWin.ResponseStatus.OK){
+
+                        var recID = that._currentEditID;
+                        that._afterTransferOwnerHandler(recID);
+                    
+                    }else{
+                        window.hWin.HEURIST4.msg.showMsgErr(response);
+                    }
+                }
+            );
+            
+        }else{
+            var that = this;
+            window.hWin.HEURIST4.msg.showMsgDlg(
+                'Are you sure you wish to transfer the ownership of this database to the selected user? This action can only be undone by the new owner.<br />'
+                +' <p style="font-size: 1.1em; font-weight: bold;">'
+                + 'Note: Heurist will need to logout and reload once the changes have been made, ensure you save and complete any additional tasks before proceeding.</p>',
+                function(){ that._transferDBOwner(true); },
+                {title:'Warning',yes:'Proceed',no:'Cancel'});
+        }
+    },
+    
+    /*
+     * After Action Handler for DB Ownership Tranfer, needs to logout the user and reload the page
+     */
+    _afterTransferOwnerHandler: function(recID){
+
+        window.hWin.HEURIST4.msg.showMsgFlash(this.options.entity.entityTitle + ' ' + window.hWin.HR('ownership has been transfered') + '.'
+            +'<br />Heurist will now refresh to set these changes.', 2000); // flash message
+
+        /* Trigger Logout and Reload */
+        window.hWin.HAPI4.SystemMgr.logout(
+            function(response){
+                if(response.status == window.hWin.ResponseStatus.OK){
+                    window.hWin.HAPI4.setCurrentUser(null);
+                    window.location.reload();  // page reload
+                }else{
+                    window.hWin.HEURIST4.msg.showMsgErr(response + ' <br/> Heurist is unable to refresh the page!');
+                }
+            }
+        );
+    }  
+    
 });
